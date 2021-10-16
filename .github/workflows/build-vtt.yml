@@ -64,7 +64,7 @@ jobs:
         with:
           lfs: true
       - name: Download Client Lib
-        uses: actions/download-arifact@v2
+        uses: actions/download-artifact@v2
         with:
           name: ${{matrix.builds.libName}}-client-lib
           path: client-godot/
