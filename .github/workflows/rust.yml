@@ -72,6 +72,7 @@ jobs:
   
   export-mac:
     name: Mac Export
+    needs: build-rust
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:3.3.4
@@ -102,6 +103,7 @@ jobs:
           
   export-linux:
     name: Linux Export
+    needs: build-rust
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:3.3.4
