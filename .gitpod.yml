@@ -1,3 +1,4 @@
-image: gitpod/workspace-dotnet-vnc
+image: 
+  file: .gitpod.Dockerfile
 tasks:
   - command: rustup override set beta && /home/gitpod/Godot_v3.3.4-stable_x11.64 --editor --path /workspace/new-vtt/client-godot
