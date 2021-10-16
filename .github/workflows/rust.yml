@@ -21,7 +21,7 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - run: rustup target add x86_64-pc-windows-gnu && rustup toolchain install beta-x86_64-pc-windows-gnu
-    - run: rustup target add x86_64-apple-darwin && rustup toolchain install x86_64-apple-darwin
+    - run: rustup target add x86_64-apple-darwin && rustup toolchain install beta-x86_64-apple-darwin
     - name: Build Linux
       run: cargo build --verbose --release
     - name: Build Windows
@@ -32,7 +32,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: client-lib
-        path: target/release/client-lib.*
+        path: target/*/client-lib.*
     - name: Upload Server
       uses: actions/upload-artifact@v2
       with:
