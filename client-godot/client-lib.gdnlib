@@ -7,10 +7,12 @@ reloadable=true
 
 [entry]
 
+OSX.64="res://libclient_lib.dylib"
 Windows.64="res://client_lib.dll"
 X11.64="res://libclient_lib.so"
 
 [dependencies]
 
+OSX.64=[  ]
 Windows.64=[  ]
 X11.64=[  ]
