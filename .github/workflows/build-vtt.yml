@@ -51,7 +51,7 @@ jobs:
             buildName: "Linux/X11"
           - libName: windows
             buildName: "Windows Desktop"
-          - libName: macox
+          - libName: macos
             buildName: "Mac OSX"
     
     runs-on: ubuntu-latest
