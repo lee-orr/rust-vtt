@@ -10,6 +10,4 @@ export_presets.cfg
 .mono/
 data_*/
 
-client_lib.dll
-client_lib.so
-client_lib.dylib
+*client_lib.*
