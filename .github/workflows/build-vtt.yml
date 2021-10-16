@@ -75,7 +75,7 @@ jobs:
       - name: ${{matrix.builds.buildName}} Build
         run: |
           mkdir -v -p build/${{matrix.builds.libName}}
-          cd $EXPORT_NAME
+          cd client-godot
           godot -v --export "${{matrix.builds.buildName}}" ../build/${{matrix.builds.libName}}/$EXPORT_NAME.exe
       - name: Upload Artifact
         uses: actions/upload-artifact@v1
