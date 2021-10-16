@@ -27,7 +27,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{matrix.os}}-client-lib
-          path: target/*/client-lib.*
+          path: target/release/client-lib.*
       - name: Upload Server
         uses: actions/upload-artifact@v2
         with:
