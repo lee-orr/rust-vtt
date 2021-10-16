@@ -18,6 +18,10 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
 
     steps:
+      - name: Add clang to $PATH
+        shell: bash
+        if: runner.os == 'Windows'
+        run: echo "PATH=$PATH:C:\msys64\mingw64\bin" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - run: rustup default beta
       - name: Build ${{matrix.os}}
