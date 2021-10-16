@@ -1,0 +1,36 @@
+name: Tests
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup default beta
+      - name: Run tests
+        run: cargo test --verbose
+
+  fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup default beta
+      - run: rustup component add rustfmt
+      - name: Run format
+        run: cargo fmt -- --check
+        
+  clippy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup default beta
+      - run: rustup component add clippy
+      - name: Run clippy
+        run: cargo clippy

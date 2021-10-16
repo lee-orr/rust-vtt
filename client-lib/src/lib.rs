@@ -37,10 +37,17 @@ impl Mover {
 
     #[export]
     fn _process(&self, owner: &Spatial, delta: f32) {
-        Spatial::translate(owner, Vector3 { x: 1. * delta, y: 0., z: 0., ..Default::default() });
+        Spatial::translate(
+            owner,
+            Vector3 {
+                x: 1. * delta,
+                y: 0.,
+                z: 0.,
+                ..Default::default()
+            },
+        );
     }
 }
-
 
 fn init(handle: InitHandle) {
     handle.add_class::<HelloWorld>();
