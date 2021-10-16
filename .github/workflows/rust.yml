@@ -21,11 +21,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      with:
-        lfs: true
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: nightly
     - name: Run tests
       run: cargo test --verbose
     - name: Build
