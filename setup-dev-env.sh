@@ -1,0 +1,1 @@
+rustup default beta && cargo install cargo-make && cargo install wasm-pack
