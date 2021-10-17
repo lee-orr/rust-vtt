@@ -2,5 +2,6 @@
 
 members = [
     "client-lib",
+    "client-bevy",
     "server"
 ]
