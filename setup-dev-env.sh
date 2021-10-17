@@ -1,1 +1,1 @@
-rustup default beta && cargo install cargo-make && cargo install wasm-pack
+rustup default beta && cargo install wasm-pack && cargo install http-server

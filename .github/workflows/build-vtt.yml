@@ -15,7 +15,7 @@ jobs:
       matrix:
         build: 
           - name: ubuntu
-            target: aarch64-unknown-linux-gnu
+            target: x86_64-unknown-linux-gnu
           - name: windows
             target: x86_64-pc-windows-gnu
           - name: macos-intel
@@ -38,4 +38,75 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{matrix.build.name}}-server
-          path: target/release/server.*
+          path: target/${{matrix.build.target}}/release/server*
+
+  build-native-client:
+    strategy:
+      matrix:
+        build: 
+          - name: ubuntu
+            target: x86_64-unknown-linux-gnu
+          - name: windows
+            target: x86_64-pc-windows-gnu
+          - name: macos-intel
+            target: x86_64-apple-darwin
+          - name: macos-m1
+            target: aarch64-apple-darwin
+          - name: android-arm64
+            target: aarch64-linux-android
+          - name: android-arm7
+            target: arm-linux-androideabi
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
+      - run: rustup target add ${{matrix.build.target}}
+      - name: Build ${{matrix.build.name}}
+        run: cargo build --verbose --release --target ${{matrix.build.target}}
+        working-directory: client-bevy
+      - uses: Swatinem/rust-cache@v1
+      - name: Assemble files
+        run: |
+          mkdir build
+          cp -r client-bevy/assets/ build/assets
+          cp target/${{matrix.build.target}}/release/client-* build
+      - name: Upload Client
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{matrix.build.name}}-client
+          path: build
+          
+
+  build-web-client:
+    strategy:
+      matrix:
+        build: 
+          - name: html5
+            target: wasm32-unknown-unknown
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
+      - run: rustup target add ${{matrix.build.target}}
+      - run: cargo install wasm-pack
+      - name: Build ${{matrix.build.name}}
+        run: wasm-pack build --target web --release -- --features web
+        working-directory: client-bevy
+      - uses: Swatinem/rust-cache@v1
+      - name: Assemble files
+        run: |
+          mkdir build
+          cp -r client-bevy/assets/ build/assets
+          cp -r client-bevy/pkg/ build/pkg
+          cp client-bevy/index.html build/
+      - name: Upload Client
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{matrix.build.name}}-client
+          path: build
