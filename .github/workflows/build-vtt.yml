@@ -10,75 +10,103 @@ env:
   EXPORT_NAME: vtt-client
 
 jobs:
-  build-rust:
+  build-server:
     strategy:
       matrix:
-        os: [ubuntu, windows, macos]
+        build: 
+          - name: ubuntu
+            target: x86_64-unknown-linux-gnu
+          - name: windows
+            target: x86_64-pc-windows-gnu
+          - name: macos-intel
+            target: x86_64-apple-darwin
+          - name: macos-m1
+            target: aarch64-apple-darwin
     
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install LLVM and Clang # required for bindgen to work, see https://github.com/rust-lang/rust-bindgen/issues/1797
-        uses: KyleMayes/install-llvm-action@32c4866ebb71e0949e8833eb49beeebed48532bd
-        if: matrix.os == 'windows'
-        with:
-          version: "11.0"
-          directory: ${{ runner.temp }}/llvm
-      - name: Set LIBCLANG_PATH
-        run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
-        if: matrix.os == 'windows'
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
       - run: rustup default beta
-      - name: Build ${{matrix.os}}
-        run: cargo build --verbose --release
+      - run: rustup target add ${{matrix.build.target}}
+      - name: Build ${{matrix.build.name}}
+        run: cargo build --verbose --release --target ${{matrix.build.target}}
+        working-directory: server
       - uses: Swatinem/rust-cache@v1
-      - name: Upload Client Lib
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{matrix.os}}-client-lib
-          path: target/release/*client_lib.*
       - name: Upload Server
         uses: actions/upload-artifact@v2
         with:
-          name: ${{matrix.os}}-server
-          path: target/release/server.*
-  build-godot:
-    needs: build-rust
+          name: ${{matrix.build.name}}-server
+          path: target/${{matrix.build.target}}/release/server*
+
+  build-native-client:
     strategy:
       matrix:
-        builds: 
-          - libName: ubuntu
-            buildName: "Linux/X11"
-          - libName: windows
-            buildName: "Windows Desktop"
-          - libName: macos
-            buildName: "Mac OSX"
+        build: 
+          - name: ubuntu
+            target: x86_64-unknown-linux-gnu
+          - name: windows
+            target: x86_64-pc-windows-gnu
+          - name: macos-intel
+            target: x86_64-apple-darwin
+          - name: macos-m1
+            target: aarch64-apple-darwin
+          - name: android-arm64
+            target: aarch64-linux-android
+          - name: android-arm7
+            target: arm-linux-androideabi
     
     runs-on: ubuntu-latest
-    container:
-      image: barichello/godot-ci:3.3.4
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          lfs: true
-      - name: Download Client Lib
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{matrix.builds.libName}}-client-lib
-          path: client-godot/
-      - name: Setup
+      - uses: actions/checkout@v2
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
+      - run: rustup target add ${{matrix.build.target}}
+      - name: Build ${{matrix.build.name}}
+        run: cargo build --verbose --release --target ${{matrix.build.target}}
+        working-directory: client-bevy
+      - uses: Swatinem/rust-cache@v1
+      - name: Assemble files
         run: |
-          mkdir -v -p ~/.local/share/godot/templates
-          mv /root/.local/share/godot/templates/${GODOT_VERSION}.stable ~/.local/share/godot/templates/${GODOT_VERSION}.stable
-      - name: ${{matrix.builds.buildName}} Build
-        run: |
-          mkdir -v -p build/${{matrix.builds.libName}}
-          cd client-godot
-          godot -v --export "${{matrix.builds.buildName}}" ../build/${{matrix.builds.libName}}/$EXPORT_NAME.exe
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v1
+          mkdir build
+          cp -r client-bevy/assets/ build/assets
+          cp target/${{matrix.build.target}}/release/client-* build
+      - name: Upload Client
+        uses: actions/upload-artifact@v2
         with:
-          name: ${{matrix.builds.libName}}-client
-          path: build/${{matrix.builds.libName}}
+          name: ${{matrix.build.name}}-client
+          path: build
+          
+
+  build-web-client:
+    strategy:
+      matrix:
+        build: 
+          - name: html5
+            target: wasm32-unknown-unknown
+    
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
+      - run: rustup target add ${{matrix.build.target}}
+      - run: cargo install wasm-pack
+      - name: Build ${{matrix.build.name}}
+        run: wasm-pack build --target web --release -- --features web
+        working-directory: client-bevy
+      - uses: Swatinem/rust-cache@v1
+      - name: Assemble files
+        run: |
+          mkdir build
+          cp -r client-bevy/assets/ build/assets
+          cp -r client-bevy/pkg/ build/pkg
+          cp client-bevy/index.html build/
+      - name: Upload Client
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{matrix.build.name}}-client
+          path: build

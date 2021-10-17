@@ -1,6 +1,6 @@
-FROM gitpod/workspace-dotnet-vnc
+FROM gitpod/workspace-full
 
+RUN sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
 RUN rustup default beta
-RUN cd /home/gitpod
-RUN wget https://downloads.tuxfamily.org/godotengine/3.3.4/Godot_v3.3.4-stable_x11.64.zip
-RUN unzip Godot_v3.3.4-stable_x11.64.zip -d /home/gitpod
+RUN cargo install wasm-pack
+RUN cargo install http-server
