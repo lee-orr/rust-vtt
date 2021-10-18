@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
-        if: matrix.build.os == ubuntu-latest
+        if: matrix.build.os == "ubuntu-latest"
       - run: rustup default beta
       - run: rustup target add ${{matrix.build.target}}
       - name: Build ${{matrix.build.name}}
