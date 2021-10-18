@@ -1,8 +1,8 @@
 pub struct Hello<'a> {
-    name: &'a str
+    name: &'a str,
 }
 
-impl Hello<'_>{
+impl Hello<'_> {
     pub fn say_hi(&self) -> String {
         format!("Hello {}", self.name)
     }
