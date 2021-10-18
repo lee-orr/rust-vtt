@@ -62,9 +62,6 @@ jobs:
           - name: macos-intel
             target: x86_64-apple-darwin
             os: macos-latest
-          - name: macos-m1
-            target: aarch64-apple-darwin
-            os: macos-latest
     
     runs-on: ${{matrix.build.os}}
 
