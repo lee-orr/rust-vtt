@@ -1,0 +1,1 @@
+cd client-bevy && cargo +nightly run --features dev
