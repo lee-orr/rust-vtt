@@ -1,1 +1,1 @@
-cd client-bevy && cargo +nightly run --features dev
+cd client-bevy && cargo +nightly -Zunstable-options -Zconfig-include --config ./.cargo/dev.config.toml run --features dev
