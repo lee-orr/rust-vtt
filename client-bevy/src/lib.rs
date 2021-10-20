@@ -13,14 +13,13 @@ pub fn run() {
         .add_plugin(EguiPlugin);
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    app
-        .add_startup_system(setup.system())
+    app.add_startup_system(setup.system())
         .add_system(ui.system())
         .run();
 }
 
 fn ui(egui_context: ResMut<EguiContext>) {
-    egui::Window::new("Hi").show(egui_context.ctx(), |ui|{
+    egui::Window::new("Hi").show(egui_context.ctx(), |ui| {
         ui.label("WORLD");
     });
 }
