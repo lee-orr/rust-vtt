@@ -1,6 +1,6 @@
 use clap::{App, Arg};
 use std::{
-    env::{self, current_dir},
+    env::{current_dir},
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     str::FromStr,
 };
@@ -43,18 +43,18 @@ async fn main() {
     let current_directory = String::from(current_dir().unwrap().to_str().unwrap_or_default());
     let directory = matches
         .value_of("directory")
-        .unwrap_or(current_directory.as_str());
+        .unwrap_or_else(|| current_directory.as_str());
 
     println!("Host: {}", host);
     println!("Port: {}", port);
     println!("Directory: {}", directory);
 
-    let host_addr = SocketAddr::from_str(format!("{}:{}", host, port).as_str()).unwrap_or(
+    let host_addr = SocketAddr::from_str(format!("{}:{}", host, port).as_str()).unwrap_or_else(|_|
         SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 3030)),
     );
 
     // GET /hello/warp => 200 OK with body "Hello, warp!"
     let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
 
-    warp::serve(hello).run(hostAddr).await;
+    warp::serve(hello).run(host_addr).await;
 }
