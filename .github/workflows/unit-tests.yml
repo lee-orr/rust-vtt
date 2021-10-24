@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
       - name: Run tests
         run: cargo test --verbose
       - uses: Swatinem/rust-cache@v1
@@ -22,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
       - run: rustup component add rustfmt
       - name: Run format
         run: cargo fmt -- --check
@@ -33,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
       - run: rustup component add clippy
       - name: Run clippy
         run: cargo clippy

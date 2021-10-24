@@ -37,6 +37,7 @@ jobs:
       - name: Set LIBCLANG_PATH
         run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
         if: matrix.config.os == 'windows'
+      - run: rustup default beta
       - run: rustup target add ${{matrix.build.target}}
       - name: Build ${{matrix.build.name}}
         run: cargo build --verbose --release --target ${{matrix.build.target}}
@@ -77,6 +78,7 @@ jobs:
         if: matrix.config.os == 'windows'
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
         if: matrix.build.os == 'ubuntu-latest'
+      - run: rustup default beta
       - run: rustup target add ${{matrix.build.target}}
       - name: Build ${{matrix.build.name}}
         run: cargo build --verbose --release --target ${{matrix.build.target}} --features native
@@ -106,6 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev
+      - run: rustup default beta
       - run: rustup target add ${{matrix.build.target}}
       - run: cargo install wasm-pack
       - name: Build ${{matrix.build.name}}
