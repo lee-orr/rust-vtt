@@ -1,12 +1,11 @@
 use clap::{App, Arg};
 use dirs::document_dir;
 use sled::{self, Db};
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    path::PathBuf,
-    str::FromStr,
-};
-use warp::Filter;
+use tokio::sync::{mpsc, RwLock};
+use std::{collections::HashMap, net::{Ipv4Addr, SocketAddr, SocketAddrV4}, path::PathBuf, str::FromStr, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
+use warp::{Filter, ws::{Message, WebSocket}};
+use futures_util::{SinkExt, StreamExt, TryFutureExt};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 fn parse_arguments() -> (SocketAddr, PathBuf) {
     let matches = App::new("VTT Server")
@@ -65,6 +64,10 @@ fn setup_database(directory: &PathBuf) -> Result<Db, sled::Error> {
     file.push("vtt_db");
     sled::open(file.as_os_str())
 }
+
+static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
+type Clients = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Message>>>>;
+
 #[tokio::main]
 async fn main() {
     println!("Running VTT Server");
@@ -76,8 +79,61 @@ async fn main() {
         // GET /hello/warp => 200 OK with body "Hello, warp!"
         let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
 
-        warp::serve(hello).run(host_addr).await;
+        let clients = Clients::default();
+        let clients = warp::any().map(move || clients.clone());
+
+        let ws = warp::path("ws")
+            .and(warp::ws())
+            .and(clients)
+            .map(|socket: warp::ws::Ws, clients| {
+                socket.on_upgrade(move |socket| client_connected(socket, clients))
+            });
+
+        warp::serve(hello.or(ws)).run(host_addr).await;
     } else {
         println!("Failed to set up database");
     }
+}
+
+async fn client_connected(ws: WebSocket, clients: Clients) {
+    let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
+    println!("Client {} Connected", my_id);
+    let (mut user_ws_tx, mut user_ws_rx) = ws.split();
+    let (tx, rx) = mpsc::unbounded_channel();
+
+    let mut rx = UnboundedReceiverStream::new(rx);
+
+    tokio::task::spawn(async move {
+        while let Some(message) = rx.next().await {
+            user_ws_tx
+                .send(message)
+                .unwrap_or_else(|error| {
+                    eprintln!("Websocket Send Error: {}", error);
+                })
+                .await;
+        }
+    });
+
+    clients.write().await.insert(my_id, tx);
+
+    while let Some(result) = user_ws_rx.next().await {
+        let msg = match result {
+            Ok(msg) => msg,
+            Err(e) => {
+                eprint!("Error {}: {}", my_id, e);
+                break;
+            },
+        };
+        if let Ok(s) = msg.to_str() {
+            let formatted = format!("{}: {}", my_id, s);
+            for (&uid, tx) in clients.read().await.iter() {
+                 let result = tx.send(Message::text(formatted.clone()));
+                 if let Ok(_) = result {} else {
+                     eprint!("Sending error to {}", uid);
+                 }
+            }
+        }
+    }
+
+    println!("{} Disconnected", my_id);
 }
