@@ -1,3 +1,5 @@
+pub mod socket;
+
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use wasm_bindgen::prelude::*;
