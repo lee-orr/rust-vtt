@@ -57,6 +57,7 @@ fn setup_database(directory: &PathBuf) -> Result<Db, sled::Error> {
     file.push("vtt_db");
     sled::open(file.as_os_str())
 }
+
 #[tokio::main]
 async fn main() {
     println!("Running VTT Server");

@@ -1,4 +1,2 @@
 image: 
   file: .gitpod.dockerfile
-tasks:
-  - command: rustup override set beta
