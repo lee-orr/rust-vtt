@@ -1,0 +1,12 @@
+[package]
+name = "client-bevy-native"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+dev = [
+    "client-bevy/dev"
+]
+
+[dependencies]
+client-bevy = { path = "../client-bevy"}

@@ -886,6 +886,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "client-bevy-native"
+version = "0.1.0"
+dependencies = [
+ "client-bevy",
+]
+
+[[package]]
 name = "client-lib"
 version = "0.1.0"
 

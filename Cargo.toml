@@ -4,5 +4,6 @@ resolver = "2"
 members = [
     "client-lib",
     "client-bevy",
+    "client-bevy-native",
     "server"
 ]

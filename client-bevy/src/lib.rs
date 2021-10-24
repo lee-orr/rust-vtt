@@ -1,5 +1,8 @@
+pub mod communications;
+
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -10,7 +13,8 @@ pub fn run() {
     let mut app = App::build();
     app.insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
-        .add_plugin(EguiPlugin);
+        .add_plugin(EguiPlugin)
+        .add_plugin(CommunicationsPlugin);
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
     app.add_startup_system(setup.system())
