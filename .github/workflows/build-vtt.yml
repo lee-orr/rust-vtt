@@ -81,7 +81,7 @@ jobs:
       - run: rustup default beta
       - run: rustup target add ${{matrix.build.target}}
       - name: Build ${{matrix.build.name}}
-        run: cargo build --verbose --release --target ${{matrix.build.target}} --features native
+        run: cargo build --verbose --release --target ${{matrix.build.target}}
         working-directory: client-bevy-native
       - uses: Swatinem/rust-cache@v1
       - name: Assemble files
