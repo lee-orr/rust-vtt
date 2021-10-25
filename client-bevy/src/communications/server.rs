@@ -1,11 +1,21 @@
-use std::{collections::HashMap, net::SocketAddr, sync::{Arc, Mutex, atomic::{AtomicI32, AtomicUsize}}};
-use async_compat::Compat;
-use crossbeam_channel::{Sender, unbounded, Receiver};
-use futures_util::{SinkExt, StreamExt};
-use tokio::{net::{TcpListener, TcpStream}};
-use bevy::{prelude::*, tasks::IoTaskPool};
-use tokio_tungstenite::{accept_async, tungstenite::{Error, Message}};
 use super::shared::*;
+use async_compat::Compat;
+use bevy::{prelude::*, tasks::IoTaskPool};
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use futures_util::{SinkExt, StreamExt};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicI32, AtomicUsize},
+        Arc, Mutex,
+    },
+};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_tungstenite::{
+    accept_async,
+    tungstenite::{Error, Message},
+};
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -20,19 +30,20 @@ pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app
-            .add_system_set(
-                SystemSet::on_enter(ServerState::Open)
-                    .with_system(setup_server.system())  
-            )
-            .add_system_set(
-                SystemSet::on_update(ServerState::Open)
-                    .with_system(message_system.system())
-            );
+        app.add_system_set(
+            SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
+        )
+        .add_system_set(
+            SystemSet::on_update(ServerState::Open).with_system(message_system.system()),
+        );
     }
 }
 
-fn setup_server(mut commands: Commands, communication: Res<CommunicationResource>, task_pool: Res<IoTaskPool>) {
+fn setup_server(
+    mut commands: Commands,
+    communication: Res<CommunicationResource>,
+    task_pool: Res<IoTaskPool>,
+) {
     if (!communication.running) {
         eprintln!("Not running");
         return;
@@ -45,7 +56,12 @@ fn setup_server(mut commands: Commands, communication: Res<CommunicationResource
         let (client_to_game_sender, client_to_game_receiver) = unbounded::<String>();
 
         task_pool
-            .spawn(Compat::new(tokio_setup(addr.clone(), clients.clone(), client_to_game_sender))).detach();
+            .spawn(Compat::new(tokio_setup(
+                addr.clone(),
+                clients.clone(),
+                client_to_game_sender,
+            )))
+            .detach();
         commands.insert_resource(clients);
         commands.insert_resource(client_to_game_receiver);
     } else {
@@ -61,7 +77,12 @@ async fn tokio_setup(address: String, clients: Clients, client_to_game_sender: S
             let peer = stream.peer_addr().expect("Should have peer address");
             println!("Peer connected: {}", peer);
 
-            tokio::spawn(accept_connection(peer, stream, clients.clone(), client_to_game_sender.clone()));
+            tokio::spawn(accept_connection(
+                peer,
+                stream,
+                clients.clone(),
+                client_to_game_sender.clone(),
+            ));
         }
     } else if let Err(error) = listener {
         eprintln!("Couldn't listen on the port. {}", &error);
@@ -82,15 +103,28 @@ async fn accept_connection(
     }
 }
 
-async fn handle_connection(peer: SocketAddr, stream: TcpStream, clients: Clients, client_to_game_sender: Sender<String>) -> Result<(), Error> {
-    let ws_stream = accept_async(stream).await.expect("Couldn't accept connection");
+async fn handle_connection(
+    peer: SocketAddr,
+    stream: TcpStream,
+    clients: Clients,
+    client_to_game_sender: Sender<String>,
+) -> Result<(), Error> {
+    let ws_stream = accept_async(stream)
+        .await
+        .expect("Couldn't accept connection");
     println!("Accepted Connection {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let (game_to_client_sender, mut game_to_client_receiver) = tokio::sync::mpsc::channel(100);
     let id = NEXT_USER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     {
         let lock = clients.lock();
-        lock.unwrap().insert(id, Client { id: id, sender: game_to_client_sender });
+        lock.unwrap().insert(
+            id,
+            Client {
+                id: id,
+                sender: game_to_client_sender,
+            },
+        );
     }
 
     loop {
@@ -135,7 +169,7 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream, clients: Clients
 
 fn message_system(clients: Res<Clients>, client_to_game_receiver: Res<Receiver<String>>) {
     let mut clients = clients.lock().unwrap();
-    let mut failures : Vec<usize> = Vec::new();
+    let mut failures: Vec<usize> = Vec::new();
     for (id, client) in clients.iter() {
         if let Ok(_) = client.sender.try_send("Sent a message".to_string()) {
         } else {

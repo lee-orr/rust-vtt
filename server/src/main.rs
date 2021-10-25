@@ -60,8 +60,7 @@ fn parse_arguments() -> (SocketAddr, PathBuf) {
     (host_addr, PathBuf::from_str(directory).unwrap_or_default())
 }
 
-fn setup_database(directory: &PathBuf) -> Result<Db, sled::Error> {
-    let mut file = directory.clone();
+fn setup_database(mut file: PathBuf) -> Result<Db, sled::Error> {
     file.push("vtt_db");
     sled::open(file.as_os_str())
 }
@@ -70,9 +69,9 @@ async fn main() {
     println!("Running VTT Server");
     let (host_addr, directory) = parse_arguments();
 
-    let db_result = setup_database(&directory);
+    let db_result = setup_database(directory.clone());
 
-    if let Ok(_) = db_result {
+    if db_result.is_ok() {
         // GET /hello/warp => 200 OK with body "Hello, warp!"
         let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
 

@@ -19,9 +19,8 @@ impl Default for CommunicationState {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum ServerState {
     Closed,
-    Open
+    Open,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ClientState {
