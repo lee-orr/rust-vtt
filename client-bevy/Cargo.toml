@@ -38,6 +38,12 @@ bevy_webgl2 = { version = "0.5.0", optional = true }
 console_error_panic_hook = "0.1"
 bevy_egui = "0.7"
 async-compat = "0.2"
+crossbeam-channel = "0.5.1"
+futures-channel = "0.3"
+tokio = { version = "1.0.0", default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread", "time", "sync"] }
+url = "2.0.0"
+tokio-tungstenite = "*"
+futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 
 [profile.dev]
 opt-level = 1

@@ -895,6 +895,12 @@ dependencies = [
  "bevy_egui",
  "bevy_webgl2",
  "console_error_panic_hook",
+ "crossbeam-channel",
+ "futures-channel",
+ "futures-util",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
  "wasm-bindgen",
  "winit 0.25.0",
 ]

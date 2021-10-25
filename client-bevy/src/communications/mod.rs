@@ -1,33 +1,25 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
+pub mod shared;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 
+use shared::*;
+use server::*;
+
 pub struct CommunicationsPlugin;
-
-#[derive(Default)]
-pub struct CommunicationResource {
-    state: CommunicationState,
-    running: bool,
-}
-
-pub enum CommunicationState {
-    None,
-    Server { port: u16 },
-    Client { url: String },
-}
-
-impl Default for CommunicationState {
-    fn default() -> Self {
-        CommunicationState::None
-    }
-}
 
 const DEFAULT_PORT: u16 = 4867;
 
 impl Plugin for CommunicationsPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.init_resource::<CommunicationResource>()
+    fn build(&self, app: &mut AppBuilder) {    
+        #[cfg(not(target_arch = "wasm32"))]
+        app
+            .add_plugin(ServerPlugin);
+            
+        app
+            .init_resource::<CommunicationResource>()
             .add_system(display_connection_ui.system());
     }
 }
@@ -35,6 +27,7 @@ impl Plugin for CommunicationsPlugin {
 fn display_connection_ui(
     egui_context: ResMut<EguiContext>,
     mut communications: ResMut<CommunicationResource>,
+    mut app_state: ResMut<State<ServerState>>,
 ) {
     egui::Window::new("Connection").show(egui_context.ctx(), |ui| {
         let mut is_server = false;
@@ -96,6 +89,7 @@ fn display_connection_ui(
 
                     if ui.button("Start Host").clicked() {
                         communications.running = true;
+                        app_state.push(ServerState::Open);
                         println!("Starting Host")
                     }
                 } else {
