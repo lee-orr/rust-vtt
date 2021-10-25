@@ -57,7 +57,7 @@ fn setup_client(mut commands: Commands, communication: Res<CommunicationResource
         #[cfg(feature = "native")]
         task_pool
             .spawn(Compat::new(tokio_setup(url.clone(), client_to_game_sender, game_to_client_receiver))).detach();
-        #[cfg(not(feature = "native"))]
+        #[cfg(feature = "web")]
         task_pool.spawn(tokio_setup(url.clone(), client_to_game_sender, game_to_client_receiver)).detach();
         commands.insert_resource(client_to_game_receiver);
         client.sender = Some(game_to_client_sender);
