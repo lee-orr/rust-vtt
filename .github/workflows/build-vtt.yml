@@ -87,7 +87,7 @@ jobs:
         run: |
           mkdir build
           cp -r client-bevy-native/assets/ build/assets
-          cp target/${{matrix.build.target}}/release/client-* build
+          cp target/release/client-* build
       - name: Upload Client
         uses: actions/upload-artifact@v2
         with:
