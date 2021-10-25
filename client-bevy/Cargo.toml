@@ -13,11 +13,18 @@ default = [
     "bevy/bevy_gltf",
     "bevy/bevy_winit",
     "bevy/render",
-    "bevy/png"
+    "bevy/png",
+    "tokio/rt-multi-thread", 
+    "tokio/macros",
+    "tokio/time",
+    "tokio/sync",
 ]
 
 native = [
-    "bevy/bevy_wgpu"
+    "bevy/bevy_wgpu",
+    "tokio/io-std",
+    "tokio/net",
+    "tokio-tungstenite/connect",
 ]
 
 web = [
@@ -40,10 +47,11 @@ bevy_egui = "0.7"
 async-compat = "0.2"
 crossbeam-channel = "0.5.1"
 futures-channel = "0.3"
-tokio = { version = "1.0.0", default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread", "time", "sync"] }
+tokio = { version = "1.0.0", default-features = false }
 url = "2.0.0"
-tokio-tungstenite = "*"
+tokio-tungstenite = { version = "0.15.0", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
+ws_stream_wasm = { version = "0.7", features = ["tokio_io"] }
 
 [profile.dev]
 opt-level = 1

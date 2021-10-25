@@ -7,12 +7,6 @@ use bevy::{prelude::*, tasks::IoTaskPool};
 use tokio_tungstenite::{accept_async, tungstenite::{Error, Message}};
 use super::shared::*;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum ServerState {
-    Closed,
-    Open
-}
-
 #[derive(Debug, Clone)]
 pub struct Client {
     pub id: usize,
@@ -27,7 +21,6 @@ pub struct ServerPlugin;
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-            .add_state(ServerState::Closed)
             .add_system_set(
                 SystemSet::on_enter(ServerState::Open)
                     .with_system(setup_server.system())  
@@ -95,7 +88,10 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream, clients: Clients
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let (game_to_client_sender, mut game_to_client_receiver) = tokio::sync::mpsc::channel(100);
     let id = NEXT_USER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    clients.lock().unwrap().insert(id, Client { id: id, sender: game_to_client_sender });
+    {
+        let lock = clients.lock();
+        lock.unwrap().insert(id, Client { id: id, sender: game_to_client_sender });
+    }
 
     loop {
         tokio::select! {
@@ -107,31 +103,48 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream, clients: Clients
                             let msg = msg.to_string();
                             println!("Recieved {} from {}", msg, id);
                             client_to_game_sender.send(msg).expect("couldn't send message")
+                        } else {
+                            break;
                         }
                     },
-                    None => break,
+                    None => {
+                        println!("Stream ended for {}", id);
+                        break;
+                    },
                 }
             },
             game_msg = game_to_client_receiver.recv() => {
                 let game_msg = game_msg.unwrap();
-                ws_sender.send(Message::Text(game_msg)).await?;
+                println!("Sending message {} to {}", game_msg, id);
+                let result = ws_sender.send(Message::Text(game_msg)).await;
+                if let Err(error) = result {
+                    break;
+                }
             }
         }
     }
 
-    clients.lock().unwrap().remove(&id);
+    {
+        let lock = clients.lock();
+        lock.unwrap().remove(&id);
+    }
     println!("Client Disconnected {}", peer);
 
     Ok(())
 }
 
 fn message_system(clients: Res<Clients>, client_to_game_receiver: Res<Receiver<String>>) {
-    for (_id, client) in clients.lock().unwrap().iter() {
+    let mut clients = clients.lock().unwrap();
+    let mut failures : Vec<usize> = Vec::new();
+    for (id, client) in clients.iter() {
         if let Ok(_) = client.sender.try_send("Sent a message".to_string()) {
-
         } else {
             eprint!("Failed to send a message");
+            failures.push(*id);
         }
+    }
+    for id in failures.iter() {
+        clients.remove(id);
     }
 
     while let Ok(msg) = client_to_game_receiver.try_recv() {

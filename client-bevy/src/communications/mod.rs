@@ -2,11 +2,15 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
 pub mod shared;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "native")]
 pub mod server;
+#[cfg(feature = "native")]
+use server::*;
+
+pub mod client;
 
 use shared::*;
-use server::*;
+use client::*;
 
 pub struct CommunicationsPlugin;
 
@@ -14,11 +18,14 @@ const DEFAULT_PORT: u16 = 4867;
 
 impl Plugin for CommunicationsPlugin {
     fn build(&self, app: &mut AppBuilder) {    
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(feature = "native")]
         app
             .add_plugin(ServerPlugin);
-            
+
         app
+            .add_state(ServerState::Closed)
+            .add_state(ClientState::Closed)
+            .add_plugin(ClientPlugin)
             .init_resource::<CommunicationResource>()
             .add_system(display_connection_ui.system());
     }
@@ -27,7 +34,8 @@ impl Plugin for CommunicationsPlugin {
 fn display_connection_ui(
     egui_context: ResMut<EguiContext>,
     mut communications: ResMut<CommunicationResource>,
-    mut app_state: ResMut<State<ServerState>>,
+    mut server_state: ResMut<State<ServerState>>,
+    mut client_state: ResMut<State<ClientState>>,
 ) {
     egui::Window::new("Connection").show(egui_context.ctx(), |ui| {
         let mut is_server = false;
@@ -52,7 +60,7 @@ fn display_connection_ui(
 
         if !communications.running {
             ui.horizontal(|ui| {
-                #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(all(not(target_arch = "wasm32"), feature = "native"))]
                 if ui.selectable_label(is_server, "Server").clicked() {
                     if is_server {
                         communications.state = CommunicationState::None;
@@ -66,7 +74,7 @@ fn display_connection_ui(
                         communications.state = CommunicationState::None;
                     } else {
                         communications.state = CommunicationState::Client {
-                            url: format!("localhost:{}", DEFAULT_PORT),
+                            url: format!("ws://localhost:{}", DEFAULT_PORT),
                         };
                     }
                 }
@@ -89,7 +97,7 @@ fn display_connection_ui(
 
                     if ui.button("Start Host").clicked() {
                         communications.running = true;
-                        app_state.push(ServerState::Open);
+                        server_state.push(ServerState::Open);
                         println!("Starting Host")
                     }
                 } else {
@@ -103,9 +111,11 @@ fn display_connection_ui(
                     let mut url = url.clone();
                     if ui.text_edit_singleline(&mut url).changed() {
                         communications.state = CommunicationState::Client { url };
+
                     }
                     if ui.button("Start Client").clicked() {
                         communications.running = true;
+                        client_state.push(ClientState::Open);
                         println!("Starting Client")
                     }
                 } else {

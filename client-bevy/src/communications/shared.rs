@@ -15,3 +15,17 @@ impl Default for CommunicationState {
         CommunicationState::None
     }
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum ServerState {
+    Closed,
+    Open
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ClientState {
+    Closed,
+    Connecting,
+    Open,
+}
