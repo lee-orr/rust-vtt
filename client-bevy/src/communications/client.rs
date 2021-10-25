@@ -74,7 +74,7 @@ fn setup_client(
                 game_to_client_receiver,
             ))
             .detach();
-        #[cfg(not(all(feature = "native", feature = "web")))]
+        #[cfg(not(any(feature = "native", feature = "web")))]
         task_pool
             .spawn(tokio_setup(
                 url.clone(),
@@ -154,14 +154,16 @@ async fn tokio_setup(
             },
             game_msg = game_to_client_receiver.recv() => {
                 let game_msg = game_msg.unwrap();
-                write.send(WsMessage::Text(game_msg)).await;
+                if write.send(WsMessage::Text(game_msg)).await.is_err() {
+                    eprintln!("Couldn't send message");
+                }
             }
         }
     }
     Ok(())
 }
 
-#[cfg(not(all(feature = "native", feature = "web")))]
+#[cfg(not(any(feature = "native", feature = "web")))]
 async fn tokio_setup(
     _url: String,
     _client_to_game_sender: Sender<String>,
