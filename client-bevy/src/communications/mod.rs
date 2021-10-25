@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
 
+pub mod server;
+
 pub struct CommunicationsPlugin;
 
 #[derive(Default)]
