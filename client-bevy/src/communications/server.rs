@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     net::SocketAddr,
     sync::{
-        atomic::{AtomicI32, AtomicUsize},
+        atomic::{AtomicUsize},
         Arc, Mutex,
     },
 };
@@ -44,7 +44,7 @@ fn setup_server(
     communication: Res<CommunicationResource>,
     task_pool: Res<IoTaskPool>,
 ) {
-    if (!communication.running) {
+    if !communication.running {
         eprintln!("Not running");
         return;
     }
@@ -57,7 +57,7 @@ fn setup_server(
 
         task_pool
             .spawn(Compat::new(tokio_setup(
-                addr.clone(),
+                addr,
                 clients.clone(),
                 client_to_game_sender,
             )))
@@ -121,7 +121,7 @@ async fn handle_connection(
         lock.unwrap().insert(
             id,
             Client {
-                id: id,
+                id,
                 sender: game_to_client_sender,
             },
         );
@@ -151,7 +151,7 @@ async fn handle_connection(
                 let game_msg = game_msg.unwrap();
                 println!("Sending message {} to {}", game_msg, id);
                 let result = ws_sender.send(Message::Text(game_msg)).await;
-                if let Err(error) = result {
+                if result.is_err() {
                     break;
                 }
             }
@@ -171,8 +171,7 @@ fn message_system(clients: Res<Clients>, client_to_game_receiver: Res<Receiver<S
     let mut clients = clients.lock().unwrap();
     let mut failures: Vec<usize> = Vec::new();
     for (id, client) in clients.iter() {
-        if let Ok(_) = client.sender.try_send("Sent a message".to_string()) {
-        } else {
+        if client.sender.try_send("Sent a message".to_string()).is_err() {
             eprint!("Failed to send a message");
             failures.push(*id);
         }
