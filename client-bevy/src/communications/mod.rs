@@ -34,6 +34,7 @@ fn display_connection_ui(
     mut communications: ResMut<CommunicationResource>,
     mut server_state: ResMut<State<ServerState>>,
     mut client_state: ResMut<State<ClientState>>,
+    mut server_events: EventWriter<CloseServerEvent>,
 ) {
     egui::Window::new("Connection").show(egui_context.ctx(), |ui| {
         let mut is_server = false;
@@ -103,6 +104,11 @@ fn display_connection_ui(
                     }
                 } else {
                     ui.label(format!("Host Running on Port {}", port));
+                    if ui.button("Close Host").clicked() {
+                        println!("Attempting to close server");
+                        communications.running = false;
+                        server_events.send(CloseServerEvent {});
+                    }
                 }
             }
 
