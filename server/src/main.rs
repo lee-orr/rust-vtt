@@ -1,12 +1,12 @@
 use clap::{App, Arg};
 use dirs::document_dir;
+use server_lib::Server;
 use sled::{self, Db};
 use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     path::PathBuf,
     str::FromStr,
 };
-use server_lib::{Server};
 
 fn parse_arguments() -> (SocketAddr, PathBuf) {
     let matches = App::new("VTT Server")
@@ -69,7 +69,7 @@ async fn main() {
     println!("Running VTT Server");
     let (host_addr, directory) = parse_arguments();
 
-    let db_result = setup_database(directory.clone());
+    let db_result = setup_database(directory);
 
     if db_result.is_ok() {
         let server = Server::<String>::new(host_addr.to_string());
@@ -85,12 +85,12 @@ async fn main() {
         while let Ok(msg) = receiver.recv() {
             let clients = clients.lock().unwrap();
             for (id, client) in clients.iter() {
-                    if msg.0 == *id {
-                        continue;
-                    }
-                    if client.sender.try_send(msg.to_owned()).is_err() {
-                        eprint!("Failed to send a message");
-                    }
+                if msg.0 == *id {
+                    continue;
+                }
+                if client.sender.try_send(msg.to_owned()).is_err() {
+                    eprint!("Failed to send a message");
+                }
             }
         }
     } else {

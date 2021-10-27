@@ -6,10 +6,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use futures_util::{SinkExt, StreamExt};
 
 #[cfg(feature = "native")]
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Message},
-};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use url::Url;
 #[cfg(feature = "web")]
