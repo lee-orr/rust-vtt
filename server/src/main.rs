@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
     str::FromStr,
 };
-use warp::Filter;
+use server_lib::{Server};
 
 fn parse_arguments() -> (SocketAddr, PathBuf) {
     let matches = App::new("VTT Server")
@@ -72,10 +72,27 @@ async fn main() {
     let db_result = setup_database(directory.clone());
 
     if db_result.is_ok() {
-        // GET /hello/warp => 200 OK with body "Hello, warp!"
-        let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
+        let server = Server::<String>::new(host_addr.to_string());
+        if server.is_err() {
+            eprintln!("Couldn't set up server");
+            return;
+        }
+        let server = server.unwrap();
+        let clients = server.clients.clone();
+        let receiver = server.reciever.clone();
 
-        warp::serve(hello).run(host_addr).await;
+        tokio::spawn(server.start());
+        while let Ok(msg) = receiver.recv() {
+            let clients = clients.lock().unwrap();
+            for (id, client) in clients.iter() {
+                    if msg.0 == *id {
+                        continue;
+                    }
+                    if client.sender.try_send(msg.to_owned()).is_err() {
+                        eprint!("Failed to send a message");
+                    }
+            }
+        }
     } else {
         println!("Failed to set up database");
     }

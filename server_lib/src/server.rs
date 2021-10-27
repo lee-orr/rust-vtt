@@ -41,6 +41,7 @@ where
     control_reciever: tokio::sync::mpsc::Receiver<ServerControl>,
 }
 
+#[derive(Debug)]
 pub enum ServerError {
     Generic(String),
     InvalidAddress,
