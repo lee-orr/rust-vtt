@@ -1,10 +1,9 @@
-use async_compat::Compat;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use futures_util::{Future, SinkExt, StreamExt};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use futures_util::{SinkExt, StreamExt};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::HashMap,
-    net::{AddrParseError, SocketAddr, SocketAddrV4},
+    net::{AddrParseError, SocketAddr},
     sync::{atomic::AtomicUsize, Arc, Mutex},
 };
 use tokio::net::{TcpListener, TcpStream};
@@ -13,8 +12,7 @@ use tokio_tungstenite::{
     tungstenite::{Error, Message},
 };
 
-pub type Clients<T: Clone + Send + Serialize + DeserializeOwned> =
-    Arc<Mutex<HashMap<usize, Client<T>>>>;
+pub type Clients<T> = Arc<Mutex<HashMap<usize, Client<T>>>>;
 
 #[derive(Debug, Clone)]
 pub struct Client<T>
@@ -103,7 +101,7 @@ impl<T: Clone + Send + Serialize + DeserializeOwned + 'static> Server<T> {
                                 }
                             }
                         },
-                        control = control_reciever.recv() => {
+                        _ = control_reciever.recv() => {
                             println!("Closing server on socket {}", &self.address);
                             break;
                         },
@@ -113,7 +111,7 @@ impl<T: Clone + Send + Serialize + DeserializeOwned + 'static> Server<T> {
             }
             Err(_) => {
                 eprintln!("Couldn't listen on socket {}", &self.address);
-                return Err(ServerError::BindingError)
+                return Err(ServerError::BindingError);
             }
         }
         println!("Should really be closed now");

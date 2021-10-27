@@ -1,24 +1,23 @@
 use super::shared::*;
 use async_compat::Compat;
 use bevy::{prelude::*, tasks::IoTaskPool};
-use crossbeam_channel::{Receiver};
-use tokio::sync::mpsc::Sender;
+use crossbeam_channel::Receiver;
 use server_lib::{Clients, Server, ServerControl};
+use tokio::sync::mpsc::Sender;
 pub struct ServerPlugin;
 pub struct CloseServerEvent;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app
-        .add_event::<CloseServerEvent>()
-        .add_system_set(
-            SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
-        )
-        .add_system_set(
-            SystemSet::on_update(ServerState::Open)
-                .with_system(message_system.system())
-                .with_system(close_server.system()),
-        );
+        app.add_event::<CloseServerEvent>()
+            .add_system_set(
+                SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(ServerState::Open)
+                    .with_system(message_system.system())
+                    .with_system(close_server.system()),
+            );
     }
 }
 
@@ -33,9 +32,9 @@ fn setup_server(
     }
     if let CommunicationState::Server { port } = communication.state {
         println!("Setting up server");
-        let mut server = Server::<String>::new(format!("0.0.0.0:{}", port));
+        let server = Server::<String>::new(format!("0.0.0.0:{}", port));
 
-        if let Ok(mut server) = server {
+        if let Ok(server) = server {
             commands.insert_resource(server.clients.clone());
             commands.insert_resource(server.reciever.clone());
             commands.insert_resource(server.control_sender.clone());
@@ -70,16 +69,18 @@ fn message_system(clients: Res<Clients<String>>, client_to_game_receiver: Res<Re
     }
 }
 
-fn close_server(control: Option<Res<Sender<ServerControl>>>, mut event: EventReader<CloseServerEvent>) {
+fn close_server(
+    control: Option<Res<Sender<ServerControl>>>,
+    mut event: EventReader<CloseServerEvent>,
+) {
     let control = match control {
         Some(it) => it,
         _ => return,
     };
-    for _ in event.iter() {
+    if event.iter().next().is_some() {
         eprintln!("Closing Server");
         if control.blocking_send(ServerControl::CloseServer).is_err() {
             eprintln!("Couldn't close server");
         }
-        break;
     }
 }
