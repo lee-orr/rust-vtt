@@ -30,3 +30,17 @@ pub enum ClientState {
 }
 
 pub struct CloseServerEvent;
+
+#[derive(Default)]
+pub struct PendingMessage {
+    pub value: String,
+}
+
+#[derive(Default)]
+pub struct ReceivedMessages {
+    pub messages: Vec<(usize, String)>,
+}
+
+pub struct SendMessageEvent {
+    pub value: String,
+}

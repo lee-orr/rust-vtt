@@ -1,5 +1,5 @@
 use bevy::{prelude::*, tasks::IoTaskPool};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 
 #[cfg(any(feature = "native", feature = "web"))]
 use futures_util::{SinkExt, StreamExt};
@@ -13,33 +13,23 @@ use tokio_tungstenite::{
     tungstenite::{Error, Message},
 };
 
+use client_lib::Client;
+
 #[cfg(feature = "web")]
 use ws_stream_wasm::*;
 
 use super::shared::*;
 
-#[derive(Debug, Clone)]
-pub struct Client {
-    pub sender: Option<mpsc::Sender<String>>,
-}
-
-impl Default for Client {
-    fn default() -> Self {
-        Client { sender: None }
-    }
-}
-
 pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_resource(Client::default())
-            .add_system_set(
-                SystemSet::on_enter(ClientState::Open).with_system(setup_client.system()),
-            )
-            .add_system_set(
-                SystemSet::on_update(ClientState::Open).with_system(message_system.system()),
-            );
+        app.add_system_set(
+            SystemSet::on_enter(ClientState::Open).with_system(setup_client.system()),
+        )
+        .add_system_set(
+            SystemSet::on_update(ClientState::Open).with_system(message_system.system()),
+        );
     }
 }
 
@@ -47,7 +37,6 @@ fn setup_client(
     mut commands: Commands,
     communication: Res<CommunicationResource>,
     task_pool: Res<IoTaskPool>,
-    mut client: ResMut<Client>,
 ) {
     if !communication.running {
         eprintln!("Not running");
@@ -55,35 +44,20 @@ fn setup_client(
     }
     if let CommunicationState::Client { url } = &communication.state {
         println!("Setting up client");
-        let (client_to_game_sender, client_to_game_receiver) = unbounded::<String>();
-        let (game_to_client_sender, game_to_client_receiver) = mpsc::channel(100);
+        let client = Client::<String>::new(url.clone());
 
-        #[cfg(feature = "native")]
-        task_pool
-            .spawn(Compat::new(tokio_setup(
-                url.clone(),
-                client_to_game_sender,
-                game_to_client_receiver,
-            )))
-            .detach();
-        #[cfg(feature = "web")]
-        task_pool
-            .spawn(tokio_setup(
-                url.clone(),
-                client_to_game_sender,
-                game_to_client_receiver,
-            ))
-            .detach();
-        #[cfg(not(any(feature = "native", feature = "web")))]
-        task_pool
-            .spawn(tokio_setup(
-                url.clone(),
-                client_to_game_sender,
-                game_to_client_receiver,
-            ))
-            .detach();
-        commands.insert_resource(client_to_game_receiver);
-        client.sender = Some(game_to_client_sender);
+        if let Ok(client) = client {
+            commands.insert_resource(client.receiver.clone());
+            commands.insert_resource(client.sender.clone());
+            commands.insert_resource(client.control_sender.clone());
+
+            #[cfg(feature = "native")]
+            task_pool.spawn(Compat::new(client.start())).detach();
+            #[cfg(feature = "web")]
+            task_pool.spawn(client.start()).detach();
+        } else {
+            eprintln!("Error setting up client");
+        }
     } else {
         eprintln!("Can't set up client");
     }
@@ -124,63 +98,21 @@ async fn tokio_setup(
     Ok(())
 }
 
-#[cfg(feature = "web")]
-async fn tokio_setup(
-    url: String,
-    client_to_game_sender: Sender<String>,
-    mut game_to_client_receiver: mpsc::Receiver<String>,
-) -> Result<(), String> {
-    use wasm_bindgen::UnwrapThrowExt;
-
-    let (_ws, stream) = WsMeta::connect(&url, None)
-        .await
-        .expect_throw("Connection should work");
-    println!("Successfully Connected to {}", &url);
-
-    let (mut write, mut read) = stream.split();
-
-    loop {
-        tokio::select! {
-            msg = read.next() => {
-                match msg {
-                    Some (msg) => {
-                        if let WsMessage::Text(msg) = msg {
-                            println!("Recieved {}", msg);
-                            client_to_game_sender.send(msg).expect("couldn't send message")
-                        }
-                    },
-                    None => break,
-                }
-            },
-            game_msg = game_to_client_receiver.recv() => {
-                let game_msg = game_msg.unwrap();
-                if write.send(WsMessage::Text(game_msg)).await.is_err() {
-                    eprintln!("Couldn't send message");
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-#[cfg(not(any(feature = "native", feature = "web")))]
-async fn tokio_setup(
-    _url: String,
-    _client_to_game_sender: Sender<String>,
-    _game_to_client_receiver: mpsc::Receiver<String>,
-) -> Result<(), String> {
-    Err(String::from("Invalid Feature Set"))
-}
-
-fn message_system(client: Res<Client>, client_to_game_receiver: Res<Receiver<String>>) {
-    if let Some(sender) = &client.sender {
-        if sender.try_send("Sent a client message".to_string()).is_ok() {
+fn message_system(
+    client_sender: Res<tokio::sync::mpsc::Sender<String>>,
+    client_receiver: Res<Receiver<(usize, String)>>,
+    mut send_message_reader: EventReader<SendMessageEvent>,
+    mut received_messages: ResMut<ReceivedMessages>,
+) {
+    for msg in send_message_reader.iter() {
+        if client_sender.try_send(msg.value.clone()).is_ok() {
         } else {
             eprint!("Failed to send a message");
         }
     }
 
-    while let Ok(msg) = client_to_game_receiver.try_recv() {
+    while let Ok(msg) = client_receiver.try_recv() {
         println!("Got Message {:?}", msg);
+        received_messages.messages.push(msg);
     }
 }

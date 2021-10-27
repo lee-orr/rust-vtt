@@ -20,7 +20,7 @@ where
     T: Clone + Send + Serialize + DeserializeOwned,
 {
     pub id: usize,
-    pub sender: tokio::sync::mpsc::Sender<T>,
+    pub sender: tokio::sync::mpsc::Sender<(usize, T)>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,8 +35,8 @@ where
 {
     pub clients: Clients<T>,
     pub address: SocketAddr,
-    pub reciever: Receiver<T>,
-    sender: Sender<T>,
+    pub reciever: Receiver<(usize, T)>,
+    sender: Sender<(usize, T)>,
     pub control_sender: tokio::sync::mpsc::Sender<ServerControl>,
     control_reciever: tokio::sync::mpsc::Receiver<ServerControl>,
 }
@@ -55,7 +55,7 @@ impl<T: Clone + Send + Serialize + DeserializeOwned + 'static> Server<T> {
         match address {
             Ok(address) => {
                 let clients: Clients<T> = Arc::new(Mutex::new(HashMap::new()));
-                let (client_to_game_sender, client_to_game_receiver) = unbounded::<T>();
+                let (client_to_game_sender, client_to_game_receiver) = unbounded::<(usize, T)>();
                 let (control_sender, control_reciever) =
                     tokio::sync::mpsc::channel::<ServerControl>(1);
                 Ok(Server::<T> {
@@ -123,7 +123,7 @@ async fn accept_connection<T>(
     peer: SocketAddr,
     stream: TcpStream,
     clients: Clients<T>,
-    client_to_game_sender: Sender<T>,
+    client_to_game_sender: Sender<(usize, T)>,
 ) where
     T: Clone + Send + Serialize + DeserializeOwned,
 {
@@ -139,7 +139,7 @@ async fn handle_connection<T>(
     peer: SocketAddr,
     stream: TcpStream,
     clients: Clients<T>,
-    client_to_game_sender: Sender<T>,
+    client_to_game_sender: Sender<(usize, T)>,
 ) -> Result<(), Error>
 where
     T: Clone + Send + Serialize + DeserializeOwned,
@@ -149,7 +149,8 @@ where
         .expect("Couldn't accept connection");
     println!("Accepted Connection {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-    let (game_to_client_sender, mut game_to_client_receiver) = tokio::sync::mpsc::channel::<T>(100);
+    let (game_to_client_sender, mut game_to_client_receiver) =
+        tokio::sync::mpsc::channel::<(usize, T)>(100);
     let id = NEXT_USER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     {
         let lock = clients.lock();
@@ -165,15 +166,19 @@ where
     loop {
         tokio::select! {
             msg = ws_receiver.next() => {
+                println!("Maybe got something from {}", id);
                 match msg {
                     Some (msg) => {
-                        let msg = msg?;
+                        if msg.is_err() {
+                            continue;
+                        }
+                        let msg = msg.unwrap();
                         match msg {
                             Message::Text(msg) => {
                                 let str = msg.clone();
-                                println!("{} send text {}", id, &str);
+                                println!("MSG FROM {}: {}", id, &str);
                                 if let Ok(value) = serde_json::from_str(&str) {
-                                    if client_to_game_sender.send(value).is_err() {
+                                    if client_to_game_sender.send((id, value)).is_err() {
                                         eprintln!("Failed to send message to game");
                                     }
                                 }

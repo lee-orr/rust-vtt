@@ -906,6 +906,7 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "bevy_webgl2",
+ "client-lib",
  "console_error_panic_hook",
  "crossbeam-channel",
  "futures-channel",
@@ -929,6 +930,17 @@ dependencies = [
 [[package]]
 name = "client-lib"
 version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "futures-channel",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.15.0",
+ "url",
+ "ws_stream_wasm",
+]
 
 [[package]]
 name = "clipboard"

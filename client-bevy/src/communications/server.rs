@@ -8,15 +8,14 @@ pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app
-            .add_system_set(
-                SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
-            )
-            .add_system_set(
-                SystemSet::on_update(ServerState::Open)
-                    .with_system(message_system.system())
-                    .with_system(close_server.system()),
-            );
+        app.add_system_set(
+            SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
+        )
+        .add_system_set(
+            SystemSet::on_update(ServerState::Open)
+                .with_system(message_system.system())
+                .with_system(close_server.system()),
+        );
     }
 }
 
@@ -46,25 +45,38 @@ fn setup_server(
     }
 }
 
-fn message_system(clients: Res<Clients<String>>, client_to_game_receiver: Res<Receiver<String>>) {
+fn message_system(
+    clients: Res<Clients<String>>,
+    client_to_game_receiver: Res<Receiver<(usize, String)>>,
+    mut send_message_reader: EventReader<SendMessageEvent>,
+    mut received_messages: ResMut<ReceivedMessages>,
+) {
+    let mut messages: Vec<(usize, String)> = send_message_reader
+        .iter()
+        .map(|val| (0, val.value.clone()))
+        .collect();
+
+    while let Ok((client, msg)) = client_to_game_receiver.try_recv() {
+        println!("Got Message {:?}", &msg);
+        received_messages.messages.push((client, msg.clone()));
+        messages.push((client, msg));
+    }
+
     let mut clients = clients.lock().unwrap();
     let mut failures: Vec<usize> = Vec::new();
     for (id, client) in clients.iter() {
-        if client
-            .sender
-            .try_send("Sent a message".to_string())
-            .is_err()
-        {
-            eprint!("Failed to send a message");
-            failures.push(*id);
+        for msg in messages.iter() {
+            if msg.0 == *id {
+                continue;
+            }
+            if client.sender.try_send(msg.to_owned()).is_err() {
+                eprint!("Failed to send a message");
+                failures.push(*id);
+            }
         }
     }
     for id in failures.iter() {
         clients.remove(id);
-    }
-
-    while let Ok(msg) = client_to_game_receiver.try_recv() {
-        println!("Got Message {:?}", msg);
     }
 }
 

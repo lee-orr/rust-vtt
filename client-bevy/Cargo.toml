@@ -25,12 +25,14 @@ native = [
     "tokio/io-std",
     "tokio/net",
     "tokio-tungstenite/connect",
-    "server_lib/native"
+    "server_lib/native",
+    "client-lib/native"
 ]
 
 web = [
     "bevy_webgl2",
-    "winit/web-sys"
+    "winit/web-sys",
+    "client-lib/web"
 ]
 
 dev = [
@@ -46,6 +48,7 @@ bevy_webgl2 = { version = "0.5.0", optional = true }
 console_error_panic_hook = "0.1"
 bevy_egui = "0.7"
 server_lib = { path = "../server_lib" }
+client-lib = { path = "../client-lib" }
 async-compat = "0.2"
 crossbeam-channel = "0.5.1"
 futures-channel = "0.3"

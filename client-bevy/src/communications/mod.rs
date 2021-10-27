@@ -21,13 +21,16 @@ impl Plugin for CommunicationsPlugin {
         #[cfg(feature = "native")]
         app.add_plugin(ServerPlugin);
 
-        app
-            .add_event::<CloseServerEvent>()
+        app.add_event::<CloseServerEvent>()
+            .add_event::<SendMessageEvent>()
             .add_state(ServerState::Closed)
             .add_state(ClientState::Closed)
             .add_plugin(ClientPlugin)
             .init_resource::<CommunicationResource>()
-            .add_system(display_connection_ui.system());
+            .init_resource::<PendingMessage>()
+            .init_resource::<ReceivedMessages>()
+            .add_system(display_connection_ui.system())
+            .add_system(message_system.system());
     }
 }
 
@@ -134,5 +137,35 @@ fn display_connection_ui(
                 }
             }
         })
+    });
+}
+
+fn message_system(
+    egui_context: ResMut<EguiContext>,
+    communications: Res<CommunicationResource>,
+    mut pending: ResMut<PendingMessage>,
+    mut send_event: EventWriter<SendMessageEvent>,
+    received_messages: Res<ReceivedMessages>,
+) {
+    if !communications.running {
+        return;
+    }
+    egui::Window::new("Messaging").show(egui_context.ctx(), |ui| {
+        ui.vertical(|ui| {
+            ui.label("Message");
+            ui.text_edit_singleline(&mut pending.value);
+            if ui.button("Send Message").clicked() {
+                let value = pending.value.clone();
+                pending.value = String::new();
+                send_event.send(SendMessageEvent { value });
+            }
+            ui.label("Recieved Messages");
+            for (sender, message) in received_messages.messages.iter() {
+                ui.horizontal(|ui| {
+                    ui.label(sender.to_string());
+                    ui.label(message);
+                });
+            }
+        });
     });
 }
