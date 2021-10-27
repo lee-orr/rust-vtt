@@ -5,11 +5,10 @@ use crossbeam_channel::Receiver;
 use server_lib::{Clients, Server, ServerControl};
 use tokio::sync::mpsc::Sender;
 pub struct ServerPlugin;
-pub struct CloseServerEvent;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_event::<CloseServerEvent>()
+        app
             .add_system_set(
                 SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
             )

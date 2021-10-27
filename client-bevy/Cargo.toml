@@ -25,6 +25,7 @@ native = [
     "tokio/io-std",
     "tokio/net",
     "tokio-tungstenite/connect",
+    "server_lib/native"
 ]
 
 web = [

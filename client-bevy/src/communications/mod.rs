@@ -21,7 +21,9 @@ impl Plugin for CommunicationsPlugin {
         #[cfg(feature = "native")]
         app.add_plugin(ServerPlugin);
 
-        app.add_state(ServerState::Closed)
+        app
+            .add_event::<CloseServerEvent>()
+            .add_state(ServerState::Closed)
             .add_state(ClientState::Closed)
             .add_plugin(ClientPlugin)
             .init_resource::<CommunicationResource>()

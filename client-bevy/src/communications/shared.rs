@@ -28,3 +28,5 @@ pub enum ClientState {
     Connecting,
     Open,
 }
+
+pub struct CloseServerEvent;
