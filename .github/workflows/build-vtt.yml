@@ -135,7 +135,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      artifacts: read
 
     env:
       REGISTRY: ghcr.io
