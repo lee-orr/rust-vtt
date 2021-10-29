@@ -138,7 +138,7 @@ jobs:
       packages: write
 
     env:
-      REGISTRY: ghcr.io
+      REGISTRY: ${{ secrets.DOCKER_REGISTRY_ADDRESS }}
       IMAGE_NAME: ${{ github.repository }}-server
 
     steps:
@@ -147,12 +147,12 @@ jobs:
         with:
           name: scratch-server
           path: docker-contents
-      - name: Log in to the Container registry
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      - name: Install doctl 
+        uses: digitalocean/action-doctl@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Log in to DO Container Registry 
+        run: doctl registry login --expiry-seconds 600
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
