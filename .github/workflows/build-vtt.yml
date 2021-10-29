@@ -169,7 +169,7 @@ jobs:
 
   upload-html-client:
     runs-on: ubuntu-latest
-    needs: build-server
+    needs: build-web-client
     steps:
       - name: Checkout Static Site Branch
         uses: actions/checkout@v2
