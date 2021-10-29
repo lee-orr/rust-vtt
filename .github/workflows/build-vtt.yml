@@ -147,6 +147,8 @@ jobs:
         with:
           name: scratch-server
           path: ./docker-contents
+      - name: Set Permissions
+        run: chmod 777 ./docker-contents/server
       - name: Install doctl 
         uses: digitalocean/action-doctl@v2
         with:
