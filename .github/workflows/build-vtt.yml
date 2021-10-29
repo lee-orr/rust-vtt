@@ -146,7 +146,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: scratch-server
-          path: docker-contents
+          path: ./docker-contents
       - name: Install doctl 
         uses: digitalocean/action-doctl@v2
         with:

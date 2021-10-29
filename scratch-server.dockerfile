@@ -4,4 +4,4 @@ COPY ./docker-contents /app
 
 WORKDIR /app
 
-CMD ["/app/scratch-server"]
+CMD ["/app/server"]
