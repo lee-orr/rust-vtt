@@ -1,1 +1,0 @@
-cd client-bevy && cargo watch -w ./src -s 'wasm-pack build --target web --dev -- --features web && http-server'
