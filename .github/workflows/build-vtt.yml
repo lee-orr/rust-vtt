@@ -179,6 +179,10 @@ jobs:
           ref: static-site
       - name: Delete all current files
         run: rm -rf ./*
+      - name: Delete Git Ignore
+        run: rm .gitignore
+      - name: Delete github workflow directory
+        run: rm -rf ./github
       - name: Download Build
         uses: actions/download-artifact@v2
         with:

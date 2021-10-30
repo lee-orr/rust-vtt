@@ -146,8 +146,11 @@ where
     T: Clone + Send + Serialize + DeserializeOwned,
 {
     let ws_stream = accept_async(stream)
-        .await
-        .expect("Couldn't accept connection");
+        .await;
+    if let Err(error) = ws_stream{
+        return Err(error);
+    }
+    let ws_stream = ws_stream.unwrap();
     println!("Accepted Connection {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let (game_to_client_sender, mut game_to_client_receiver) =
