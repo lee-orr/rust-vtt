@@ -185,8 +185,10 @@ jobs:
           name: html5-client
       - name: List files
         run: ls -la
+      - name: Git Status
+        run: git status
       - name: Stage
-        run: git add .
+        run: git add *
       - name: Push Updates
         uses: actions-js/push@master
         with:
