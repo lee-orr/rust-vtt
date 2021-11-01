@@ -78,7 +78,7 @@ fn display_connection_ui(
                         communications.state = CommunicationState::None;
                     } else {
                         communications.state = CommunicationState::Client {
-                            url: format!("ws://localhost:{}", DEFAULT_PORT),
+                            url: if cfg!(debug_assertions) {format!("ws://localhost:{}", DEFAULT_PORT)} else {format!("wss://caladluin-vtt.com/server")},
                         };
                     }
                 }
