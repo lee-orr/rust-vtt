@@ -185,6 +185,8 @@ jobs:
           name: html5-client
       - name: List files
         run: ls -la
+      - name: Remove Git Ignore
+        run: rm ./pkg/.gitignore
       - name: Git Status
         run: git status
       - name: Stage
