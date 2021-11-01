@@ -145,9 +145,8 @@ async fn handle_connection<T>(
 where
     T: Clone + Send + Serialize + DeserializeOwned,
 {
-    let ws_stream = accept_async(stream)
-        .await;
-    if let Err(error) = ws_stream{
+    let ws_stream = accept_async(stream).await;
+    if let Err(error) = ws_stream {
         return Err(error);
     }
     let ws_stream = ws_stream.unwrap();

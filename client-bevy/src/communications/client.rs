@@ -1,22 +1,9 @@
 use bevy::{prelude::*, tasks::IoTaskPool};
-use crossbeam_channel::{Receiver, Sender};
-
-#[cfg(any(feature = "native", feature = "web"))]
-use futures_util::{SinkExt, StreamExt};
-use tokio::sync::mpsc;
+use crossbeam_channel::Receiver;
 
 #[cfg(feature = "native")]
 use async_compat::Compat;
-#[cfg(feature = "native")]
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Error, Message},
-};
-
 use client_lib::Client;
-
-#[cfg(feature = "web")]
-use ws_stream_wasm::*;
 
 use super::shared::*;
 
@@ -61,41 +48,6 @@ fn setup_client(
     } else {
         eprintln!("Can't set up client");
     }
-}
-
-#[cfg(feature = "native")]
-async fn tokio_setup(
-    url: String,
-    client_to_game_sender: Sender<String>,
-    mut game_to_client_receiver: mpsc::Receiver<String>,
-) -> Result<(), Error> {
-    let url = url::Url::parse(&url).unwrap();
-    let (stream, _) = connect_async(&url).await.expect("Failed to connect");
-    println!("Successfully Connected to {}", &url);
-    let (mut write, mut read) = stream.split();
-    loop {
-        tokio::select! {
-            msg = read.next() => {
-                match msg {
-                    Some (msg) => {
-                        let msg = msg?;
-                        if msg.is_text() || msg.is_binary() {
-                            let msg = msg.to_string();
-                            println!("Recieved {}", msg);
-                            client_to_game_sender.send(msg).expect("couldn't send message")
-                        }
-                    },
-                    None => break,
-                }
-            },
-            game_msg = game_to_client_receiver.recv() => {
-                let game_msg = game_msg.unwrap();
-                write.send(Message::Text(game_msg)).await?;
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn message_system(
