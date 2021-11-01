@@ -114,7 +114,7 @@ jobs:
       - run: rustup target add ${{matrix.build.target}}
       - run: cargo install wasm-pack
       - name: Build ${{matrix.build.name}}
-        run: wasm-pack build --target web --release -- --features web
+        run: wasm-pack build --target web --debug -- --features web
         working-directory: client-bevy
       - uses: Swatinem/rust-cache@v1
       - name: Assemble files
