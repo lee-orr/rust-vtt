@@ -4,6 +4,16 @@
 		{
 			"type": "shell",
 			"command": "./build-dev-client.sh",
+			"label": "run native client"
+		},
+		{
+			"type": "shell",
+			"command": "./target/debug/client-bevy-native.exe",
+			"label": "run existing client"
+		},
+		{
+			"type": "shell",
+			"command": "./watch-dev-client.sh",
 			"label": "watch native client"
 		},
 		{
