@@ -72,14 +72,10 @@ fn move_camera(mut camera_query: Query<(&mut Transform, &mut CameraRadius, &mut 
 
     if keys.pressed(KeyCode::LShift) {
         height_change += 1.;
+        zoom_change += 1.;
     } else if keys.pressed(KeyCode::LControl) {
         height_change -= 1.;
-    }
-
-    if keys.pressed(KeyCode::Z) {
         zoom_change -= 1.;
-    } else if keys.pressed(KeyCode::X) {
-        zoom_change += 1.;
     }
 
     height_change = height_change * time.delta_seconds();
