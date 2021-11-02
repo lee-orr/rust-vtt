@@ -145,10 +145,13 @@ async fn handle_connection<T>(
 where
     T: Clone + Send + Serialize + DeserializeOwned,
 {
+    println!("Recieved connection request from {}", peer);
     let ws_stream = accept_async(stream).await;
     if let Err(error) = ws_stream {
+        eprintln!("Failed to connect {}: {}", peer, error);
         return Err(error);
     }
+    println!("Unwrapping {}", peer);
     let ws_stream = ws_stream.unwrap();
     println!("Accepted Connection {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
