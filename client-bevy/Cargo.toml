@@ -58,6 +58,11 @@ tokio-tungstenite = { version = "0.15.0", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 ws_stream_wasm = { version = "0.7", features = ["tokio_io"] }
 
+
+[patch.crates-io]
+bevy = { git = "https://github.com/bevyengine/bevy", branch="main" }
+bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui", branch = "bevy-main"}
+
 [profile.dev]
 opt-level = 1
 
