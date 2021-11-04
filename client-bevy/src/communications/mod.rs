@@ -17,7 +17,7 @@ pub struct CommunicationsPlugin;
 const DEFAULT_PORT: u16 = 4867;
 
 impl Plugin for CommunicationsPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         #[cfg(feature = "native")]
         app.add_plugin(ServerPlugin);
 

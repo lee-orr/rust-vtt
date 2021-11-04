@@ -8,3 +8,15 @@ members = [
     "server",
     "server_lib"
 ]
+
+[patch.crates-io]
+bevy = { git = "https://github.com/TheRawMeatball/bevy", branch = "runs-ui4-migrated" }
+bevy_egui = { git = "https://github.com/TheRawMeatball/bevy_egui", branch = "updated-egui"}
+
+[patch."https://github.com/bevyengine/bevy".bevy]
+git = "https://github.com/TheRawMeatball/bevy"
+branch = "runs-ui4-migrated"
+
+[patch."https://github.com/jakobhellermann/bevy_egui".bevy_egui]
+git = "https://github.com/TheRawMeatball/bevy_egui"
+branch = "updated-egui"
