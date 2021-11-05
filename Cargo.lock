@@ -223,7 +223,7 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 [[package]]
 name = "bevy"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_dylib",
  "bevy_internal",
@@ -238,7 +238,7 @@ checksum = "0d5f2f58f0aec3c50a20799792c3705e80dd7df327e79791cacec197e84e5e61"
 [[package]]
 name = "bevy_app"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_derive",
  "bevy_ecs",
@@ -251,7 +251,7 @@ dependencies = [
 [[package]]
 name = "bevy_asset"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -278,7 +278,7 @@ dependencies = [
 [[package]]
 name = "bevy_core"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_derive",
@@ -293,7 +293,7 @@ dependencies = [
 [[package]]
 name = "bevy_core_pipeline"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -305,7 +305,7 @@ dependencies = [
 [[package]]
 name = "bevy_derive"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "Inflector",
  "bevy_macro_utils",
@@ -316,7 +316,7 @@ dependencies = [
 [[package]]
 name = "bevy_diagnostic"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_core",
@@ -328,7 +328,7 @@ dependencies = [
 [[package]]
 name = "bevy_dylib"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_internal",
 ]
@@ -336,7 +336,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "async-channel",
  "bevy_ecs_macros",
@@ -353,7 +353,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs_macros"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -364,7 +364,7 @@ dependencies = [
 [[package]]
 name = "bevy_egui"
 version = "0.7.1"
-source = "git+https://github.com/TheRawMeatball/bevy_egui?branch=updated-egui#9e54aaf5279ccbc46e186315f2da35e261e7de7f"
+source = "git+https://github.com/lee-orr/bevy_egui?branch=bevy-main#f7d89e82b87f76189f6c71481f213d568e5409db"
 dependencies = [
  "bevy",
  "bytemuck",
@@ -379,7 +379,7 @@ dependencies = [
 [[package]]
 name = "bevy_gltf2"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "anyhow",
  "base64",
@@ -403,7 +403,7 @@ dependencies = [
 [[package]]
 name = "bevy_input"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "bevy_internal"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -427,15 +427,18 @@ dependencies = [
  "bevy_input",
  "bevy_log",
  "bevy_math",
+ "bevy_pbr",
  "bevy_pbr2",
  "bevy_reflect",
  "bevy_render",
  "bevy_render2",
  "bevy_scene",
+ "bevy_sprite",
  "bevy_tasks",
+ "bevy_text",
  "bevy_transform",
+ "bevy_ui",
  "bevy_utils",
- "bevy_wgpu",
  "bevy_window",
  "bevy_winit",
  "ndk-glue 0.4.0",
@@ -444,7 +447,7 @@ dependencies = [
 [[package]]
 name = "bevy_log"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "android_log-sys",
  "bevy_app",
@@ -457,7 +460,7 @@ dependencies = [
 [[package]]
 name = "bevy_macro_utils"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "cargo-manifest",
  "quote",
@@ -467,16 +470,32 @@ dependencies = [
 [[package]]
 name = "bevy_math"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_reflect",
  "glam 0.19.0",
 ]
 
 [[package]]
+name = "bevy_pbr"
+version = "0.5.0"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_math",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_transform",
+ "bytemuck",
+]
+
+[[package]]
 name = "bevy_pbr2"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -497,7 +516,7 @@ dependencies = [
 [[package]]
 name = "bevy_reflect"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_reflect_derive",
  "bevy_utils",
@@ -513,7 +532,7 @@ dependencies = [
 [[package]]
 name = "bevy_reflect_derive"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -525,7 +544,7 @@ dependencies = [
 [[package]]
 name = "bevy_render"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "anyhow",
  "bevy-glsl-to-spirv",
@@ -555,7 +574,7 @@ dependencies = [
 [[package]]
 name = "bevy_render2"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -578,6 +597,7 @@ dependencies = [
  "naga",
  "once_cell",
  "parking_lot",
+ "regex",
  "serde",
  "smallvec",
  "thiserror",
@@ -587,7 +607,7 @@ dependencies = [
 [[package]]
 name = "bevy_scene"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -603,9 +623,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_sprite"
+version = "0.5.0"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_log",
+ "bevy_math",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_transform",
+ "bevy_utils",
+ "bevy_window",
+ "bytemuck",
+ "guillotiere",
+ "rectangle-pack",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_tasks"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "async-channel",
  "async-executor",
@@ -616,9 +659,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_text"
+version = "0.5.0"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
+dependencies = [
+ "ab_glyph",
+ "anyhow",
+ "bevy_app",
+ "bevy_asset",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_math",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_sprite",
+ "bevy_transform",
+ "bevy_utils",
+ "bevy_window",
+ "glyph_brush_layout",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_transform"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -629,9 +694,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_ui"
+version = "0.5.0"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_input",
+ "bevy_log",
+ "bevy_math",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_sprite",
+ "bevy_text",
+ "bevy_transform",
+ "bevy_utils",
+ "bevy_window",
+ "serde",
+ "smallvec",
+ "stretch",
+]
+
+[[package]]
 name = "bevy_utils"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "ahash 0.7.6",
  "bevy_derive",
@@ -642,30 +731,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_wgpu"
-version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
-dependencies = [
- "bevy_app",
- "bevy_asset",
- "bevy_core",
- "bevy_diagnostic",
- "bevy_ecs",
- "bevy_render",
- "bevy_utils",
- "bevy_window",
- "bevy_winit",
- "crossbeam-channel",
- "crossbeam-utils",
- "futures-lite",
- "parking_lot",
- "wgpu",
-]
-
-[[package]]
 name = "bevy_window"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bevy_app",
  "bevy_math",
@@ -677,7 +745,7 @@ dependencies = [
 [[package]]
 name = "bevy_winit"
 version = "0.5.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "approx",
  "bevy_app",
@@ -1093,7 +1161,7 @@ dependencies = [
 [[package]]
 name = "crevice"
 version = "0.6.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "bytemuck",
  "crevice-derive",
@@ -1104,7 +1172,7 @@ dependencies = [
 [[package]]
 name = "crevice-derive"
 version = "0.6.0"
-source = "git+https://github.com/TheRawMeatball/bevy?branch=runs-ui4-migrated#f5f40a722be5c217c1587d73a4b3ac5722114e21"
+source = "git+https://github.com/lee-orr/bevy?branch=runs-ui4-migrated#5b64ea1ea7b35b3dae29d8d830fa5a3052d07ad6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1361,6 +1429,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3de9ad4541d99dc22b59134e7ff8dc3d6c988c89ecd7324bf10a8362b07a2afa"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "euclid"
+version = "0.22.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da96828553a086d7b18dcebfc579bd9628b016f86590d7453c115e490fa74b80"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -1651,6 +1728,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "glyph_brush_layout"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc32c2334f00ca5ac3695c5009ae35da21da8c62d255b5b96d56e2597a637a38"
+dependencies = [
+ "ab_glyph",
+ "approx",
+ "xi-unicode",
+]
+
+[[package]]
 name = "gpu-alloc"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1687,6 +1775,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "363e3677e55ad168fef68cf9de3a4a310b53124c5e784c53a1d70e92d23f2126"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "guillotiere"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62d5865c036cb1393e23c50693df631d3f5d7bcca4c04fe4cc0fd592e74a782"
+dependencies = [
+ "euclid",
+ "svg_fmt",
 ]
 
 [[package]]
@@ -1932,6 +2030,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libm"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
+
+[[package]]
 name = "lock_api"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2013,9 +2117,9 @@ dependencies = [
 
 [[package]]
 name = "minimal-lexical"
-version = "0.1.4"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c64630dcdd71f1a64c435f54885086a0de5d6a12d104d69b165fb7d5286d677"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "miniz_oxide"
@@ -2191,9 +2295,9 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"
-version = "7.0.0"
+version = "7.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ffd9d26838a953b4af82cbeb9f1592c6798916983959be223a7124e992742c1"
+checksum = "1b1d11e1ef389c76fe5b81bcaf2ea32cf88b62bc494e19f493d0b30e7a930109"
 dependencies = [
  "memchr",
  "minimal-lexical",
@@ -2602,6 +2706,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rectangle-pack"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0d463f2884048e7153449a55166f91028d5b0ea53c79377099ce4e8cf0cf9bb"
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2926,6 +3036,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "stretch"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b0dc6d20ce137f302edf90f9cd3d278866fd7fb139efca6f246161222ad6d87"
+dependencies = [
+ "lazy_static",
+ "libm",
+]
+
+[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2936,6 +3056,12 @@ name = "strsim"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
+
+[[package]]
+name = "svg_fmt"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fb1df15f412ee2e9dfc1c504260fa695c1c3f10fe9f4a6ee2d2184d7d6450e2"
 
 [[package]]
 name = "syn"
@@ -3663,6 +3789,12 @@ checksum = "3a23fe958c70412687039c86f578938b4a0bb50ec788e96bce4d6ab00ddd5803"
 dependencies = [
  "dirs 3.0.2",
 ]
+
+[[package]]
+name = "xi-unicode"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a67300977d3dc3f8034dae89778f502b6ba20b269527b3223ba59c0cf393bb8a"
 
 [[package]]
 name = "xml-rs"

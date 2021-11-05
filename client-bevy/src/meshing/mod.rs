@@ -1,4 +1,4 @@
-use bevy::{ render2::*, prelude::*, pbr2::*};
+use bevy::{ prelude::*, pbr2::{PbrBundle, StandardMaterial}};
 
 pub struct MeshingPlugin;
 

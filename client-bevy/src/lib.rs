@@ -2,7 +2,7 @@ pub mod communications;
 mod camera;
 mod meshing;
 
-use bevy::{PipelinedDefaultPlugins, pbr2::PointLightBundle, prelude::*};
+use bevy::{PipelinedDefaultPlugins, pbr2::{DirectionalLightShadowMap, PointLightBundle}, prelude::*};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
@@ -18,11 +18,12 @@ pub fn run() {
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
         .add_plugin(camera::CameraPlugin)
-        .add_plugin(meshing::MeshingPlugin);
-   //# #[cfg(target_arch = "wasm32")]
-   // app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    app.add_startup_system(setup.system())
-       .add_system(ui)
+        .add_plugin(meshing::MeshingPlugin)
+        .insert_resource(DirectionalLightShadowMap { 
+            size: 1024,
+        })
+        .add_startup_system(setup.system())
+        .add_system(ui)
         .run();
 }
 

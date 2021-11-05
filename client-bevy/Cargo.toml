@@ -12,7 +12,6 @@ crate-type = ["cdylib", "rlib"]
 default = [
     "bevy/bevy_gltf2",
     "bevy/png",
-    "bevy/bevy_wgpu",
     "bevy/bevy_render2",
     "bevy/bevy_winit",
     "bevy/bevy_pbr2",
