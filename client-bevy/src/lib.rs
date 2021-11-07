@@ -30,7 +30,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-fn setup(mut commands: Commands) {
+fn setup(_commands: Commands) {
     // light
     /*  commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
