@@ -10,7 +10,7 @@ use super::shared::*;
 pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(ClientState::Open).with_system(setup_client.system()),
         )

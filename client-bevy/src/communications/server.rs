@@ -7,7 +7,7 @@ use tokio::sync::mpsc::Sender;
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(ServerState::Open).with_system(setup_server.system()),
         )
