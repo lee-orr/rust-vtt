@@ -1,8 +1,8 @@
 pub mod communications;
-mod camera;
-mod meshing;
+//mod camera;
+//mod meshing;
 
-use bevy::{PipelinedDefaultPlugins, pbr2::{DirectionalLightShadowMap, PointLightBundle}, prelude::*};
+use bevy::{PipelinedDefaultPlugins, prelude::*};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
@@ -17,11 +17,8 @@ pub fn run() {
         .add_plugins(PipelinedDefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
-        .add_plugin(camera::CameraPlugin)
-        .add_plugin(meshing::MeshingPlugin)
-        .insert_resource(DirectionalLightShadowMap { 
-            size: 1024,
-        })
+      //  .add_plugin(camera::CameraPlugin)
+      //  .add_plugin(meshing::MeshingPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
         .run();
@@ -37,8 +34,8 @@ fn setup(
     mut commands: Commands,
 ) {
     // light
-    commands.spawn_bundle(PointLightBundle {
+   /*  commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
         ..Default::default()
-    });
+    }); */
 }
