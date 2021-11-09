@@ -1,6 +1,6 @@
 use std::{f64::consts::PI, ops::Mul};
 
-use bevy::{input::Input, math::prelude::*, prelude::{App, BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, ResMut, Time, Transform, With}, render2::camera::{self, PerspectiveCameraBundle}};
+use bevy::{ecs::{component::Component, prelude::*}, input::Input, math::prelude::*, prelude::{App, BuildChildren, Commands, GlobalTransform, KeyCode, Plugin, Query, Res, ResMut, Time, Transform, With}, render2::camera::{self, PerspectiveCameraBundle}};
 
 pub struct CameraPlugin;
 
@@ -30,15 +30,12 @@ fn setup(mut commands: Commands) {
     commands.entity(parent).push_children(&[camera]);
 }
 
-#[derive(Component)]
 pub struct CameraFocus;
 
-#[derive(Component)]
 pub struct CameraRadius {
     pub radius: f32
 }
 
-#[derive(Component)]
 pub struct CameraHeight {
     pub height: f32
 }

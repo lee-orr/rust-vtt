@@ -10,17 +10,5 @@ members = [
 ]
 
 [patch.crates-io]
-bevy = { git = "https://github.com/lee-orr/bevy", branch = "runs-ui4-migrated" }
-bevy_egui = { git = "https://github.com/lee-orr/bevy_egui", branch = "bevy-main"}
-
-[patch."https://github.com/bevyengine/bevy".bevy]
-git = "https://github.com/lee-orr/bevy"
-branch = "runs-ui4-migrated"
-
-[patch."https://github.com/TheRawMeatball/bevy".bevy]
-git = "https://github.com/lee-orr/bevy"
-branch = "runs-ui4-migrated"
-
-[patch."https://github.com/jakobhellermann/bevy_egui".bevy_egui]
-git = "https://github.com/lee-orr/bevy_egui"
-branch = "bevy-main"
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "pipelined-rendering" }
+bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui", branch = "bevy-pipelined"}

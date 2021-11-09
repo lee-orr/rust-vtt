@@ -1,10 +1,11 @@
 pub mod communications;
-//mod camera;
-//mod meshing;
+pub mod sdf_renderer;
+mod camera;
 
 use bevy::{prelude::*, PipelinedDefaultPlugins};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
+use sdf_renderer::SdfPlugin;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -17,8 +18,8 @@ pub fn run() {
         .add_plugins(PipelinedDefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
-        //  .add_plugin(camera::CameraPlugin)
-        //  .add_plugin(meshing::MeshingPlugin)
+        .add_plugin(SdfPlugin)
+        .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
         .run();
