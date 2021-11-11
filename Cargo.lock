@@ -784,6 +784,7 @@ dependencies = [
  "bevy_egui",
  "client-lib",
  "console_error_panic_hook",
+ "crevice",
  "crossbeam-channel",
  "futures-channel",
  "futures-util",
