@@ -2,7 +2,7 @@ pub mod communications;
 pub mod sdf_renderer;
 mod camera;
 
-use bevy::{prelude::*, PipelinedDefaultPlugins};
+use bevy::{PipelinedDefaultPlugins, diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin}, prelude::*};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
 use sdf_renderer::SdfPlugin;
@@ -22,6 +22,8 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
 }
 

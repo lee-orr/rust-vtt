@@ -46,15 +46,35 @@ struct MarchHit {
 };
 
 let MAX_MARCHING_STEPS = 100;
-let HIT_EPSILON = 0.1;
+let HIT_EPSILON = 0.02;
 let NORM_EPSILON = 0.01;
 
 let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
 let NORM_EPSILON_Y = vec3<f32>(0.0, NORM_EPSILON, 0.0);
 let NORM_EPSILON_Z = vec3<f32>(0.0, 0.0, NORM_EPSILON);
 
+fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
+    return length(point) - radius;
+}
+
+fn boxSDF(point: vec3<f32>, bounds: vec3<f32>) -> f32 {
+    let quadrant = abs(point) - bounds;
+    return length(max(quadrant,vec3<f32>(0.0, 0.0, 0.0))) + min(max(quadrant.x,max(quadrant.y,quadrant.z)),0.0);
+}
+
+fn unionSDF(a: f32, b: f32) -> f32 {
+    return min(a, b);
+}
+
+fn smoothUnionSDF(a: f32, b: f32, smoothness: f32) -> f32 {
+    let h = max(smoothness - abs(a - b), 0.0)/smoothness;
+    return min(a,b) - h * h* smoothness * (1.0/4.0);
+}
+
 fn sceneSDF(point: vec3<f32>) -> f32 {
-    return length(point) -  0.5;
+    let box = boxSDF(point, vec3<f32>(2.0,0.5, 3.0));
+    let sphere = sphereSDF(point, 1.0);
+    return smoothUnionSDF(box, sphere, 0.5);
 }
 
 fn sceneColor(point: vec3<f32>) -> vec3<f32> {
