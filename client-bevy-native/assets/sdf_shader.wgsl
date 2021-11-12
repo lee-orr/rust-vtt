@@ -46,7 +46,7 @@ struct MarchHit {
 };
 
 let MAX_MARCHING_STEPS = 100;
-let HIT_EPSILON = 0.02;
+let HIT_EPSILON = 0.04;
 let NORM_EPSILON = 0.01;
 
 let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
