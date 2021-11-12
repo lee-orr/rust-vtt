@@ -1,31 +1,15 @@
 use crevice::std140::AsStd140;
 
-use bevy::{
-    asset::Asset,
-    core_pipeline::{SetItemPipeline, Transparent2d, Transparent3d},
-    ecs::system::lifetimeless::{Read, SQuery, SRes},
-    math::Mat4,
-    prelude::{AssetServer, Assets, Commands, Entity, FromWorld, Plugin, Query, Res, ResMut},
-    render2::{
-        color::Color,
-        render_asset::RenderAssets,
-        render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
-        render_resource::{
+use bevy::{asset::Asset, core_pipeline::{SetItemPipeline, Transparent2d, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2, Vec3}, prelude::{AssetServer, Assets, Commands, Entity, FromWorld, Plugin, Query, Res, ResMut}, render2::{RenderApp, RenderStage, color::Color, render_asset::RenderAssets, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
             BlendFactor, BlendOperation, BlendState, BufferBindingType, BufferSize,
             CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-            DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode,
-            PrimitiveState, PrimitiveTopology, RawRenderPipelineDescriptor, RenderPipelineCache,
-            RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-            StencilFaceState, StencilState, TextureFormat, VertexState,
-        },
-        renderer::RenderDevice,
-        texture::BevyDefault,
-        view::{self, ExtractedView, ViewUniformOffset, ViewUniforms},
-        RenderApp, RenderStage,
-    },
-};
+            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
+            PolygonMode, PrimitiveState, PrimitiveTopology, RawRenderPipelineDescriptor,
+            RenderPipelineCache, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource,
+            ShaderStages, StencilFaceState, StencilState, TextureFormat, VertexState,
+        }, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{self, ExtractedView, ViewUniformOffset, ViewUniforms}}};
 
 pub struct SdfPlugin;
 
@@ -33,7 +17,9 @@ impl Plugin for SdfPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
+            .init_resource::<ViewExtensionUniforms>()
             .add_render_command::<Transparent3d, DrawSDFCommand>()
+            .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
             .add_system_to_stage(RenderStage::Queue, queue_sdf);
     }
 }
@@ -53,29 +39,29 @@ impl FromWorld for SDFPipeline {
             label: Some("SDF Pipeline Bind Group Layout"),
             entries: &[
                 BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: true,
-                    // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
-                    // Context: https://github.com/LPGhatguy/crevice/issues/29
-                    min_binding_size: BufferSize::new(144),
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: BufferSize::new(144),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-           /* BindGroupLayoutEntry {
-                binding: 1,
-                visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: true,
-                    // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
-                    // Context: https://github.com/LPGhatguy/crevice/issues/29
-                    min_binding_size: BufferSize::new(64),
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: BufferSize::new(128),
+                    },
+                    count: None,
                 },
-                count: None,
-            },*/
             ],
         });
 
@@ -152,7 +138,7 @@ type DrawSDFCommand = (SetItemPipeline, DrawSDF);
 
 pub struct DrawSDF;
 impl RenderCommand<Transparent3d> for DrawSDF {
-    type Param = SQuery<(Read<ViewUniformOffset>, Read<SDFViewBinding>)>;
+    type Param = SQuery<(Read<ViewUniformOffset>, Read<ViewExtensionUniformOffset>, Read<SDFViewBinding>)>;
 
     fn render<'w>(
         _view: bevy::prelude::Entity,
@@ -160,8 +146,8 @@ impl RenderCommand<Transparent3d> for DrawSDF {
         query: bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) {
-        let (view_uniform, view_binding) = query.get(_view).unwrap();
-        pass.set_bind_group(0, &view_binding.binding, &[view_uniform.offset]);
+        let (view_uniform, view_extension_uniform, view_binding) = query.get(_view).unwrap();
+        pass.set_bind_group(0, &view_binding.binding, &[view_uniform.offset, view_extension_uniform.offset]);
         pass.draw(0..3, 0..1);
     }
 }
@@ -172,7 +158,33 @@ pub struct SDFViewBinding {
 
 #[derive(Clone, AsStd140)]
 pub struct ViewExtension {
-    inverted_matrix: Mat4,
+    view_proj_inverted: Mat4,
+    proj_inverted: Mat4,
+}
+
+#[derive(Default)]
+pub struct ViewExtensionUniforms {
+    pub uniforms: DynamicUniformVec<ViewExtension>,
+}
+
+pub struct ViewExtensionUniformOffset {
+    pub offset: u32,
+}
+
+fn prepare_view_extensions(mut commands: Commands, render_device: Res<RenderDevice>, render_queue: Res<RenderQueue>, mut view_extension_uniforms: ResMut<ViewExtensionUniforms>, views: Query<(Entity, &ExtractedView)>) {
+    view_extension_uniforms.uniforms.clear();
+    for (entity, camera) in views.iter() {
+        let projection = camera.projection;
+        let view_proj = projection * camera.transform.compute_matrix().inverse();
+        let view_extension_uniform_offset = ViewExtensionUniformOffset {
+            offset: view_extension_uniforms.uniforms.push(ViewExtension {
+                view_proj_inverted: view_proj.inverse(),
+                proj_inverted: projection.inverse(),
+            }),
+        };
+        commands.entity(entity).insert(view_extension_uniform_offset);
+    }
+    view_extension_uniforms.uniforms.write_buffer(&render_device, &render_queue);
 }
 
 pub fn queue_sdf(
@@ -180,6 +192,7 @@ pub fn queue_sdf(
     transparent_3d_draw_functions: Res<DrawFunctions<Transparent3d>>,
     sdf_pipeline: Res<SDFPipeline>,
     view_uniforms: Res<ViewUniforms>,
+    view_extension_uniforms: Res<ViewExtensionUniforms>,
     render_device: Res<RenderDevice>,
     mut views: Query<(Entity, &ExtractedView, &mut RenderPhase<Transparent3d>)>,
 ) {
@@ -187,15 +200,24 @@ pub fn queue_sdf(
         .read()
         .get_id::<DrawSDFCommand>()
         .unwrap();
-    if let Some(binding_resource) = view_uniforms.uniforms.binding() {
+    if let (Some(binding_resource), Some(extension_binding_resource)) = (
+        view_uniforms.uniforms.binding(),
+        view_extension_uniforms.uniforms.binding(),
+    ) {
         for (entity, view, mut transparent_phase) in views.iter_mut() {
             let view_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
                 label: Some("View Bind Group"),
                 layout: &sdf_pipeline.view_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: binding_resource.clone(),
-                }],
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: binding_resource.clone(),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: extension_binding_resource.clone(),
+                    }
+                ],
             });
             let view_binding = SDFViewBinding {
                 binding: view_bind_group,
