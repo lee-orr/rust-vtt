@@ -29,39 +29,77 @@ fn vs_main(
     var out: VertexOutput;
     let x = f32(1 - i32(in_vertex_index)) * 5.;
     let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 5.;
-    out.clip_position = vec4<f32>(x, y, 0.2, 1.0);
+    out.clip_position = vec4<f32>(x, y, 0.1, 1.0);
     let view_space_position = view_extension.view_proj_inverted * out.clip_position;
-    let world_position = view_extension.proj_inverted * view_space_position;
-    let ray = world_position.xyz - view.world_position;
+    let ray = view_space_position.xyz - view.world_position;
     out.ray_direction = normalize(ray);
     return out;
 }
 
 
 // Fragment shader
-
+struct MarchHit {
+    distance: f32;
+    point: vec3<f32>;
+    hit: bool;
+    iterations: i32;
+};
 
 let MAX_MARCHING_STEPS = 100;
+let HIT_EPSILON = 0.1;
+let NORM_EPSILON = 0.01;
+
+let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
+let NORM_EPSILON_Y = vec3<f32>(0.0, NORM_EPSILON, 0.0);
+let NORM_EPSILON_Z = vec3<f32>(0.0, 0.0, NORM_EPSILON);
 
 fn sceneSDF(point: vec3<f32>) -> f32 {
     return length(point) -  0.5;
 }
 
-fn march(start: vec3<f32>, ray: vec3<f32>) -> f32 {
+fn sceneColor(point: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(0.7, 0.2, 0.2);
+}
+
+fn march(start: vec3<f32>, ray: vec3<f32>) -> MarchHit {
     var depth : f32 = 0.5;
+    var out : MarchHit;
     for (var i : i32 = 0; i < MAX_MARCHING_STEPS; i = i + 1) {
-        let dist = sceneSDF(start + depth * ray);
-        if (dist < 0.1) {
-            return 1.0;
+        let point = start + depth * ray;
+        let dist = sceneSDF(point);
+        if (dist < HIT_EPSILON) {
+            out.distance = dist;
+            out.point = point;
+            out.hit = true;
+            out.iterations = i;
+            return out;
         }
         depth = depth + dist;
     }
-    return 0.0;
+    out.distance = depth;
+    out.hit = false;
+    out.iterations = MAX_MARCHING_STEPS;
+    return out;
 }
 
+fn calculate_normal(point: vec3<f32>)-> vec3<f32> {
+    var normal = vec3<f32>(
+        sceneSDF(point + NORM_EPSILON_X) - sceneSDF(point - NORM_EPSILON_X),
+        sceneSDF(point + NORM_EPSILON_Y) - sceneSDF(point - NORM_EPSILON_Y),
+        sceneSDF(point + NORM_EPSILON_Z) - sceneSDF(point - NORM_EPSILON_Z),
+    );
+    return normalize(normal);
+}
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    let inside = march(view.world_position, in.ray_direction);
-    return vec4<f32>(inside, in.ray_direction.x, in.ray_direction.z, 1.0);
+    let hit = march(view.world_position, in.ray_direction);
+    if (hit.hit) {
+        let norm = calculate_normal(hit.point);
+        let color = sceneColor(hit.point);
+
+        return vec4<f32>(color * clamp(norm.y, 0.2, 1.0),1.0);
+    } else {
+    return vec4<f32>(in.ray_direction, 1.0);
+    }
 }

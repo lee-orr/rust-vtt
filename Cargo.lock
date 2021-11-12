@@ -220,7 +220,7 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 [[package]]
 name = "bevy"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_dylib",
  "bevy_internal",
@@ -235,7 +235,7 @@ checksum = "0d5f2f58f0aec3c50a20799792c3705e80dd7df327e79791cacec197e84e5e61"
 [[package]]
 name = "bevy_app"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_derive",
  "bevy_ecs",
@@ -248,7 +248,7 @@ dependencies = [
 [[package]]
 name = "bevy_asset"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -275,7 +275,7 @@ dependencies = [
 [[package]]
 name = "bevy_core"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_derive",
@@ -290,7 +290,7 @@ dependencies = [
 [[package]]
 name = "bevy_core_pipeline"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -302,7 +302,7 @@ dependencies = [
 [[package]]
 name = "bevy_derive"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "Inflector",
  "bevy_macro_utils",
@@ -313,7 +313,7 @@ dependencies = [
 [[package]]
 name = "bevy_diagnostic"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_core",
@@ -325,7 +325,7 @@ dependencies = [
 [[package]]
 name = "bevy_dylib"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_internal",
 ]
@@ -333,7 +333,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "async-channel",
  "bevy_ecs_macros",
@@ -351,7 +351,7 @@ dependencies = [
 [[package]]
 name = "bevy_ecs_macros"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -377,7 +377,7 @@ dependencies = [
 [[package]]
 name = "bevy_input"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -388,7 +388,7 @@ dependencies = [
 [[package]]
 name = "bevy_internal"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -415,21 +415,21 @@ dependencies = [
 [[package]]
 name = "bevy_log"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "android_log-sys 0.2.0",
  "bevy_app",
  "bevy_utils",
  "console_error_panic_hook",
  "tracing-log",
- "tracing-subscriber 0.2.25",
+ "tracing-subscriber",
  "tracing-wasm",
 ]
 
 [[package]]
 name = "bevy_macro_utils"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "cargo-manifest",
  "quote",
@@ -439,22 +439,22 @@ dependencies = [
 [[package]]
 name = "bevy_math"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_reflect",
- "glam 0.15.2",
+ "glam",
 ]
 
 [[package]]
 name = "bevy_reflect"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_reflect_derive",
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam 0.15.2",
+ "glam",
  "parking_lot",
  "serde",
  "smallvec",
@@ -464,7 +464,7 @@ dependencies = [
 [[package]]
 name = "bevy_reflect_derive"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_macro_utils",
  "proc-macro2",
@@ -476,7 +476,7 @@ dependencies = [
 [[package]]
 name = "bevy_render"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "anyhow",
  "bevy-glsl-to-spirv",
@@ -506,7 +506,7 @@ dependencies = [
 [[package]]
 name = "bevy_render2"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -539,7 +539,7 @@ dependencies = [
 [[package]]
 name = "bevy_scene"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "anyhow",
  "bevy_app",
@@ -557,7 +557,7 @@ dependencies = [
 [[package]]
 name = "bevy_tasks"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "async-channel",
  "async-executor",
@@ -570,7 +570,7 @@ dependencies = [
 [[package]]
 name = "bevy_transform"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -583,7 +583,7 @@ dependencies = [
 [[package]]
 name = "bevy_utils"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "ahash 0.7.6",
  "bevy_derive",
@@ -596,7 +596,7 @@ dependencies = [
 [[package]]
 name = "bevy_window"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -609,7 +609,7 @@ dependencies = [
 [[package]]
 name = "bevy_winit"
 version = "0.5.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bevy_app",
  "bevy_ecs",
@@ -726,9 +726,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.71"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79c2681d6594606957bbb8631c4b90a7fcaaa72cdb714743a437b156d6a7eedd"
+checksum = "22a9137b95ea06864e018375b72adfb7db6e6f68cfc8df5a04d00288050485ee"
 
 [[package]]
 name = "cfg-if"
@@ -1024,19 +1024,19 @@ dependencies = [
 
 [[package]]
 name = "crevice"
-version = "0.6.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+version = "0.8.0"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "bytemuck",
  "crevice-derive",
- "glam 0.15.2",
+ "glam",
  "mint",
 ]
 
 [[package]]
 name = "crevice-derive"
-version = "0.6.0"
-source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#bc5916cce76ed5effdee8a5fb17141818a7cf4ca"
+version = "0.8.0"
+source = "git+https://github.com/bevyengine/bevy?branch=pipelined-rendering#290b7dd9ab9fffadc17715b2fdb2ec6333020b8b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1519,19 +1519,14 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.15.2"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3abb554f8ee44336b72d522e0a7fe86a29e09f839a36022fa869a7dfe941a54b"
+checksum = "c2c626156a479bfb5a4362c43f5abadd700af33ebc8db068089d9cb92493d6ab"
 dependencies = [
  "bytemuck",
+ "mint",
  "serde",
 ]
-
-[[package]]
-name = "glam"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "525a3e490ba77b8e326fb67d4b44b4bd2f920f44d4cc73ccec50adc68e3bee34"
 
 [[package]]
 name = "glow"
@@ -1616,11 +1611,11 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hexasphere"
-version = "4.1.1"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b69824ef63443efe6187c621d24ef1a3c6a0381881cc024ff47be38a8bfc1127"
+checksum = "9dc62dcfd68ec810c4707804556f2e88655012b1a373b0e0bbbe88a9db366627"
 dependencies = [
- "glam 0.18.0",
+ "glam",
  "lazy_static",
 ]
 
@@ -3001,9 +2996,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.25"
+version = "0.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71"
+checksum = "fdd0568dbfe3baf7048b7908d2b32bca0d81cd56bec6d2a8f894b01d74f86be3"
 dependencies = [
  "ansi_term 0.12.1",
  "chrono",
@@ -3022,24 +3017,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-subscriber"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80a4ddde70311d8da398062ecf6fc2c309337de6b0f77d6c27aff8d53f6fca52"
-dependencies = [
- "sharded-slab",
- "thread_local",
- "tracing-core",
-]
-
-[[package]]
 name = "tracing-wasm"
-version = "0.2.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
+checksum = "8ae741706df70547fca8715f74a8569677666e7be3454313af70f6e158034485"
 dependencies = [
  "tracing",
- "tracing-subscriber 0.3.1",
+ "tracing-subscriber",
  "wasm-bindgen",
 ]
 
