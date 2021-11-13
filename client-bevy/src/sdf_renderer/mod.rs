@@ -1,23 +1,28 @@
+pub mod sdf_operation;
+
+use core::num;
+
 use crevice::std140::AsStd140;
 
-use bevy::{asset::Asset, core_pipeline::{SetItemPipeline, Transparent2d, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2, Vec3}, prelude::{AssetServer, Assets, Commands, Entity, FromWorld, Plugin, Query, Res, ResMut}, render2::{RenderApp, RenderStage, color::Color, render_asset::RenderAssets, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{
-            BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-            BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
-            BlendFactor, BlendOperation, BlendState, BufferBindingType, BufferSize,
-            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
-            PolygonMode, PrimitiveState, PrimitiveTopology, RawRenderPipelineDescriptor,
-            RenderPipelineCache, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource,
-            ShaderStages, StencilFaceState, StencilState, TextureFormat, VertexState,
-        }, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{self, ExtractedView, ViewUniformOffset, ViewUniforms}}};
+use bevy::{asset::Asset, core_pipeline::{SetItemPipeline, Transparent2d, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2, Vec3}, prelude::{AssetServer, Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut}, reflect::TypeUuid, render2::{RenderApp, RenderStage, color::Color, render_asset::RenderAssets, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent, BlendFactor, BlendOperation, BlendState, BufferBindingType, BufferSize, CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState, PrimitiveTopology, RawRenderPipelineDescriptor, RenderPipelineCache, RenderPipelineDescriptor, Shader, ShaderModuleDescriptor, ShaderSource, ShaderStages, StencilFaceState, StencilState, TextureFormat, VertexState}, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{self, ExtractedView, ViewUniformOffset, ViewUniforms}}};
+
+use crate::sdf_renderer::sdf_operation::{BrushUniform, ExtractedSDFBrush, BrushSettings, SDFBrush};
+
 
 pub struct SdfPlugin;
 
 impl Plugin for SdfPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
+        let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
+        let shader = Shader::from_wgsl(include_str!("sdf_shader.wgsl"));
+        shaders.set_untracked(SDF_SHADER_HANDLE, shader);
+        app
+            .insert_resource(BrushSettings::default())
+            .add_system(prepare_brush_settings);
         app.sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
             .init_resource::<ViewExtensionUniforms>()
+            .insert_resource(BrushUniform::default())
             .add_render_command::<Transparent3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
             .add_system_to_stage(RenderStage::Queue, queue_sdf);
@@ -28,12 +33,13 @@ pub struct SDFPipeline {
     view_layout: BindGroupLayout,
     pipeline: CachedPipelineId,
 }
+pub const SDF_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1836745564647005696);
 
 impl FromWorld for SDFPipeline {
     fn from_world(world: &mut bevy::prelude::World) -> Self {
         let world = world.cell();
-        let asset_server = world.get_resource::<AssetServer>().unwrap();
-        let shader = asset_server.load("sdf_shader.wgsl");
+        let shader = SDF_SHADER_HANDLE.typed::<Shader>();
         let render_device = world.get_resource::<RenderDevice>().unwrap();
         let view_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("SDF Pipeline Bind Group Layout"),
@@ -62,6 +68,30 @@ impl FromWorld for SDFPipeline {
                     },
                     count: None,
                 },
+               /* BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true},
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: BufferSize::new(4),
+                    },
+                    count: None,
+                },*/
             ],
         });
 
@@ -185,6 +215,12 @@ fn prepare_view_extensions(mut commands: Commands, render_device: Res<RenderDevi
         commands.entity(entity).insert(view_extension_uniform_offset);
     }
     view_extension_uniforms.uniforms.write_buffer(&render_device, &render_queue);
+}
+
+fn prepare_brush_settings(mut brush_settings: ResMut<BrushSettings>, brushes: Query<&SDFBrush>) {
+    let num_brushes = brushes.iter().count();
+    brush_settings.num_brushes = num_brushes as u32;
+    println!("Num Brushes {}", num_brushes);
 }
 
 pub fn queue_sdf(

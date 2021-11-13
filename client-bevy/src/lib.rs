@@ -5,7 +5,7 @@ mod camera;
 use bevy::{PipelinedDefaultPlugins, diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin}, prelude::*};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
-use sdf_renderer::SdfPlugin;
+use sdf_renderer::{SdfPlugin, sdf_operation::{SDFBrush, SDFOperation, SDFShape}};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -33,10 +33,15 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-fn setup(_commands: Commands) {
-    // light
-    /*  commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
-        ..Default::default()
-    }); */
+fn setup(mut commands: Commands) {
+    println!("Setting Up Brushes");
+    commands.spawn()
+        .insert(Transform::from_translation(Vec3::ZERO))
+        .insert(GlobalTransform::default())
+        .insert(SDFBrush { order: 0, shape: SDFShape::Box(1.,1.,1.), operation: SDFOperation::Union, blending: 0.});
+        
+    commands.spawn()
+        .insert(Transform::from_translation(Vec3::X * 3.))
+        .insert(GlobalTransform::default())
+        .insert(SDFBrush { order: 0, shape: SDFShape::Sphere(1.), operation: SDFOperation::Union, blending: 0.});
 }

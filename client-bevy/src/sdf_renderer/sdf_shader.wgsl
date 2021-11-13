@@ -12,6 +12,25 @@ struct ViewExtension {
     proj_inverted: mat4x4<f32>;
 };
 
+struct SDFBrush {
+    shape: u32;
+    operation: u32;
+    blending: f32;
+    transform: mat4x4<f32>;
+    param1: vec4<f32>;
+    param2: vec4<f32>;
+};
+
+[[block]]
+struct Brushes {
+    brushes: array<SDFBrush>;
+};
+
+[[block]]
+struct BrushSettings {
+    num_brushes: u32;
+};
+
 struct VertexOutput {
     [[builtin(position)]] clip_position: vec4<f32>;
     [[location(0)]] ray_direction: vec3<f32>;
@@ -21,6 +40,10 @@ struct VertexOutput {
 var<uniform> view: View;
 [[group(0), binding(1)]]
 var<uniform> view_extension: ViewExtension;
+[[group(0), binding(2)]]
+var<storage, read> brushes: Brushes;
+[[group(0), binding(3)]]
+var<uniform> brush_settings: BrushSettings;
 
 [[stage(vertex)]]
 fn vs_main(
