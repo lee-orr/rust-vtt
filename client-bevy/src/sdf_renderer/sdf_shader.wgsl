@@ -40,9 +40,9 @@ struct VertexOutput {
 var<uniform> view: View;
 [[group(0), binding(1)]]
 var<uniform> view_extension: ViewExtension;
-[[group(0), binding(2)]]
+[[group(1), binding(0)]]
 var<storage, read> brushes: Brushes;
-[[group(0), binding(3)]]
+[[group(1), binding(1)]]
 var<uniform> brush_settings: BrushSettings;
 
 [[stage(vertex)]]
