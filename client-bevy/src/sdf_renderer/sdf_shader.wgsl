@@ -13,8 +13,8 @@ struct ViewExtension {
 };
 
 struct SDFBrush {
-    shape: u32;
-    operation: u32;
+    shape: i32;
+    operation: i32;
     blending: f32;
     transform: mat4x4<f32>;
     param1: vec4<f32>;
@@ -28,7 +28,7 @@ struct Brushes {
 
 [[block]]
 struct BrushSettings {
-    num_brushes: u32;
+    num_brushes: i32;
 };
 
 struct VertexOutput {
@@ -76,6 +76,13 @@ let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
 let NORM_EPSILON_Y = vec3<f32>(0.0, NORM_EPSILON, 0.0);
 let NORM_EPSILON_Z = vec3<f32>(0.0, 0.0, NORM_EPSILON);
 
+let SPHERE_CODE = 0;
+let SQUARE_CODE = 1;
+
+let UNION_CODE = 0;
+let SUBTRACTION_CODE = 1;
+let INTERSECTION_CODE = 2;
+
 fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
     return length(point) - radius;
 }
@@ -94,10 +101,62 @@ fn smoothUnionSDF(a: f32, b: f32, smoothness: f32) -> f32 {
     return min(a,b) - h * h* smoothness * (1.0/4.0);
 }
 
+fn subtractionSDF(a: f32, b: f32) -> f32 {
+    return max(-a, b);
+}
+
+fn smoothSubtractionSDF(a: f32, b: f32, smoothness: f32) -> f32 {
+    let h = clamp(0.5 - 0.5 * (a + b)/smoothness, 0.0, 1.0);
+
+    return mix (b, -a, h) + smoothness * h * (1.0 - h);
+}
+
+fn intersectionSDF(a: f32, b: f32) -> f32 {
+    return max(a, b);
+}
+
+fn smoothIntersectionSDF(a: f32, b: f32, smoothness: f32) -> f32 {
+    let h = clamp(0.5 - 0.5 * (b-a)/smoothness, 0.0, 1.0);
+
+    return mix (b, a, h) + smoothness * h * (1.0 - h);
+}
+
 fn sceneSDF(point: vec3<f32>) -> f32 {
-    let box = boxSDF(point, vec3<f32>(2.0,0.5, 3.0));
-    let sphere = sphereSDF(point, 1.0);
-    return smoothUnionSDF(box, sphere, 0.5);
+    var dist : f32 = 9999999999.9;
+    let num_brushes : i32 = i32(brush_settings.num_brushes);
+    let p : vec4<f32> = vec4<f32>(point.xyz, 1.0);
+    for (var i : i32 = 0; i < num_brushes; i = i + 1) {
+        let brush = brushes.brushes[i];
+        var brush_dist : f32 = 9999999999.9;
+        let transform : mat4x4<f32> =  brush.transform;
+        let transformed_point = (transform * p).xyz;
+         if (brush.shape == SPHERE_CODE) {
+            brush_dist = sphereSDF(transformed_point, brush.param1.x);
+        } elseif (brush.shape == SQUARE_CODE) {
+            brush_dist = boxSDF(transformed_point, brush.param1.xyz);
+        }
+
+        if (brush.operation == UNION_CODE) {
+            if (brush.blending > 0.0) {
+                dist = smoothUnionSDF(dist, brush_dist, brush.blending);
+            } else {
+                dist = unionSDF(dist, brush_dist);
+            }
+        } elseif (brush.operation == SUBTRACTION_CODE) {
+            if (brush.blending > 0.0) {
+                dist = smoothSubtractionSDF(brush_dist, dist, brush.blending);
+            } else {
+                dist = subtractionSDF(brush_dist, dist);
+            }
+        } elseif (brush.operation == INTERSECTION_CODE) {
+            if (brush.blending > 0.0) {
+                dist = smoothIntersectionSDF(brush_dist, dist, brush.blending);
+            } else {
+                dist = intersectionSDF(brush_dist, dist);
+            }
+        }
+    }
+    return dist;
 }
 
 fn sceneColor(point: vec3<f32>) -> vec3<f32> {
@@ -140,9 +199,8 @@ fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     if (hit.hit) {
         let norm = calculate_normal(hit.point);
         let color = sceneColor(hit.point);
-
         return vec4<f32>(color * clamp(norm.y, 0.2, 1.0),1.0);
     } else {
-    return vec4<f32>(in.ray_direction, 1.0);
+        return vec4<f32>(in.ray_direction, 1.0);
     }
 }

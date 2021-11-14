@@ -55,3 +55,5 @@ tokio-tungstenite = { version = "0.15.0", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 ws_stream_wasm = { version = "0.7", features = ["tokio_io"] }
 crevice = { git = "https://github.com/bevyengine/bevy", branch = "pipelined-rendering" }
+wgpu = "*"
+bytemuck = "*"

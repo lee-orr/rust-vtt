@@ -1,24 +1,26 @@
 use bevy::{ecs::system::Command, math::{Mat4, Quat, Vec3, Vec4}, prelude::{Commands, Entity, GlobalTransform, Query}, render2::render_resource::DynamicUniformVec};
+use bytemuck::{Pod, Zeroable};
 use crevice::std140::AsStd140;
 
-#[derive(Clone,Copy, Default, AsStd140)]
+#[repr(C)]
+#[derive(Clone, Copy, Default, AsStd140, Debug)]
 pub struct ExtractedSDFBrush {
-    shape: u32,
-    operation: u32,
+    shape: i32,
+    operation: i32,
     blending: f32,
     transform: Mat4,
     param1: Vec4,
     param2: Vec4
 }
 
-#[derive(Default)]
-pub struct BrushUniform {
-   pub brushes: DynamicUniformVec<ExtractedSDFBrush>,
+#[derive(Debug)]
+pub struct ExtractedSDFOrder {
+    pub order: u32,
 }
 
 #[derive(Default, Clone, AsStd140)]
 pub struct BrushSettings {
-    pub num_brushes: u32,
+    pub num_brushes: i32,
 }
 
 pub enum SDFShape {
@@ -28,6 +30,8 @@ pub enum SDFShape {
 
 pub enum SDFOperation {
     Union,
+    Subtraction,
+    Intersection,
 }
 
 pub struct SDFBrush {
@@ -37,21 +41,31 @@ pub struct SDFBrush {
     pub blending: f32,
 }
 
-fn extract_sdf_brush(transform: &GlobalTransform, brush: &SDFBrush) -> ExtractedSDFBrush {
+const SPHERE_CODE : i32 = 0;
+const SQUARE_CODE : i32 = 1;
+
+const UNION_CODE : i32 = 0;
+const SUBTRACTION_CODE: i32 = 1;
+const INTERSECTION_CODE: i32 = 2;
+
+fn extract_sdf_brush(transform: &GlobalTransform, brush: &SDFBrush) -> (ExtractedSDFBrush, ExtractedSDFOrder) {
     let mut extracted = match brush.shape {
-        SDFShape::Sphere(radius) => ExtractedSDFBrush { shape: 0, param1: Vec4::new(radius, 0., 0., 0.), ..Default::default()},
-        SDFShape::Box(width, height, depth) => ExtractedSDFBrush{ shape: 1, param1: Vec4::new(width, height, depth, 0.), ..Default::default()},
+        SDFShape::Sphere(radius) => ExtractedSDFBrush { shape: SPHERE_CODE, param1: Vec4::new(radius, 0., 0., 0.), ..Default::default()},
+        SDFShape::Box(width, height, depth) => ExtractedSDFBrush{ shape: SQUARE_CODE, param1: Vec4::new(width, height, depth, 0.), ..Default::default()},
     };
     extracted.transform = transform.compute_matrix();
     extracted.blending = brush.blending;
     extracted.operation = match brush.operation {
-        SDFOperation::Union => 0,
+        SDFOperation::Union => UNION_CODE,
+        SDFOperation::Subtraction => SUBTRACTION_CODE,
+        SDFOperation::Intersection => INTERSECTION_CODE,
     };
-    extracted
+    (extracted, ExtractedSDFOrder { order: brush.order })
 }
 
 pub fn extract_sdf_brushes(mut commands: Commands, brushes: Query<(Entity, &GlobalTransform, &SDFBrush)>) {
     for (entity, transform, brush) in brushes.iter() {
-        commands.get_or_spawn(entity).insert(extract_sdf_brush(&transform, &brush));
+        let (sdf, order) = extract_sdf_brush(&transform, &brush);
+        commands.get_or_spawn(entity).insert(sdf).insert(order);
     }
 }

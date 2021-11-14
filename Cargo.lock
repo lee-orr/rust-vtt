@@ -782,6 +782,7 @@ dependencies = [
  "async-compat",
  "bevy",
  "bevy_egui",
+ "bytemuck",
  "client-lib",
  "console_error_panic_hook",
  "crevice",
@@ -793,6 +794,7 @@ dependencies = [
  "tokio-tungstenite",
  "url",
  "wasm-bindgen",
+ "wgpu",
  "winit",
  "ws_stream_wasm",
 ]

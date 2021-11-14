@@ -41,7 +41,7 @@ fn setup(mut commands: Commands) {
         .insert(SDFBrush { order: 0, shape: SDFShape::Box(1.,1.,1.), operation: SDFOperation::Union, blending: 0.});
         
     commands.spawn()
-        .insert(Transform::from_translation(Vec3::X * 3.))
+        .insert(Transform::from_translation(Vec3::new(2., 0., 0.)))
         .insert(GlobalTransform::default())
-        .insert(SDFBrush { order: 0, shape: SDFShape::Sphere(1.), operation: SDFOperation::Union, blending: 0.});
+        .insert(SDFBrush { order: 1, shape: SDFShape::Sphere(2.), operation: SDFOperation::Intersection, blending: 1.});
 }
