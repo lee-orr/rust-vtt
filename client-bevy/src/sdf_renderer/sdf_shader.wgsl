@@ -10,6 +10,8 @@ struct View {
 struct ViewExtension {
     view_proj_inverted: mat4x4<f32>;
     proj_inverted: mat4x4<f32>;
+    cone_scaler: f32;
+    pixel_size: f32;
 };
 
 struct SDFBrush {
@@ -34,6 +36,7 @@ struct BrushSettings {
 struct VertexOutput {
     [[builtin(position)]] clip_position: vec4<f32>;
     [[location(0)]] ray_direction: vec3<f32>;
+    [[location(1)]] pixel_size: f32;
 };
 
 [[group(0), binding(0)]]
@@ -56,6 +59,12 @@ fn vs_main(
     let view_space_position = view_extension.view_proj_inverted * out.clip_position;
     let ray = view_space_position.xyz - view.world_position;
     out.ray_direction = normalize(ray);
+    let clip_space_center = vec4<f32>(0.,0.,0., 1.);
+    let clip_space_one = vec4<f32>(view_extension.pixel_size, 0., 0., 1.);
+    let view_space_center = view_extension.view_proj_inverted * clip_space_center;
+    let view_space_one = view_extension.view_proj_inverted * clip_space_one;
+    let pixel_size = length(view_space_one - view_space_center);
+    out.pixel_size = pixel_size;
     return out;
 }
 
@@ -66,11 +75,12 @@ struct MarchHit {
     point: vec3<f32>;
     hit: bool;
     iterations: i32;
+    final_epsilon: f32;
 };
 
 let MAX_MARCHING_STEPS = 100;
-let HIT_EPSILON = 0.04;
-let NORM_EPSILON = 0.01;
+let MAX_DISTANCE = 100.0;
+let NORM_EPSILON = 0.0005;
 
 let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
 let NORM_EPSILON_Y = vec3<f32>(0.0, NORM_EPSILON, 0.0);
@@ -163,21 +173,36 @@ fn sceneColor(point: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(0.7, 0.2, 0.2);
 }
 
-fn march(start: vec3<f32>, ray: vec3<f32>) -> MarchHit {
+fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32) -> MarchHit {
+    let global_hit_epsilon: f32 = pixel_size;
+    var last_epsilon: f32 = pixel_size;
     var depth : f32 = 0.5;
     var out : MarchHit;
     for (var i : i32 = 0; i < MAX_MARCHING_STEPS; i = i + 1) {
-        let point = start + depth * ray;
+        let offset = depth * ray;
+        let point = start + offset;
+        let distance_to_start = length(offset);
+        let hit_epsilon = global_hit_epsilon * (view_extension.cone_scaler * distance_to_start);
+        last_epsilon = hit_epsilon;
         let dist = sceneSDF(point);
-        if (dist < HIT_EPSILON) {
+        if (dist < hit_epsilon) {
             out.distance = dist;
             out.point = point;
             out.hit = true;
             out.iterations = i;
+            out.final_epsilon = last_epsilon;
+            return out;
+        } elseif ( distance_to_start > MAX_DISTANCE) {
+            out.distance = depth;
+            out.hit = false;
+            out.iterations = i;
+            out.final_epsilon = last_epsilon;
             return out;
         }
+        
         depth = depth + dist;
     }
+    out.final_epsilon = last_epsilon;
     out.distance = depth;
     out.hit = false;
     out.iterations = MAX_MARCHING_STEPS;
@@ -195,12 +220,12 @@ fn calculate_normal(point: vec3<f32>)-> vec3<f32> {
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    let hit = march(view.world_position, in.ray_direction);
+    let hit = march(view.world_position, in.ray_direction, in.pixel_size);
     if (hit.hit) {
         let norm = calculate_normal(hit.point);
         let color = sceneColor(hit.point);
-        return vec4<f32>(color * clamp(norm.y, 0.2, 1.0),1.0);
+        return vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
     } else {
-        return vec4<f32>(in.ray_direction, 1.0);
+        return vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
     }
 }

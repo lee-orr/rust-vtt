@@ -4,15 +4,7 @@ use std::cmp::Ordering;
 
 use crevice::std140::AsStd140;
 
-use bevy::{
-    core_pipeline::{SetItemPipeline, Transparent3d},
-    ecs::system::lifetimeless::{Read, SQuery, SRes},
-    math::Mat4,
-    prelude::{Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut},
-    reflect::TypeUuid,
-    render2::{
-        render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
-        render_resource::{
+use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut}, reflect::TypeUuid, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
             BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
@@ -21,13 +13,7 @@ use bevy::{
             PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
             RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat,
             VertexState,
-        },
-        renderer::{RenderDevice, RenderQueue},
-        texture::BevyDefault,
-        view::{ExtractedView, ViewUniformOffset, ViewUniforms},
-        RenderApp, RenderStage,
-    },
-};
+        }, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{ExtractedView, ViewUniformOffset, ViewUniforms}}};
 use bevy::render2::view;
 
 use wgpu::{util::BufferInitDescriptor, BufferUsages, ShaderStages};
@@ -94,7 +80,7 @@ impl FromWorld for SDFPipeline {
                         has_dynamic_offset: true,
                         // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
                         // Context: https://github.com/LPGhatguy/crevice/issues/29
-                        min_binding_size: BufferSize::new(128),
+                        min_binding_size: BufferSize::new(144),
                     },
                     count: None,
                 },
@@ -252,6 +238,8 @@ pub struct SDFViewBinding {
 pub struct ViewExtension {
     view_proj_inverted: Mat4,
     proj_inverted: Mat4,
+    cone_scaler: f32,
+    pixel_size: f32,
 }
 
 #[derive(Default)]
@@ -278,16 +266,19 @@ fn prepare_view_extensions(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut view_extension_uniforms: ResMut<ViewExtensionUniforms>,
-    views: Query<(Entity, &ExtractedView)>,
+    views: Query<(Entity, &ExtractedView, Option<&PerspectiveProjection>)>,
 ) {
     view_extension_uniforms.uniforms.clear();
-    for (entity, camera) in views.iter() {
+    for (entity, camera, perspective) in views.iter() {
         let projection = camera.projection;
         let view_proj = projection * camera.transform.compute_matrix().inverse();
+        let max_pixels = if camera.width > camera.height { camera.width } else { camera.height};
         let view_extension_uniform_offset = ViewExtensionUniformOffset {
             offset: view_extension_uniforms.uniforms.push(ViewExtension {
                 view_proj_inverted: view_proj.inverse(),
                 proj_inverted: projection.inverse(),
+                cone_scaler: if let Some(p) = perspective { p.fov.tan() } else { 1. },
+                pixel_size: 1.0 / (max_pixels as f32),
             }),
         };
         commands
