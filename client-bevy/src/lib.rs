@@ -40,7 +40,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES : i32 = 10;
+const NUM_BRUSHES : i32 = 4;
 
 fn setup(mut commands: Commands) {
     println!("Setting Up Brushes");

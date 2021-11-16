@@ -23,11 +23,13 @@ pub struct BrushSettings {
     pub num_brushes: i32,
 }
 
+#[derive(Debug)]
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
 }
 
+#[derive(Debug)]
 pub enum SDFOperation {
     Union,
     Subtraction,
@@ -39,6 +41,38 @@ pub struct SDFBrush {
     pub shape: SDFShape,
     pub operation: SDFOperation,
     pub blending: f32,
+}
+
+#[derive(Debug, AsStd140)]
+pub struct GpuSDFNode {
+    pub node_type: i32,
+    pub child_a: i32,
+    pub child_b: i32,
+    pub params: Mat4
+}
+
+#[derive(Debug)]
+pub enum SDFNode {
+    Empty,
+    Primitive(SDFShape),
+    Operation(SDFOperation, f32, Entity, Entity),
+    Transform(Entity),
+}
+
+#[derive(Debug, AsStd140)]
+pub struct SDFNodeBoundingBox {
+    pub extents: Vec3,
+    pub center: Vec3,
+}
+
+impl Default for SDFNode {
+    fn default() -> Self {
+        SDFNode::Empty
+    }
+}
+
+pub struct SDFObject {
+    pub root: SDFNode,
 }
 
 const SPHERE_CODE : i32 = 0;
