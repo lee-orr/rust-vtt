@@ -72,8 +72,8 @@ impl Default for SDFNodeData {
 
 #[derive(Debug)]
 pub struct SDFNode {
-    data: SDFNodeData,
-    object: Entity,
+    pub data: SDFNodeData,
+    pub object: Entity,
 }
 
 pub struct SDFObject {
@@ -82,8 +82,15 @@ pub struct SDFObject {
 
 pub struct SDFObjectDirty;
 
+#[derive(Clone, Debug)]
 pub struct SDFObjectTree {
     pub tree: Vec<GpuSDFNode>,
+}
+
+pub struct SDFRootTransform {
+    pub matrix: Mat4,
+    pub translation: Vec3,
+    pub scale: Vec3,
 }
 
 const SPHERE_CODE: i32 = 0;
@@ -93,12 +100,12 @@ const UNION_CODE: i32 = 0;
 const SUBTRACTION_CODE: i32 = 1;
 const INTERSECTION_CODE: i32 = 2;
 
-const UNION_OP: i32 = 1;
-const INTERSECTION_OP: i32 = 2;
-const SUBTRACTION_OP: i32 = 3;
-const TRANSFORM_WARP: i32 = 4;
-const SPHERE_PRIM: i32 = 5;
-const BOX_PRIM: i32 = 6;
+pub const UNION_OP: i32 = 1;
+pub const INTERSECTION_OP: i32 = 2;
+pub const SUBTRACTION_OP: i32 = 3;
+pub const TRANSFORM_WARP: i32 = 4;
+pub const SPHERE_PRIM: i32 = 5;
+pub const BOX_PRIM: i32 = 6;
 
 fn extract_sdf_brush(
     transform: &GlobalTransform,
@@ -133,6 +140,13 @@ pub fn extract_sdf_brushes(
     for (entity, transform, brush) in brushes.iter() {
         let (sdf, order) = extract_sdf_brush(transform, brush);
         commands.get_or_spawn(entity).insert(sdf).insert(order);
+    }
+}
+
+pub fn extract_gpu_node_trees(mut commands: Commands, query: Query<(Entity, &GlobalTransform, &SDFObjectTree)>) {
+    for (entity, transform, tree) in query.iter() {
+        commands.get_or_spawn(entity).insert(SDFRootTransform { matrix: transform.compute_matrix(), translation: transform.translation, scale: transform.scale, });
+        commands.get_or_spawn(entity).insert(tree.clone());
     }
 }
 
@@ -172,8 +186,8 @@ fn generate_gpu_node(
             new_node.params.x_axis.x = blending.to_owned();
             let (child_a_id, child_a) = generate_gpu_node(&mut tree, child_a, node_query);
             let (child_b_id, child_b) = generate_gpu_node(&mut tree, child_b, node_query);
-            new_node.child_a = child_a_id;
-            new_node.child_b = child_b_id;
+            new_node.child_a = child_a_id - (new_id as i32);
+            new_node.child_b = child_b_id - (new_id as i32);
             let mut min_bounds = Vec3::ZERO;
             let mut max_bounds = Vec3::ZERO;
 
@@ -194,9 +208,9 @@ fn generate_gpu_node(
                 new_node.node_type = TRANSFORM_WARP;
                 new_node.params = transform.compute_matrix();
                 let (child_id, child) = generate_gpu_node(&mut tree, child, node_query);
-                new_node.child_a = child_id;
+                new_node.child_a = child_id - (new_id as i32);
                 if let Some(child) = child {
-                    new_node.center = child.center + transform.translation;
+                    new_node.center = child.center - transform.translation;
                     new_node.radius = child.radius * transform.scale.max_element();
                 }
             }
@@ -237,8 +251,8 @@ mod tests {
         prelude::{Stage, SystemStage, World},
     };
 
-    fn assert_eq_f32(a: f32, b: f32) {
-        assert!((a - b).abs() < f32::EPSILON);
+    fn assert_eq_f32(a: f32, b: f32) -> bool {
+        (a - b).abs() < f32::EPSILON
     }
 
     #[test]
@@ -293,27 +307,28 @@ mod tests {
             assert!(!tree.is_empty());
             let root = &tree[0];
             assert_eq!(root.node_type, UNION_OP);
-            assert_eq_f32(root.params.x_axis.x, 0.);
-            assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
-            assert_eq_f32(root.radius, 1.25);
+            assert!(assert_eq_f32(root.params.x_axis.x, 0.));
+            assert_eq!(root.center, Vec3::new(-0.75, 0., 0.));
+            assert!(assert_eq_f32(root.radius, 1.25));
             let left_child = &tree[root.child_a as usize];
             let transform_matrix = world
                 .get::<Transform>(sphere_transform)
                 .unwrap()
                 .compute_matrix();
             assert_eq!(left_child.params, transform_matrix);
-            assert_eq!(left_child.center, Vec3::X);
-            assert_eq_f32(left_child.radius, 1.);
+            assert_eq!(left_child.center, -1. * Vec3::X);
+            assert!(assert_eq_f32(left_child.radius, 1.));
             let right_child = &tree[root.child_b as usize];
             assert_eq!(right_child.node_type, BOX_PRIM);
             let right_child_extents = right_child.params.x_axis;
             assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
             assert_eq!(right_child.center, Vec3::ZERO);
-            assert_eq_f32(right_child.radius, 0.5);
-            let sphere = &tree[left_child.child_a as usize];
-            assert_eq_f32(sphere.params.x_axis.x, 1.);
+            assert!(assert_eq_f32(right_child.radius, 0.5));
+            let sphere = &tree[(root.child_a + left_child.child_a) as usize];
+            assert_eq!(sphere.node_type, SPHERE_PRIM);
+            assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
             assert_eq!(sphere.center, Vec3::ZERO);
-            assert_eq_f32(sphere.radius, 1.);
+            assert!(assert_eq_f32(sphere.radius, 1.));
         }
     }
 
@@ -430,27 +445,28 @@ mod tests {
             assert!(!tree.is_empty());
             let root = &tree[0];
             assert_eq!(root.node_type, UNION_OP);
-            assert_eq_f32(root.params.x_axis.x, 0.);
-            assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
-            assert_eq_f32(root.radius, 1.25);
+            assert!(assert_eq_f32(root.params.x_axis.x, 0.));
+            assert_eq!(root.center, Vec3::new(-0.75, 0., 0.));
+            assert!(assert_eq_f32(root.radius, 1.25));
             let left_child = &tree[root.child_a as usize];
             let transform_matrix = world
                 .get::<Transform>(sphere_transform)
                 .unwrap()
                 .compute_matrix();
             assert_eq!(left_child.params, transform_matrix);
-            assert_eq!(left_child.center, Vec3::X);
-            assert_eq_f32(left_child.radius, 1.);
+            assert_eq!(left_child.center, -1. * Vec3::X);
+            assert!(assert_eq_f32(left_child.radius, 1.));
             let right_child = &tree[root.child_b as usize];
             assert_eq!(right_child.node_type, BOX_PRIM);
             let right_child_extents = right_child.params.x_axis;
             assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
             assert_eq!(right_child.center, Vec3::ZERO);
-            assert_eq_f32(right_child.radius, 0.5);
-            let sphere = &tree[left_child.child_a as usize];
-            assert_eq_f32(sphere.params.x_axis.x, 1.);
+            assert!(assert_eq_f32(right_child.radius, 0.5));
+            let sphere = &tree[(root.child_a + left_child.child_a) as usize];
+            assert_eq!(sphere.node_type, SPHERE_PRIM);
+            assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
             assert_eq!(sphere.center, Vec3::ZERO);
-            assert_eq_f32(sphere.radius, 1.);
+            assert!(assert_eq_f32(sphere.radius, 1.));
         }
     }
 }

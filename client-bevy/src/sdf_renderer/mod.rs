@@ -1,14 +1,10 @@
 pub mod sdf_operation;
 
+use core::num;
+
 use crevice::std140::AsStd140;
 
-use bevy::{
-    core_pipeline::{SetItemPipeline, Transparent3d},
-    ecs::system::lifetimeless::{Read, SQuery},
-    math::Mat4,
-    prelude::{Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut},
-    reflect::TypeUuid,
-    render2::{
+use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery}, math::Mat4, prelude::{Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin, Query, Res, ResMut}, reflect::TypeUuid, render2::{
         camera::PerspectiveProjection,
         render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
         render_resource::{
@@ -25,16 +21,13 @@ use bevy::{
         texture::BevyDefault,
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    },
-};
+    }};
 
 use wgpu::{util::BufferInitDescriptor, BufferUsages, ShaderStages};
 
-use crate::sdf_renderer::sdf_operation::{
-    extract_sdf_brushes, BrushSettings, ExtractedSDFBrush, Std140ExtractedSDFBrush,
-};
+use crate::sdf_renderer::sdf_operation::{BrushSettings, ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode, construct_sdf_object_tree, extract_gpu_node_trees, extract_sdf_brushes, mark_dirty_object};
 
-use self::sdf_operation::ExtractedSDFOrder;
+use self::sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP};
 
 pub struct SdfPlugin;
 
@@ -43,12 +36,14 @@ impl Plugin for SdfPlugin {
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
         let shader = Shader::from_wgsl(include_str!("sdf_shader.wgsl"));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
+        app.add_system_to_stage(CoreStage::PostUpdate, mark_dirty_object)
+            .add_system_to_stage(CoreStage::Last, construct_sdf_object_tree);
         app.sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
             .init_resource::<ViewExtensionUniforms>()
             .init_resource::<BrushUniforms>()
             .add_render_command::<Transparent3d, DrawSDFCommand>()
-            .add_system_to_stage(RenderStage::Extract, extract_sdf_brushes)
+            .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
             .add_system_to_stage(RenderStage::Queue, queue_sdf)
@@ -311,19 +306,45 @@ fn prepare_view_extensions(
 
 fn prepare_brush_uniforms(
     mut brush_uniforms: ResMut<BrushUniforms>,
-    brushes: Query<(&ExtractedSDFBrush, &ExtractedSDFOrder)>,
+    objects: Query<(&SDFObjectTree, &SDFRootTransform)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
 ) {
-    let mut brushes: Vec<(&ExtractedSDFBrush, &ExtractedSDFOrder)> = brushes.iter().collect();
-    brushes.sort_by(|a, b| a.1.order.cmp(&b.1.order));
-    let brushes: Vec<Std140ExtractedSDFBrush> =
-        brushes.iter().map(|val| val.0.as_std140()).collect();
-    let num_brushes = brushes.len() as u64;
+    let objects : Vec<(&SDFObjectTree, &SDFRootTransform)>= objects.iter().collect();
+    let object_count = objects.len();
+    let mut index_so_far = object_count;
+    let mut brush_vec: Vec<GpuSDFNode> = Vec::new();
+    for (tree, transform) in &objects {
+        let num_nodes = tree.tree.len();
+        if num_nodes > 0 {
+            let root = &tree.tree[0];
+            let child = (index_so_far - brush_vec.len()) as i32;
+            let transform = GpuSDFNode {
+                node_type: TRANSFORM_WARP,
+                child_a: child,
+                center: root.center - transform.translation,
+                radius: root.radius * transform.scale.max_element(),
+                params: transform.matrix,
+                ..Default::default()
+            };
+            brush_vec.push(transform);
+            index_so_far += num_nodes;
+        } else {
+            brush_vec.push(GpuSDFNode::default());
+        }
+    }
+    for (tree, _) in &objects {
+        for node in &tree.tree {
+            brush_vec.push(node.clone());
+        }
+    }
+    //println!("Brushes: {:?}", brush_vec);
+    let brushes: Vec<Std140GpuSDFNode> =
+        brush_vec.iter().map(|val| val.as_std140()).collect();
 
     brush_uniforms.settings.clear();
     brush_uniforms.settings.push(BrushSettings {
-        num_brushes: num_brushes as i32,
+        num_brushes: object_count as i32,
     });
     brush_uniforms
         .settings
