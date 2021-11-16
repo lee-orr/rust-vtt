@@ -1,10 +1,17 @@
 pub mod sdf_operation;
 
-use std::cmp::Ordering;
-
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut}, reflect::TypeUuid, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{
+use bevy::{
+    core_pipeline::{SetItemPipeline, Transparent3d},
+    ecs::system::lifetimeless::{Read, SQuery},
+    math::Mat4,
+    prelude::{Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, Res, ResMut},
+    reflect::TypeUuid,
+    render2::{
+        camera::PerspectiveProjection,
+        render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
+        render_resource::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
             BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
@@ -13,8 +20,13 @@ use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetim
             PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
             RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat,
             VertexState,
-        }, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{ExtractedView, ViewUniformOffset, ViewUniforms}}};
-use bevy::render2::view;
+        },
+        renderer::{RenderDevice, RenderQueue},
+        texture::BevyDefault,
+        view::{ExtractedView, ViewUniformOffset, ViewUniforms},
+        RenderApp, RenderStage,
+    },
+};
 
 use wgpu::{util::BufferInitDescriptor, BufferUsages, ShaderStages};
 
@@ -157,7 +169,7 @@ impl FromWorld for SDFPipeline {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(FragmentState {
-                shader: shader.clone(),
+                shader,
                 shader_defs: Vec::new(),
                 entry_point: "fs_main".into(),
                 targets: vec![ColorTargetState {
@@ -218,14 +230,13 @@ impl RenderCommand<Transparent3d> for PrepareSDFBuffer {
     type Param = SQuery<Read<SDFBrushBinding>>;
 
     fn render<'w>(
-        view: Entity,
-        item: &Transparent3d,
+        _view: Entity,
+        _item: &Transparent3d,
         param: bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) {
-        for bindings in param.iter() {
-            pass.set_bind_group(1, &bindings.binding, &[0,0]);
-            break;
+        if let Some(bindings) =  param.iter().next() {
+            pass.set_bind_group(1, &bindings.binding, &[0, 0]);
         }
     }
 }
@@ -272,12 +283,20 @@ fn prepare_view_extensions(
     for (entity, camera, perspective) in views.iter() {
         let projection = camera.projection;
         let view_proj = projection * camera.transform.compute_matrix().inverse();
-        let max_pixels = if camera.width > camera.height { camera.width } else { camera.height};
+        let max_pixels = if camera.width > camera.height {
+            camera.width
+        } else {
+            camera.height
+        };
         let view_extension_uniform_offset = ViewExtensionUniformOffset {
             offset: view_extension_uniforms.uniforms.push(ViewExtension {
                 view_proj_inverted: view_proj.inverse(),
                 proj_inverted: projection.inverse(),
-                cone_scaler: if let Some(p) = perspective { p.fov.tan() } else { 1. },
+                cone_scaler: if let Some(p) = perspective {
+                    p.fov.tan()
+                } else {
+                    1.
+                },
                 pixel_size: 1.0 / (max_pixels as f32),
             }),
         };
@@ -296,14 +315,15 @@ fn prepare_brush_uniforms(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
 ) {
-    let mut brushes : Vec<(&ExtractedSDFBrush, &ExtractedSDFOrder)> = brushes.iter().collect();
+    let mut brushes: Vec<(&ExtractedSDFBrush, &ExtractedSDFOrder)> = brushes.iter().collect();
     brushes.sort_by(|a, b| a.1.order.cmp(&b.1.order));
-    let brushes: Vec<Std140ExtractedSDFBrush> = brushes.iter().map(|val| val.0.as_std140()).collect();
+    let brushes: Vec<Std140ExtractedSDFBrush> =
+        brushes.iter().map(|val| val.0.as_std140()).collect();
     let num_brushes = brushes.len() as u64;
 
     brush_uniforms.settings.clear();
     brush_uniforms.settings.push(BrushSettings {
-        num_brushes: num_brushes.clone() as i32,
+        num_brushes: num_brushes as i32,
     });
     brush_uniforms
         .settings
@@ -311,7 +331,7 @@ fn prepare_brush_uniforms(
 
     let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Brush Buffer"),
-        contents: bytemuck::cast_slice(&brushes.as_slice()),
+        contents: bytemuck::cast_slice(brushes.as_slice()),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
     });
     brush_uniforms.brushes = Some(buffer);
@@ -361,7 +381,7 @@ pub fn queue_sdf(
         view_uniforms.uniforms.binding(),
         view_extension_uniforms.uniforms.binding(),
     ) {
-        for (entity, view, mut transparent_phase) in views.iter_mut() {
+        for (entity, _view, mut transparent_phase) in views.iter_mut() {
             let view_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
                 label: Some("View Bind Group"),
                 layout: &sdf_pipeline.view_layout,
@@ -384,7 +404,7 @@ pub fn queue_sdf(
             transparent_phase.add(Transparent3d {
                 distance: 0.,
                 pipeline: sdf_pipeline.pipeline,
-                entity: entity,
+                entity,
                 draw_function: draw_sdf,
             });
         }

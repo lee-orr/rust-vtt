@@ -40,7 +40,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES : i32 = 4;
+const NUM_BRUSHES: i32 = 4;
 
 fn setup(mut commands: Commands) {
     println!("Setting Up Brushes");
@@ -48,7 +48,11 @@ fn setup(mut commands: Commands) {
         for j in 0..NUM_BRUSHES {
             commands
                 .spawn()
-                .insert(Transform::from_translation(Vec3::new(i as f32, 0., -1. * (j as f32))))
+                .insert(Transform::from_translation(Vec3::new(
+                    i as f32,
+                    0.,
+                    -1. * (j as f32),
+                )))
                 .insert(GlobalTransform::default())
                 .insert(SDFBrush {
                     order: 0,
@@ -58,46 +62,46 @@ fn setup(mut commands: Commands) {
                 });
         }
     }
-/*     commands
-        .spawn()
-        .insert(Transform::from_translation(Vec3::ZERO))
-        .insert(GlobalTransform::default())
-        .insert(SDFBrush {
-            order: 0,
-            shape: SDFShape::Box(1., 1., 1.),
-            operation: SDFOperation::Union,
-            blending: 0.,
-        });
-    commands
-        .spawn()
-        .insert(Transform::from_translation(Vec3::new(0., 0., -50.)))
-        .insert(GlobalTransform::default())
-        .insert(SDFBrush {
-            order: 2,
-            shape: SDFShape::Box(1., 1., 1.),
-            operation: SDFOperation::Union,
-            blending: 0.,
-        });
-    commands
-        .spawn()
-        .insert(Transform::from_translation(Vec3::new(0., 0., -95.)))
-        .insert(GlobalTransform::default())
-        .insert(SDFBrush {
-            order: 2,
-            shape: SDFShape::Box(1., 1., 1.),
-            operation: SDFOperation::Union,
-            blending: 0.,
-        });
+    /*     commands
+            .spawn()
+            .insert(Transform::from_translation(Vec3::ZERO))
+            .insert(GlobalTransform::default())
+            .insert(SDFBrush {
+                order: 0,
+                shape: SDFShape::Box(1., 1., 1.),
+                operation: SDFOperation::Union,
+                blending: 0.,
+            });
+        commands
+            .spawn()
+            .insert(Transform::from_translation(Vec3::new(0., 0., -50.)))
+            .insert(GlobalTransform::default())
+            .insert(SDFBrush {
+                order: 2,
+                shape: SDFShape::Box(1., 1., 1.),
+                operation: SDFOperation::Union,
+                blending: 0.,
+            });
+        commands
+            .spawn()
+            .insert(Transform::from_translation(Vec3::new(0., 0., -95.)))
+            .insert(GlobalTransform::default())
+            .insert(SDFBrush {
+                order: 2,
+                shape: SDFShape::Box(1., 1., 1.),
+                operation: SDFOperation::Union,
+                blending: 0.,
+            });
 
-    commands
-        .spawn()
-        .insert(Transform::from_translation(Vec3::new(2., 0., 0.)))
-        .insert(GlobalTransform::default())
-        .insert(SDFBrush {
-            order: 1,
-            shape: SDFShape::Sphere(2.),
-            operation: SDFOperation::Intersection,
-            blending: 1.,
-        });
-*/
+        commands
+            .spawn()
+            .insert(Transform::from_translation(Vec3::new(2., 0., 0.)))
+            .insert(GlobalTransform::default())
+            .insert(SDFBrush {
+                order: 1,
+                shape: SDFShape::Sphere(2.),
+                operation: SDFOperation::Intersection,
+                blending: 1.,
+            });
+    */
 }

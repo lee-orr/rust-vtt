@@ -1,7 +1,8 @@
-use std::primitive;
+use bevy::{
+    math::{Mat4, Vec3, Vec4},
+    prelude::{Changed, Commands, Entity, GlobalTransform, Query, Transform},
+};
 
-use bevy::{core::Time, ecs::system::Command, math::{Mat4, Quat, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Entity, GlobalTransform, Handle, IntoSystem, Query, Res, Stage, SystemStage, Transform, World}, render2::render_resource::DynamicUniformVec};
-use bytemuck::{Pod, Zeroable};
 use crevice::std140::AsStd140;
 
 #[repr(C)]
@@ -12,7 +13,7 @@ pub struct ExtractedSDFBrush {
     blending: f32,
     transform: Mat4,
     param1: Vec4,
-    param2: Vec4
+    param2: Vec4,
 }
 
 #[derive(Debug)]
@@ -69,7 +70,7 @@ impl Default for SDFNodeData {
     }
 }
 
-#[derive(Debug,)]
+#[derive(Debug)]
 pub struct SDFNode {
     data: SDFNodeData,
     object: Entity,
@@ -85,24 +86,35 @@ pub struct SDFObjectTree {
     pub tree: Vec<GpuSDFNode>,
 }
 
-const SPHERE_CODE : i32 = 0;
-const SQUARE_CODE : i32 = 1;
+const SPHERE_CODE: i32 = 0;
+const SQUARE_CODE: i32 = 1;
 
-const UNION_CODE : i32 = 0;
+const UNION_CODE: i32 = 0;
 const SUBTRACTION_CODE: i32 = 1;
 const INTERSECTION_CODE: i32 = 2;
 
-const UNION_OP : i32 = 1;
-const INTERSECTION_OP : i32 = 2;
-const SUBTRACTION_OP : i32 = 3;
-const TRANSFORM_WARP : i32 = 4;
-const SPHERE_PRIM : i32 = 5;
-const BOX_PRIM : i32 = 6;
+const UNION_OP: i32 = 1;
+const INTERSECTION_OP: i32 = 2;
+const SUBTRACTION_OP: i32 = 3;
+const TRANSFORM_WARP: i32 = 4;
+const SPHERE_PRIM: i32 = 5;
+const BOX_PRIM: i32 = 6;
 
-fn extract_sdf_brush(transform: &GlobalTransform, brush: &SDFBrush) -> (ExtractedSDFBrush, ExtractedSDFOrder) {
+fn extract_sdf_brush(
+    transform: &GlobalTransform,
+    brush: &SDFBrush,
+) -> (ExtractedSDFBrush, ExtractedSDFOrder) {
     let mut extracted = match brush.shape {
-        SDFShape::Sphere(radius) => ExtractedSDFBrush { shape: SPHERE_CODE, param1: Vec4::new(radius, 0., 0., 0.), ..Default::default()},
-        SDFShape::Box(width, height, depth) => ExtractedSDFBrush{ shape: SQUARE_CODE, param1: Vec4::new(width, height, depth, 0.), ..Default::default()},
+        SDFShape::Sphere(radius) => ExtractedSDFBrush {
+            shape: SPHERE_CODE,
+            param1: Vec4::new(radius, 0., 0., 0.),
+            ..Default::default()
+        },
+        SDFShape::Box(width, height, depth) => ExtractedSDFBrush {
+            shape: SQUARE_CODE,
+            param1: Vec4::new(width, height, depth, 0.),
+            ..Default::default()
+        },
     };
     extracted.transform = transform.compute_matrix();
     extracted.blending = brush.blending;
@@ -114,15 +126,22 @@ fn extract_sdf_brush(transform: &GlobalTransform, brush: &SDFBrush) -> (Extracte
     (extracted, ExtractedSDFOrder { order: brush.order })
 }
 
-pub fn extract_sdf_brushes(mut commands: Commands, brushes: Query<(Entity, &GlobalTransform, &SDFBrush)>) {
+pub fn extract_sdf_brushes(
+    mut commands: Commands,
+    brushes: Query<(Entity, &GlobalTransform, &SDFBrush)>,
+) {
     for (entity, transform, brush) in brushes.iter() {
-        let (sdf, order) = extract_sdf_brush(&transform, &brush);
+        let (sdf, order) = extract_sdf_brush(transform, brush);
         commands.get_or_spawn(entity).insert(sdf).insert(order);
     }
 }
 
-fn generate_gpu_node(mut tree: &mut Vec<GpuSDFNode>, entity: &Entity, node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>) -> (i32, Option<GpuSDFNode>){
-    if let Ok((entity, sdfnode, transform)) = node_query.get(entity.to_owned()) {
+fn generate_gpu_node(
+    mut tree: &mut Vec<GpuSDFNode>,
+    entity: &Entity,
+    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>,
+) -> (i32, Option<GpuSDFNode>) {
+    if let Ok((_entity, sdfnode, transform)) = node_query.get(entity.to_owned()) {
         let new_id = tree.len();
         tree.push(GpuSDFNode::default());
         let mut new_node = GpuSDFNode::default();
@@ -135,13 +154,14 @@ fn generate_gpu_node(mut tree: &mut Vec<GpuSDFNode>, entity: &Entity, node_query
                     new_node.params.x_axis.x = radius.to_owned();
                     new_node.center = Vec3::ZERO;
                     new_node.radius = radius.to_owned();
-                },
+                }
                 SDFShape::Box(width, height, depth) => {
                     new_node.node_type = BOX_PRIM;
-                    new_node.params.x_axis = Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
+                    new_node.params.x_axis =
+                        Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
                     new_node.center = Vec3::ZERO;
                     new_node.radius = width.max(height.max(depth.to_owned()));
-                },
+                }
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
             new_node.node_type = match operation {
@@ -150,8 +170,8 @@ fn generate_gpu_node(mut tree: &mut Vec<GpuSDFNode>, entity: &Entity, node_query
                 SDFOperation::Intersection => INTERSECTION_OP,
             };
             new_node.params.x_axis.x = blending.to_owned();
-            let (child_a_id, child_a) = generate_gpu_node(&mut tree, &child_a, &node_query);
-            let (child_b_id, child_b) = generate_gpu_node(&mut tree, &child_b, &node_query);
+            let (child_a_id, child_a) = generate_gpu_node(&mut tree, child_a, node_query);
+            let (child_b_id, child_b) = generate_gpu_node(&mut tree, child_b, node_query);
             new_node.child_a = child_a_id;
             new_node.child_b = child_b_id;
             let mut min_bounds = Vec3::ZERO;
@@ -166,16 +186,16 @@ fn generate_gpu_node(mut tree: &mut Vec<GpuSDFNode>, entity: &Entity, node_query
                 max_bounds = max_bounds.max(child_b.center + child_b.radius);
             }
 
-            new_node.center = (max_bounds + min_bounds)/2.0;
+            new_node.center = (max_bounds + min_bounds) / 2.0;
             let extents = (max_bounds - new_node.center) + blending.to_owned();
             new_node.radius = extents.max_element();
         } else if let SDFNodeData::Transform(child) = sdfnode {
             if let Some(transform) = transform {
                 new_node.node_type = TRANSFORM_WARP;
                 new_node.params = transform.compute_matrix();
-                let (child_id, child) = generate_gpu_node(&mut tree, &child, &node_query);
+                let (child_id, child) = generate_gpu_node(&mut tree, child, node_query);
                 new_node.child_a = child_id;
-                if let Some(child) = child{
+                if let Some(child) = child {
                     new_node.center = child.center + transform.translation;
                     new_node.radius = child.radius * transform.scale.max_element();
                 }
@@ -190,7 +210,11 @@ fn generate_gpu_node(mut tree: &mut Vec<GpuSDFNode>, entity: &Entity, node_query
     }
 }
 
-pub fn construct_sdf_object_tree(mut commands: Commands, object_query: Query<(Entity, &SDFObject), Changed<SDFObjectDirty>>, node_query: Query<(Entity, &SDFNode, Option<&Transform>)>) {
+pub fn construct_sdf_object_tree(
+    mut commands: Commands,
+    object_query: Query<(Entity, &SDFObject), Changed<SDFObjectDirty>>,
+    node_query: Query<(Entity, &SDFNode, Option<&Transform>)>,
+) {
     for (entity, object) in object_query.iter() {
         let mut tree = Vec::<GpuSDFNode>::new();
         generate_gpu_node(&mut tree, &object.root, &node_query);
@@ -205,121 +229,228 @@ pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<
     }
 }
 
-#[test]
-fn generate_object_tree() {
-    let mut world = World::default();
-    let mut update_stage = SystemStage::parallel();
-    update_stage.add_system(construct_sdf_object_tree);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{
+        math::Vec4Swizzles,
+        prelude::{Stage, SystemStage, World},
+    };
 
-    let object = world.spawn().id();
-    let sphere = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Sphere(1.)) }).id();
-    let sphere_transform = world.spawn().insert(SDFNode { object, data: SDFNodeData::Transform(sphere)}).insert(Transform::from_translation(Vec3::X)).id();
-    let cube = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5))}).id();
-    let union = world.spawn().insert(SDFNode { object, data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube)}).id();
-
-    world.get_entity_mut(object).unwrap().insert(SDFObject { root: union }).insert(SDFObjectDirty);
-
-    update_stage.run(&mut world);
-    
-    let tree = world.get::<SDFObjectTree>(object);
-    assert!(tree.is_some());
-    if let Some(tree) = tree {
-        let tree = &tree.tree;
-        assert!(tree.len() > 0);
-        let root = &tree[0];
-        assert_eq!(root.node_type, UNION_OP);
-        assert_eq!(root.params.x_axis.x, 0.);
-        assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
-        assert_eq!(root.radius, 1.25);
-        let left_child = &tree[root.child_a as usize];
-        let transform_matrix = world.get::<Transform>(sphere_transform).unwrap().compute_matrix();
-        assert_eq!(left_child.params, transform_matrix);
-        assert_eq!(left_child.center, Vec3::X);
-        assert_eq!(left_child.radius, 1.);
-        let right_child = &tree[root.child_b as usize];
-        assert_eq!(right_child.node_type, BOX_PRIM);
-        let right_child_extents = right_child.params.x_axis;
-        assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
-        assert_eq!(right_child.center, Vec3::ZERO);
-        assert_eq!(right_child.radius, 0.5);
-        let sphere = &tree[left_child.child_a as usize];
-        assert_eq!(sphere.params.x_axis.x, 1.);
-        assert_eq!(sphere.center, Vec3::ZERO);
-        assert_eq!(sphere.radius, 1.);
+    fn assert_eq_f32(a: f32, b: f32) {
+        assert!((a - b).abs() < f32::EPSILON);
     }
-}
 
-#[test]
-fn tree_not_generated_if_object_not_dirty() {
-    let mut world = World::default();
-    let mut update_stage = SystemStage::parallel();
-    update_stage.add_system(construct_sdf_object_tree);
+    #[test]
+    fn generate_object_tree() {
+        let mut world = World::default();
+        let mut update_stage = SystemStage::parallel();
+        update_stage.add_system(construct_sdf_object_tree);
 
-    let object = world.spawn().id();
-    let sphere = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Sphere(1.)) }).id();
-    let sphere_transform = world.spawn().insert(SDFNode { object, data: SDFNodeData::Transform(sphere)}).insert(Transform::from_translation(Vec3::X)).id();
-    let cube = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5))}).id();
-    let union = world.spawn().insert(SDFNode { object, data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube)}).id();
+        let object = world.spawn().id();
+        let sphere = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
+            })
+            .id();
+        let sphere_transform = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Transform(sphere),
+            })
+            .insert(Transform::from_translation(Vec3::X))
+            .id();
+        let cube = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
+            })
+            .id();
+        let union = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
+            })
+            .id();
 
-    world.get_entity_mut(object).unwrap().insert(SDFObject { root: union });
+        world
+            .get_entity_mut(object)
+            .unwrap()
+            .insert(SDFObject { root: union })
+            .insert(SDFObjectDirty);
 
-    update_stage.run(&mut world);
-    
-    let tree = world.get::<SDFObjectTree>(object);
-    assert!(tree.is_none());
-}
+        update_stage.run(&mut world);
 
-#[test]
-fn adding_sdf_node_dirties_object_and_generates_tree() {
-    let mut world = World::default();
-    let mut update_stage = SystemStage::parallel();
-    update_stage.add_system(mark_dirty_object);
-    let mut post_update_stage = SystemStage::parallel();
-    post_update_stage.add_system(construct_sdf_object_tree);
+        let tree = world.get::<SDFObjectTree>(object);
+        assert!(tree.is_some());
+        if let Some(tree) = tree {
+            let tree = &tree.tree;
+            assert!(!tree.is_empty());
+            let root = &tree[0];
+            assert_eq!(root.node_type, UNION_OP);
+            assert_eq_f32(root.params.x_axis.x, 0.);
+            assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
+            assert_eq_f32(root.radius, 1.25);
+            let left_child = &tree[root.child_a as usize];
+            let transform_matrix = world
+                .get::<Transform>(sphere_transform)
+                .unwrap()
+                .compute_matrix();
+            assert_eq!(left_child.params, transform_matrix);
+            assert_eq!(left_child.center, Vec3::X);
+            assert_eq_f32(left_child.radius, 1.);
+            let right_child = &tree[root.child_b as usize];
+            assert_eq!(right_child.node_type, BOX_PRIM);
+            let right_child_extents = right_child.params.x_axis;
+            assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
+            assert_eq!(right_child.center, Vec3::ZERO);
+            assert_eq_f32(right_child.radius, 0.5);
+            let sphere = &tree[left_child.child_a as usize];
+            assert_eq_f32(sphere.params.x_axis.x, 1.);
+            assert_eq!(sphere.center, Vec3::ZERO);
+            assert_eq_f32(sphere.radius, 1.);
+        }
+    }
 
-    let object = world.spawn().id();
+    #[test]
+    fn tree_not_generated_if_object_not_dirty() {
+        let mut world = World::default();
+        let mut update_stage = SystemStage::parallel();
+        update_stage.add_system(construct_sdf_object_tree);
 
-    world.get_entity_mut(object).unwrap().insert(SDFObject { root: object });
+        let object = world.spawn().id();
+        let sphere = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
+            })
+            .id();
+        let sphere_transform = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Transform(sphere),
+            })
+            .insert(Transform::from_translation(Vec3::X))
+            .id();
+        let cube = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
+            })
+            .id();
+        let union = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
+            })
+            .id();
 
-    update_stage.run(&mut world);
-    post_update_stage.run(&mut world);
-    
-    let tree = world.get::<SDFObjectTree>(object);
-    assert!(tree.is_none());
-    
-    let sphere = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Sphere(1.)) }).id();
-    let sphere_transform = world.spawn().insert(SDFNode { object, data: SDFNodeData::Transform(sphere)}).insert(Transform::from_translation(Vec3::X)).id();
-    let cube = world.spawn().insert(SDFNode { object, data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5))}).id();
-    let union = world.spawn().insert(SDFNode { object, data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube)}).id();
-    world.get_entity_mut(object).unwrap().insert(SDFObject { root: union });
+        world
+            .get_entity_mut(object)
+            .unwrap()
+            .insert(SDFObject { root: union });
 
-    update_stage.run(&mut world);
-    post_update_stage.run(&mut world);
-    
-    let tree = world.get::<SDFObjectTree>(object);
-    assert!(tree.is_some());
-    if let Some(tree) = tree {
-        let tree = &tree.tree;
-        assert!(tree.len() > 0);
-        let root = &tree[0];
-        assert_eq!(root.node_type, UNION_OP);
-        assert_eq!(root.params.x_axis.x, 0.);
-        assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
-        assert_eq!(root.radius, 1.25);
-        let left_child = &tree[root.child_a as usize];
-        let transform_matrix = world.get::<Transform>(sphere_transform).unwrap().compute_matrix();
-        assert_eq!(left_child.params, transform_matrix);
-        assert_eq!(left_child.center, Vec3::X);
-        assert_eq!(left_child.radius, 1.);
-        let right_child = &tree[root.child_b as usize];
-        assert_eq!(right_child.node_type, BOX_PRIM);
-        let right_child_extents = right_child.params.x_axis;
-        assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
-        assert_eq!(right_child.center, Vec3::ZERO);
-        assert_eq!(right_child.radius, 0.5);
-        let sphere = &tree[left_child.child_a as usize];
-        assert_eq!(sphere.params.x_axis.x, 1.);
-        assert_eq!(sphere.center, Vec3::ZERO);
-        assert_eq!(sphere.radius, 1.);
+        update_stage.run(&mut world);
+
+        let tree = world.get::<SDFObjectTree>(object);
+        assert!(tree.is_none());
+    }
+
+    #[test]
+    fn adding_sdf_node_dirties_object_and_generates_tree() {
+        let mut world = World::default();
+        let mut update_stage = SystemStage::parallel();
+        update_stage.add_system(mark_dirty_object);
+        let mut post_update_stage = SystemStage::parallel();
+        post_update_stage.add_system(construct_sdf_object_tree);
+
+        let object = world.spawn().id();
+
+        world
+            .get_entity_mut(object)
+            .unwrap()
+            .insert(SDFObject { root: object });
+
+        update_stage.run(&mut world);
+        post_update_stage.run(&mut world);
+
+        let tree = world.get::<SDFObjectTree>(object);
+        assert!(tree.is_none());
+
+        let sphere = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
+            })
+            .id();
+        let sphere_transform = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Transform(sphere),
+            })
+            .insert(Transform::from_translation(Vec3::X))
+            .id();
+        let cube = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
+            })
+            .id();
+        let union = world
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
+            })
+            .id();
+        world
+            .get_entity_mut(object)
+            .unwrap()
+            .insert(SDFObject { root: union });
+
+        update_stage.run(&mut world);
+        post_update_stage.run(&mut world);
+
+        let tree = world.get::<SDFObjectTree>(object);
+        assert!(tree.is_some());
+        if let Some(tree) = tree {
+            let tree = &tree.tree;
+            assert!(!tree.is_empty());
+            let root = &tree[0];
+            assert_eq!(root.node_type, UNION_OP);
+            assert_eq_f32(root.params.x_axis.x, 0.);
+            assert_eq!(root.center, Vec3::new(0.75, 0., 0.));
+            assert_eq_f32(root.radius, 1.25);
+            let left_child = &tree[root.child_a as usize];
+            let transform_matrix = world
+                .get::<Transform>(sphere_transform)
+                .unwrap()
+                .compute_matrix();
+            assert_eq!(left_child.params, transform_matrix);
+            assert_eq!(left_child.center, Vec3::X);
+            assert_eq_f32(left_child.radius, 1.);
+            let right_child = &tree[root.child_b as usize];
+            assert_eq!(right_child.node_type, BOX_PRIM);
+            let right_child_extents = right_child.params.x_axis;
+            assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
+            assert_eq!(right_child.center, Vec3::ZERO);
+            assert_eq_f32(right_child.radius, 0.5);
+            let sphere = &tree[left_child.child_a as usize];
+            assert_eq_f32(sphere.params.x_axis.x, 1.);
+            assert_eq!(sphere.center, Vec3::ZERO);
+            assert_eq_f32(sphere.radius, 1.);
+        }
     }
 }
