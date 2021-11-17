@@ -1,46 +1,23 @@
 pub mod sdf_operation;
+pub mod sdf_block_mesher;
 
 use core::num;
 
 use crevice::std140::AsStd140;
 
-use bevy::{
-    core_pipeline::{SetItemPipeline, Transparent3d},
-    ecs::system::lifetimeless::{Read, SQuery},
-    math::Mat4,
-    prelude::{
+use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{
         Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin,
         Query, Res, ResMut,
-    },
-    reflect::TypeUuid,
-    render2::{
-        camera::PerspectiveProjection,
-        render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
-        render_resource::{
-            BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-            BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
-            BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
-            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
-            PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
-            RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat,
-            VertexState,
-        },
-        renderer::{RenderDevice, RenderQueue},
-        texture::BevyDefault,
-        view::{ExtractedView, ViewUniformOffset, ViewUniforms},
-        RenderApp, RenderStage,
-    },
-};
+    }, reflect::TypeUuid, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, mesh::{Mesh, shape}, render_asset::RenderAssets, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase}, render_resource::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent, BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize, CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache, RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat, VertexBufferLayout, VertexState}, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{ExtractedView, ViewUniformOffset, ViewUniforms}}};
 
-use wgpu::{util::BufferInitDescriptor, BufferUsages, ShaderStages};
+use wgpu::{BufferUsages, ShaderStages, VertexAttribute, VertexFormat, VertexStepMode, util::BufferInitDescriptor};
 
-use crate::sdf_renderer::sdf_operation::{
-    construct_sdf_object_tree, extract_gpu_node_trees, extract_sdf_brushes, mark_dirty_object,
+use crate::sdf_renderer::{sdf_block_mesher::{SdfBlockMeshingPlugin, extract_gpu_blocks}, sdf_operation::{
+    construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object,
     BrushSettings, ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode,
-};
+}};
 
-use self::sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP};
+use self::{sdf_block_mesher::{GpuSDFBlock, SDFBlock, Std140GpuSDFBlock}, sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP}};
 
 pub struct SdfPlugin;
 
@@ -49,13 +26,19 @@ impl Plugin for SdfPlugin {
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
         let shader = Shader::from_wgsl(include_str!("sdf_shader.wgsl"));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
-        app.add_system_to_stage(CoreStage::PostUpdate, mark_dirty_object)
+        let mut meshes = app.world.get_resource_mut::<Assets<Mesh>>().unwrap();
+        let mesh = Mesh::from(shape::Cube { size: 1.});
+        meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
+        app
+            .add_plugin(SdfBlockMeshingPlugin)
+            .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_object)
             .add_system_to_stage(CoreStage::Last, construct_sdf_object_tree);
         app.sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
             .init_resource::<ViewExtensionUniforms>()
             .init_resource::<BrushUniforms>()
             .add_render_command::<Transparent3d, DrawSDFCommand>()
+            .add_system_to_stage(RenderStage::Extract, extract_gpu_blocks)
             .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
@@ -71,6 +54,8 @@ pub struct SDFPipeline {
 }
 pub const SDF_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1836745564647005696);
+pub const SDF_CUBE_MESH_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Mesh::TYPE_UUID, 1674555646470534696);
 
 impl FromWorld for SDFPipeline {
     fn from_world(world: &mut bevy::prelude::World) -> Self {
@@ -134,8 +119,44 @@ impl FromWorld for SDFPipeline {
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
+
+        let (vertex_array_stride, vertex_attributes) =  (
+            32,
+            vec![
+                // Position (GOTCHA! Vertex_Position isn't first in the buffer due to how Mesh sorts attributes (alphabetically))
+                VertexAttribute {
+                    format: VertexFormat::Float32x3,
+                    offset: 12,
+                    shader_location: 0,
+                },
+                // Normal
+                VertexAttribute {
+                    format: VertexFormat::Float32x3,
+                    offset: 0,
+                    shader_location: 1,
+                },
+                // Uv
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 24,
+                    shader_location: 2,
+                },
+            ],
+        );
 
         let descriptor = RenderPipelineDescriptor {
             label: Some("SDF Pipeline".into()),
@@ -144,7 +165,11 @@ impl FromWorld for SDFPipeline {
                 shader: shader.clone(),
                 shader_defs: Vec::new(),
                 entry_point: "vs_main".into(),
-                buffers: Vec::new(),
+                buffers: vec![VertexBufferLayout {
+                    array_stride: vertex_array_stride,
+                    step_mode: VertexStepMode::Vertex,
+                    attributes: vertex_attributes,
+                }],
             },
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
@@ -158,13 +183,8 @@ impl FromWorld for SDFPipeline {
             depth_stencil: Some(DepthStencilState {
                 format: TextureFormat::Depth32Float,
                 depth_write_enabled: true,
-                depth_compare: CompareFunction::Always,
-                stencil: StencilState {
-                    front: StencilFaceState::IGNORE,
-                    back: StencilFaceState::IGNORE,
-                    read_mask: 0,
-                    write_mask: 0,
-                },
+                depth_compare: CompareFunction::Greater,
+                stencil: StencilState::default(),
                 bias: DepthBiasState {
                     constant: 0,
                     slope_scale: 0.0,
@@ -211,16 +231,16 @@ type DrawSDFCommand = (SetItemPipeline, PrepareSDFBuffer, DrawSDF);
 
 pub struct DrawSDF;
 impl RenderCommand<Transparent3d> for DrawSDF {
-    type Param = SQuery<(
+    type Param = (SQuery<(
         Read<ViewUniformOffset>,
         Read<ViewExtensionUniformOffset>,
         Read<SDFViewBinding>,
-    )>;
+    )>, SRes<RenderAssets<Mesh>>);
 
     fn render<'w>(
         _view: bevy::prelude::Entity,
         _item: &Transparent3d,
-        query: bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
+        (query, meshes): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) {
         let (view_uniform, view_extension_uniform, view_binding) = query.get(_view).unwrap();
@@ -229,7 +249,12 @@ impl RenderCommand<Transparent3d> for DrawSDF {
             &view_binding.binding,
             &[view_uniform.offset, view_extension_uniform.offset],
         );
-        pass.draw(0..3, 0..1);
+        let mesh = meshes.into_inner().get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
+        pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        if let Some(index_info) = &mesh.index_info {
+            pass.set_index_buffer(index_info.buffer.slice(..), 0, index_info.index_format);
+            pass.draw_indexed(0..index_info.count, 0, 0..view_binding.num_blocks);
+        }
     }
 }
 
@@ -244,13 +269,14 @@ impl RenderCommand<Transparent3d> for PrepareSDFBuffer {
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) {
         if let Some(bindings) = param.iter().next() {
-            pass.set_bind_group(1, &bindings.binding, &[0, 0]);
+            pass.set_bind_group(1, &bindings.binding, &[0, 0, 0]);
         }
     }
 }
 
 pub struct SDFViewBinding {
     binding: BindGroup,
+    pub num_blocks: u32,
 }
 
 #[derive(Clone, AsStd140)]
@@ -274,6 +300,7 @@ pub struct ViewExtensionUniformOffset {
 pub struct BrushUniforms {
     pub brushes: Option<Buffer>,
     pub settings: DynamicUniformVec<BrushSettings>,
+    pub blocks: Option<Buffer>,
 }
 
 pub struct SDFBrushBinding {
@@ -320,8 +347,10 @@ fn prepare_view_extensions(
 fn prepare_brush_uniforms(
     mut brush_uniforms: ResMut<BrushUniforms>,
     objects: Query<(&SDFObjectTree, &SDFRootTransform)>,
+    block_query: Query<&GpuSDFBlock>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
+    views: Query<(Entity, &ExtractedView)>,
 ) {
     let objects: Vec<(&SDFObjectTree, &SDFRootTransform)> = objects.iter().collect();
     let object_count = objects.len();
@@ -351,9 +380,25 @@ fn prepare_brush_uniforms(
             brush_vec.push(node.clone());
         }
     }
-    //println!("Brushes: {:?}", brush_vec);
-    let brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
-
+    let mut blocks : Vec<Std140GpuSDFBlock> = Vec::<Std140GpuSDFBlock>::new();
+    if let Some((_, view)) = views.iter().next() {
+        let position = view.transform.translation;
+        let mut tmpBlocks : Vec<(&GpuSDFBlock, f32)> = block_query.iter().map(|block|(block, (*&block.position - position).length())).collect();
+        tmpBlocks.sort_by(|(_,a), (_,b)| a.partial_cmp(b).unwrap());
+        blocks = tmpBlocks.iter().map(|(val,_)| val.as_std140()).collect();
+    } else {
+        blocks = block_query.iter().map(|block| block.as_std140()).collect();
+    }
+    
+    let mut brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
+    
+    println!("Brushes: {:?}, Blocks: {:?}", brushes.len(), blocks.len());
+    if brushes.len() == 0 {
+        brushes.push(GpuSDFNode::default().as_std140());
+    }
+    if blocks.len() == 0 {
+        blocks.push(GpuSDFBlock::default().as_std140());
+    }
     brush_uniforms.settings.clear();
     brush_uniforms.settings.push(BrushSettings {
         num_brushes: object_count as i32,
@@ -367,7 +412,14 @@ fn prepare_brush_uniforms(
         contents: bytemuck::cast_slice(brushes.as_slice()),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
     });
+    
+    let block_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        label: Some("Block Buffer"),
+        contents: bytemuck::cast_slice(blocks.as_slice()),
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+    });
     brush_uniforms.brushes = Some(buffer);
+    brush_uniforms.blocks = Some(block_buffer);
 }
 
 pub fn queue_brush_bindings(
@@ -376,7 +428,7 @@ pub fn queue_brush_bindings(
     render_device: Res<RenderDevice>,
     sdf_pipeline: Res<SDFPipeline>,
 ) {
-    if let (Some(brushes), settings) = (&buffers.brushes, &buffers.settings) {
+    if let (Some(brushes), settings, Some(blocks)) = (&buffers.brushes, &buffers.settings, &buffers.blocks) {
         let brush_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Brush Bind Group"),
             layout: &sdf_pipeline.brush_layout,
@@ -388,6 +440,10 @@ pub fn queue_brush_bindings(
                 BindGroupEntry {
                     binding: 1,
                     resource: settings.binding().unwrap(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: blocks.as_entire_binding(),
                 },
             ],
         });
@@ -404,6 +460,7 @@ pub fn queue_sdf(
     view_uniforms: Res<ViewUniforms>,
     view_extension_uniforms: Res<ViewExtensionUniforms>,
     render_device: Res<RenderDevice>,
+    blocks: Query<&GpuSDFBlock>,
     mut views: Query<(Entity, &ExtractedView, &mut RenderPhase<Transparent3d>)>,
 ) {
     let draw_sdf = transparent_3d_draw_functions
@@ -431,6 +488,7 @@ pub fn queue_sdf(
             });
             let view_binding = SDFViewBinding {
                 binding: view_bind_group,
+                num_blocks: blocks.iter().count() as u32,
             };
             commands.entity(entity).insert(view_binding);
 

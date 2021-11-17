@@ -32,14 +32,30 @@ struct GpuSDFNode {
     center: vec3<f32>;
 };
 
+struct GpuSDFBlock {
+    scale: f32;
+    position: vec3<f32>;
+};
+
 [[block]]
 struct Brushes {
     brushes: array<GpuSDFNode>;
 };
 
 [[block]]
+struct Blocks {
+    blocks: array<GpuSDFBlock>;
+};
+
+[[block]]
 struct BrushSettings {
     num_objects: i32;
+};
+
+struct Vertex {
+    [[location(0)]] position: vec3<f32>;
+    [[location(1)]] normal: vec3<f32>;
+    [[location(2)]] uv: vec2<f32>;
 };
 
 struct VertexOutput {
@@ -56,17 +72,20 @@ var<uniform> view_extension: ViewExtension;
 var<storage, read> brushes: Brushes;
 [[group(1), binding(1)]]
 var<uniform> brush_settings: BrushSettings;
+[[group(1), binding(2)]]
+var<storage, read> blocks: Blocks;
 
 [[stage(vertex)]]
 fn vs_main(
-    [[builtin(vertex_index)]] in_vertex_index: u32,
+    vertex: Vertex,
+    [[builtin(instance_index)]] instance_index: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let x = f32(1 - i32(in_vertex_index)) * 5.;
-    let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 5.;
-    out.clip_position = vec4<f32>(x, y, 0.1, 1.0);
-    let view_space_position = view_extension.view_proj_inverted * out.clip_position;
-    let ray = view_space_position.xyz - view.world_position;
+    let current_block = blocks.blocks[i32(instance_index)];
+    var world_position: vec3<f32> = vertex.position * current_block.scale + current_block.position;
+
+    out.clip_position = view.view_proj * vec4<f32>(world_position, 1.0);
+    let ray = world_position - view.world_position;
     out.ray_direction = normalize(ray);
     let clip_space_center = vec4<f32>(0.,0.,0., 1.);
     let clip_space_one = vec4<f32>(view_extension.pixel_size, 0., 0., 1.);
@@ -341,16 +360,16 @@ fn calculate_normal(point: vec3<f32>, stack: ptr<function, array<NodeStackItem, 
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    var stack : array<NodeStackItem, MAX_BRUSH_DEPTH>;
-    let stack_pointer : ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>> = &stack;
-    let hit = march(view.world_position, in.ray_direction, in.pixel_size, stack_pointer);
-    //return vec4<f32>(0.5, 0.2, 0.3, 1.);
-    //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
-    if (hit.hit) {
-        let norm = calculate_normal(hit.point, stack_pointer);
-        let color = sceneColor(hit.point);
-        return vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
-    } else {
-        return vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
-    }
+    return vec4<f32>(0.5, 0.2, 0.3, 1.);
+    // var stack : array<NodeStackItem, MAX_BRUSH_DEPTH>;
+    // let stack_pointer : ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>> = &stack;
+    // let hit = march(view.world_position, in.ray_direction, in.pixel_size, stack_pointer);
+    // //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
+    // if (hit.hit) {
+    //     let norm = calculate_normal(hit.point, stack_pointer);
+    //     let color = sceneColor(hit.point);
+    //     return vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
+    // } else {
+    //     return vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
+    // }
 }

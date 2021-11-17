@@ -1,7 +1,4 @@
-use bevy::{
-    math::{Mat4, Vec3, Vec4},
-    prelude::{Changed, Commands, Entity, GlobalTransform, Query, Transform},
-};
+use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Entity, GlobalTransform, Query, Transform}};
 
 use crevice::std140::AsStd140;
 
@@ -32,6 +29,18 @@ pub enum SDFShape {
     Box(f32, f32, f32),
 }
 
+impl SDFShape {
+    fn process(&self, point: Vec3) -> f32 {
+        match self {
+            Self::Sphere(radius) => point.length() - radius,
+            Self::Box(width, height, depth) => {
+                let quadrant = point.abs() - Vec3::new(*width, *height, *depth);
+                return quadrant.max(Vec3::ZERO).length() + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0);
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum SDFOperation {
     Union,
@@ -39,11 +48,22 @@ pub enum SDFOperation {
     Intersection,
 }
 
-pub struct SDFBrush {
-    pub order: u32,
-    pub shape: SDFShape,
-    pub operation: SDFOperation,
-    pub blending: f32,
+impl SDFOperation {
+    fn process(&self, a: f32, b: f32, smoothness: f32) -> f32 {
+        if smoothness >= 0. {
+            match self {
+                SDFOperation::Union => a.min(b),
+                SDFOperation::Subtraction => a.max(-b),
+                SDFOperation::Intersection => a.max(b),
+            }
+        } else {
+            match self {
+                SDFOperation::Union => todo!(),
+                SDFOperation::Subtraction => todo!(),
+                SDFOperation::Intersection => todo!(),
+            }
+        }
+    }
 }
 
 #[derive(Debug, AsStd140, Default, Clone)]
@@ -93,55 +113,12 @@ pub struct SDFRootTransform {
     pub scale: Vec3,
 }
 
-const SPHERE_CODE: i32 = 0;
-const SQUARE_CODE: i32 = 1;
-
-const UNION_CODE: i32 = 0;
-const SUBTRACTION_CODE: i32 = 1;
-const INTERSECTION_CODE: i32 = 2;
-
 pub const UNION_OP: i32 = 1;
 pub const INTERSECTION_OP: i32 = 2;
 pub const SUBTRACTION_OP: i32 = 3;
 pub const TRANSFORM_WARP: i32 = 4;
 pub const SPHERE_PRIM: i32 = 5;
 pub const BOX_PRIM: i32 = 6;
-
-fn extract_sdf_brush(
-    transform: &GlobalTransform,
-    brush: &SDFBrush,
-) -> (ExtractedSDFBrush, ExtractedSDFOrder) {
-    let mut extracted = match brush.shape {
-        SDFShape::Sphere(radius) => ExtractedSDFBrush {
-            shape: SPHERE_CODE,
-            param1: Vec4::new(radius, 0., 0., 0.),
-            ..Default::default()
-        },
-        SDFShape::Box(width, height, depth) => ExtractedSDFBrush {
-            shape: SQUARE_CODE,
-            param1: Vec4::new(width, height, depth, 0.),
-            ..Default::default()
-        },
-    };
-    extracted.transform = transform.compute_matrix();
-    extracted.blending = brush.blending;
-    extracted.operation = match brush.operation {
-        SDFOperation::Union => UNION_CODE,
-        SDFOperation::Subtraction => SUBTRACTION_CODE,
-        SDFOperation::Intersection => INTERSECTION_CODE,
-    };
-    (extracted, ExtractedSDFOrder { order: brush.order })
-}
-
-pub fn extract_sdf_brushes(
-    mut commands: Commands,
-    brushes: Query<(Entity, &GlobalTransform, &SDFBrush)>,
-) {
-    for (entity, transform, brush) in brushes.iter() {
-        let (sdf, order) = extract_sdf_brush(transform, brush);
-        commands.get_or_spawn(entity).insert(sdf).insert(order);
-    }
-}
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
@@ -256,6 +233,34 @@ pub fn construct_sdf_object_tree(
 pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<SDFNode>>) {
     for node in query.iter() {
         commands.entity(node.object).insert(SDFObjectDirty);
+    }
+}
+
+pub fn process_sdf_node(
+    point: &Vec3,
+    entity: &Entity,
+    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>) -> f32 {
+    if let Ok((_entity, sdfnode, transform)) = node_query.get(*entity) {
+        let sdfnode = &sdfnode.data;
+        match sdfnode {
+            SDFNodeData::Empty => 9999999.,
+            SDFNodeData::Primitive(primitive) => primitive.process(*point),
+            SDFNodeData::Operation(op, smoothness, a, b) => {
+                let a = process_sdf_node(&point, a, &node_query);
+                let b = process_sdf_node(&point, b, &node_query);
+                op.process(a, b, *smoothness)
+            },
+            SDFNodeData::Transform(entity) => {
+                if let Some(transform) = transform {
+                    let point = transform.compute_matrix() * Vec4::new(point.x, point.y, point.z, 1.);
+                    process_sdf_node(&point.xyz(), entity, &node_query)
+                } else {
+                    process_sdf_node(&point, entity, &node_query)
+                }
+            },
+        }
+    } else {
+        99999999999.
     }
 }
 

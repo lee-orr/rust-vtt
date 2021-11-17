@@ -10,7 +10,7 @@ use bevy::{
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
 use sdf_renderer::{
-    sdf_operation::{SDFBrush, SDFOperation, SDFShape},
+    sdf_operation::{SDFOperation, SDFShape},
     SdfPlugin,
 };
 use wasm_bindgen::prelude::*;
@@ -44,7 +44,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
 
 const NUM_BRUSHES: i32 = 2;
 const UNOPTIMIZED_OBJECTS: bool = false;
-const OPTIMIZED_OBJECTS: bool = true;
+const OPTIMIZED_OBJECTS: bool = false;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn spawn_optimized_hierarchy(
