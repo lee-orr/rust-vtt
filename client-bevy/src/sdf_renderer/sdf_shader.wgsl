@@ -158,6 +158,19 @@ struct NodeStackItem {
     current_epsilon: f32;
 };
 
+struct NodeBoundStackItem {
+    nodeid: i32;
+    node: GpuSDFNode;
+    child_a: f32;
+    child_b: f32;
+    processed_a: bool;
+    processed_b: bool;
+    process_bounds: bool;
+    a: vec3<f32>;
+    b: vec3<f32>;
+    current_epsilon: f32;
+};
+
 fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f32, process_bounds: bool) -> NodeStackItem {
     var out : NodeStackItem;
     let id = node + current_node;
@@ -166,6 +179,20 @@ fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f
     out.processed_a = false;
     out.processed_b = false;
     out.point = point;
+    out.process_bounds = process_bounds;
+    out.current_epsilon = current_epsilon;
+    return out;
+}
+
+fn setup_node_bound(node: i32, current_node: i32, a: vec3<f32>, b: vec3<f32>, current_epsilon: f32, process_bounds: bool) -> NodeBoundStackItem {
+    var out : NodeBoundStackItem;
+    let id = node + current_node;
+    out.node = brushes.brushes[id];
+    out.nodeid = id;
+    out.processed_a = false;
+    out.processed_b = false;
+    out.a = a;
+    out.b = b;
     out.process_bounds = process_bounds;
     out.current_epsilon = current_epsilon;
     return out;
@@ -249,6 +276,169 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
             } elseif (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
+                enter_child = true;
+                stack[index].processed_b = true;
+            } else {
+                current_frame.child_b = last_result;
+                if (node.params[0].x > 0.0) {
+                    last_result = smoothSubtractionSDF(current_frame.child_b, current_frame.child_a, node.params[0].x);
+                } else {
+                    last_result = subtractionSDF(current_frame.child_b, current_frame.child_a);
+                 }
+            }
+        }
+        if (enter_child) {
+            index = child_index;
+        } else {
+            index = index - 1;
+        }
+   }
+    return vec2<f32>(last_result, num_jumps);
+}
+
+// fn squaredNorm(u: vec3<f32>) -> f32 {
+//     return u.x * u.x + u.y * u.y + u.z * u.z;
+// }
+
+// fn norm(u: vec3<f32>) -> f32 {
+//     return sqrt(squaredNorm(u));
+// }
+
+// fn cubicFalloffSphereBounds(a: f32,b: f32,radius: f32) -> f32 {
+//     let rsq = radius * radius;
+//     let rsq5 = rsq/5.;
+//     if (a > rsq) {
+//         return 0.;
+//     } elseif (b < rsq5) {
+//         let t = (1. - b / rsq);
+//         return 6. * (sqrt(b) / rsq) * t * t;
+//     } elseif (a > rsq5) {
+//         let t = (1. - a / rsq);
+//         return 6. * (sqrt(a) / rsq) * t * t;
+//     }else {
+//         return 1.72/radius;
+//     }
+// }
+
+// fn scalarProduct(a: vec3<f32>, b: vec3<f32>) -> f32 {
+//     return a.x * b.x + a.y * b.y + a.z * b.z;
+// }
+
+// fn sphereBounds(a: vec3<f32>, b: vec3<f32>, radius: f32) -> f32 {
+//     let axis = normalize(b - a);
+//     let l = scalarProduct(-1. * a, axis);
+//     var kk : f32 = 0.;
+
+//     if (l < 0.) {
+//         kk = cubicFalloffSphereBounds(squaredNorm(a),squaredNorm(b), radius);
+//     } elseif (norm(b - a) < 1.) {
+//         kk = cubicFalloffSphereBounds(squaredNorm(b),squaredNorm(a), radius);
+//     } else {
+//         let dd = squaredNorm(a) - (l * l);
+//         let pc = a + axis * l;
+//         kk = cubicFalloffSphereBounds(dd,max(squaredNorm(a), squaredNorm(b)), radius);
+//     }
+//     let grad = max(abs(scalarProduct(axis, normalize(a))), abs(scalarProduct(axis, normalize(b))));
+//     return kk * grad;
+// }
+
+fn sphereIntersection(a: vec3<f32>, b: vec3<f32>, center: vec3<f32>, radius: f32) -> bool {
+    let axis = normalize(b - a);
+    let i = dot(axis, (a - center));
+    let len_a_c = length(a - center);
+    let j = len_a_c * len_a_c - radius * radius;
+    let determinant : f32 = i * i - j;
+    if (determinant >= 0.) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+fn processNodeBounds(point_a: vec3<f32>, point_b: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: ptr<function, array<NodeBoundStackItem, MAX_BRUSH_DEPTH>>) -> vec2<f32> {
+    var index : i32 = 0;
+    var last_result : f32 = 99999999999.9;
+    var num_jumps: f32 = 0.0;
+    var stack = *stack_ptr;
+    stack[0] = setup_node_bound(nodeid, 0, point_a, point_b, current_epsilon, true);
+    loop {
+       num_jumps = f32(nodeid);
+       if (index == -1 || index >= MAX_BRUSH_DEPTH) {
+           break;
+       }
+        var enter_child: bool = false;
+        var child_index = index + 1;
+        var current_frame = stack[index];
+        var node = current_frame.node;
+        if (current_frame.process_bounds) {
+            let intersects = sphereIntersection(current_frame.a, current_frame.b, node.center, node.radius);
+            if (!intersects) {
+                last_result = 0.;
+                index = index - 1;
+                continue;
+            } 
+        }
+        if (node.node_type == SPHERE_PRIM) {
+            let intersects = sphereIntersection(current_frame.a, current_frame.b, vec3<f32>(0.,0.,0.), node.params[0].x);
+            if (intersects) {
+                last_result = 1.;
+            } else {
+                last_result = 0.;
+            }
+        } elseif (node.node_type == BOX_PRIM) {
+            last_result = boxSDF(current_frame.a, node.params[0].xyz);
+        } elseif (node.node_type == TRANSFORM_WARP) {
+            if (!current_frame.processed_a) {
+                var new_point_a = transformSDF(current_frame.a, node.params);
+                var new_point_b = transformSDF(current_frame.b, node.params);
+                stack[child_index] = setup_node_bound(node.child_a, current_frame.nodeid, new_point_a, new_point_b, current_epsilon, false);
+                enter_child = true;
+                stack[index].processed_a = true;
+            }
+        } elseif (node.node_type == UNION_OP) {
+            if (!current_frame.processed_a) {
+                stack[child_index] = setup_node_bound(node.child_a, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), true);
+                enter_child = true;
+                stack[index].processed_a = true;
+            } elseif (!current_frame.processed_b) {
+                stack[index].child_a = last_result;
+                stack[child_index] = setup_node_bound(node.child_b, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), true);
+                enter_child = true;
+                stack[index].processed_b = true;
+            } else {
+                current_frame.child_b = last_result;
+                if (node.params[0].x > 0.0) {
+                    last_result = smoothUnionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
+                } else {
+                    last_result = unionSDF(current_frame.child_a, current_frame.child_b);
+                 }
+            }
+        } elseif (node.node_type == INTERSECTION_OP) {
+            if (!current_frame.processed_a) {
+                stack[child_index] = setup_node_bound(node.child_a, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_a = true;
+            } elseif (!current_frame.processed_b) {
+                stack[index].child_a = last_result;
+                stack[child_index] = setup_node_bound(node.child_b, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_b = true;
+            } else {
+                current_frame.child_b = last_result;
+                if (node.params[0].x > 0.0) {
+                    last_result = smoothIntersectionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
+                } else {
+                    last_result = intersectionSDF(current_frame.child_a, current_frame.child_b);
+                 }
+            }
+        }elseif (node.node_type == SUBTRACTION_OP) {
+            if (!current_frame.processed_a) {
+                stack[child_index] = setup_node_bound(node.child_a, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_a = true;
+            } elseif (!current_frame.processed_b) {
+                stack[index].child_a = last_result;
+                stack[child_index] = setup_node_bound(node.child_b, current_frame.nodeid,current_frame.a,current_frame.b, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_b = true;
             } else {
