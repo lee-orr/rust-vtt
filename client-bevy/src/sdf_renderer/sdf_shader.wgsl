@@ -153,10 +153,12 @@ struct NodeStackItem {
     child_b: f32;
     processed_a: bool;
     processed_b: bool;
+    process_bounds: bool;
     point: vec3<f32>;
+    current_epsilon: f32;
 };
 
-fn setup_node(node: i32, current_node: i32, point: vec3<f32>) -> NodeStackItem {
+fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f32, process_bounds: bool) -> NodeStackItem {
     var out : NodeStackItem;
     let id = node + current_node;
     out.node = brushes.brushes[id];
@@ -164,6 +166,8 @@ fn setup_node(node: i32, current_node: i32, point: vec3<f32>) -> NodeStackItem {
     out.processed_a = false;
     out.processed_b = false;
     out.point = point;
+    out.process_bounds = process_bounds;
+    out.current_epsilon = current_epsilon;
     return out;
 }
 
@@ -172,7 +176,7 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
     var last_result : f32 = 99999999999.9;
     var num_jumps: f32 = 0.0;
     var stack = *stack_ptr;
-    stack[0] = setup_node(nodeid, 0, point);
+    stack[0] = setup_node(nodeid, 0, point, current_epsilon, true);
     loop {
        num_jumps = f32(nodeid);
        if (index == -1 || index >= MAX_BRUSH_DEPTH) {
@@ -182,11 +186,14 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         var child_index = index + 1;
         var current_frame = stack[index];
         var node = current_frame.node;
-        //var d = distance(current_frame.point, node.center);
-        //last_result = d - node.radius;
-        // if (d > node.radius + current_epsilon) {
-        //     last_result = d - node.radius;
-        // } else
+        if (current_frame.process_bounds) {
+            var d = distance(current_frame.point, node.center);
+            if (d > node.radius + current_frame.current_epsilon) {
+                last_result = d - node.radius + current_frame.current_epsilon/2.;
+                index = index - 1;
+                continue;
+            } 
+        }
         if (node.node_type == SPHERE_PRIM) {
             last_result = sphereSDF(current_frame.point, node.params[0].x);
         } elseif (node.node_type == BOX_PRIM) {
@@ -194,61 +201,65 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_epsilon, false);
                 enter_child = true;
                 stack[index].processed_a = true;
             }
         } elseif (node.node_type == UNION_OP) {
             if (!current_frame.processed_a) {
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_a = true;
             } elseif (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
-                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point);
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_b = true;
             } else {
-                stack[index].child_b = last_result;
+                current_frame.child_b = last_result;
                 if (node.params[0].x > 0.0) {
                     last_result = smoothUnionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
                 } else {
                     last_result = unionSDF(current_frame.child_a, current_frame.child_b);
                  }
             }
-        }// elseif (node.node_type == INTERSECTION_OP) {
-        //     if (!current_frame.processed_a) {
-        //         stack[child_index] = setup_node(node.child_a, current_frame.point);
-        //         enter_child = true;
-        //         current_frame.processed_a = true;
-        //     } elseif (!current_frame.processed_b) {
-        //         stack[child_index] = setup_node(node.child_b, current_frame.point);
-        //         enter_child = true;
-        //         current_frame.processed_b = true;
-        //     } else {
-        //         if (node.params[0].x > 0.0) {
-        //             last_result = smoothIntersectionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
-        //         } else {
-        //             last_result = intersectionSDF(current_frame.child_a, current_frame.child_b);
-        //         }
-        //     }
-        // } elseif (node.node_type == SUBTRACTION_OP) {
-        //     if (!current_frame.processed_a) {
-        //         stack[child_index] = setup_node(node.child_a, current_frame.point);
-        //         enter_child = true;
-        //         current_frame.processed_a = true;
-        //     } elseif (!current_frame.processed_b) {
-        //         stack[child_index] = setup_node(node.child_b, current_frame.point);
-        //         enter_child = true;
-        //         current_frame.processed_b = true;
-        //     } else {
-        //         if (node.params[0].x > 0.0) {
-        //             last_result = smoothSubtractionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
-        //         } else {
-        //             last_result = subtractionSDF(current_frame.child_a, current_frame.child_b);
-        //         }
-        //     }
-        // }
+        } elseif (node.node_type == INTERSECTION_OP) {
+            if (!current_frame.processed_a) {
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_a = true;
+            } elseif (!current_frame.processed_b) {
+                stack[index].child_a = last_result;
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_b = true;
+            } else {
+                current_frame.child_b = last_result;
+                if (node.params[0].x > 0.0) {
+                    last_result = smoothIntersectionSDF(current_frame.child_a, current_frame.child_b, node.params[0].x);
+                } else {
+                    last_result = intersectionSDF(current_frame.child_a, current_frame.child_b);
+                 }
+            }
+        }elseif (node.node_type == SUBTRACTION_OP) {
+            if (!current_frame.processed_a) {
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
+                enter_child = true;
+                stack[index].processed_a = true;
+            } elseif (!current_frame.processed_b) {
+                stack[index].child_a = last_result;
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
+                enter_child = true;
+                stack[index].processed_b = true;
+            } else {
+                current_frame.child_b = last_result;
+                if (node.params[0].x > 0.0) {
+                    last_result = smoothSubtractionSDF(current_frame.child_b, current_frame.child_a, node.params[0].x);
+                } else {
+                    last_result = subtractionSDF(current_frame.child_b, current_frame.child_a);
+                 }
+            }
+        }
         if (enter_child) {
             index = child_index;
         } else {
@@ -290,7 +301,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, stack: ptr<function,
         let distance_to_start = length(offset);
         let hit_epsilon = global_hit_epsilon * (view_extension.cone_scaler * distance_to_start);
         last_epsilon = hit_epsilon;
-        let dist : vec2<f32> = sceneSDF(point, max(hit_epsilon * 5., 0.5), stack);
+        let dist : vec2<f32> = sceneSDF(point, hit_epsilon * 10., stack);
         jumps = dist.y;
         if (dist.x < hit_epsilon) {
             out.distance = dist.x;

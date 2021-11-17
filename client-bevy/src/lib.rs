@@ -42,65 +42,88 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 2;
+const NUM_BRUSHES: i32 = 3;
+const UNOPTIMIZED_OBJECTS: bool = false;
+const TEST_OP: SDFOperation = SDFOperation::Subtraction;
 
 fn setup(mut commands: Commands) {
     println!("Setting Up Brushes");
-    // let mut is_box = true;
-    // for i in 0..NUM_BRUSHES {
-    //     for j in 0..NUM_BRUSHES {
-    //         let object = commands.spawn().id();
-    //         let cube = commands
-    //             .spawn()
-    //             .insert(SDFNode {
-    //                 object,
-    //                 data: SDFNodeData::Primitive( if is_box { SDFShape::Box(1., 1., 1.) } else { SDFShape::Sphere(0.7)}),
-    //             })
-    //             .id();
-    //         commands.entity(object)
-    //             .insert(Transform::from_translation(Vec3::new(
-    //                 i as f32 * 4.,
-    //                 0.,
-    //                 -4. * (j as f32),
-    //             )))
-    //             .insert(GlobalTransform::default())
-    //             .insert(SDFObject {
-    //                 root: cube,
-    //             });
-    //         is_box = !is_box;
-    //     }
-    // }
-    let object = commands.spawn().id();
-    let cube = commands
-        .spawn()
-        .insert(SDFNode {
-            object,
-            data: SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2)),
-        })
-        .id();
-    let cube_transform = commands.spawn().insert(SDFNode {
-        object,
-        data: SDFNodeData::Transform(cube)
-    }).insert(Transform::default()).id();
-    let sphere = commands
-        .spawn()
-        .insert(SDFNode {
-            object,
-            data: SDFNodeData::Primitive(SDFShape::Sphere(2.)),
-        })
-        .id();
-    let sphere_transform = commands.spawn().insert(SDFNode {
-        object,
-        data: SDFNodeData::Transform(sphere)
-    }).insert(Transform::from_translation(Vec3::new(2., 0., 0.))).id();
-    let op = commands.spawn().insert(SDFNode {
-        object,
-        data: SDFNodeData::Operation(SDFOperation::Union, 0., cube_transform, sphere_transform)
-    }).id();
-    commands.entity(object)
-        .insert(Transform::default())
-        .insert(GlobalTransform::default())
-        .insert(SDFObject {
-            root: op,
-        });
+    if UNOPTIMIZED_OBJECTS {
+        let mut is_box = true;
+        for i in 0..NUM_BRUSHES {
+            for j in 0..NUM_BRUSHES {
+                let object = commands.spawn().id();
+                let cube = commands
+                    .spawn()
+                    .insert(SDFNode {
+                        object,
+                        data: SDFNodeData::Primitive(if is_box {
+                            SDFShape::Box(1., 1., 1.)
+                        } else {
+                            SDFShape::Sphere(0.7)
+                        }),
+                    })
+                    .id();
+                commands
+                    .entity(object)
+                    .insert(Transform::from_translation(Vec3::new(
+                        i as f32 * 4.,
+                        0.,
+                        -4. * (j as f32),
+                    )))
+                    .insert(GlobalTransform::default())
+                    .insert(SDFObject { root: cube });
+                is_box = !is_box;
+            }
+        }
+    } else {
+        let object = commands.spawn().id();
+        let cube = commands
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2)),
+            })
+            .id();
+        let cube_transform = commands
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Transform(cube),
+            })
+            .insert(Transform::default())
+            .id();
+        let sphere = commands
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Primitive(SDFShape::Sphere(2.)),
+            })
+            .id();
+        let sphere_transform = commands
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Transform(sphere),
+            })
+            .insert(Transform::from_translation(Vec3::new(2., 0., 0.)))
+            .id();
+        let op = commands
+            .spawn()
+            .insert(SDFNode {
+                object,
+                data: SDFNodeData::Operation(
+                    TEST_OP,
+                    0.,
+                    cube_transform,
+                    sphere_transform,
+                ),
+            })
+            .id();
+        commands
+            .entity(object)
+            .insert(Transform::default())
+            .insert(GlobalTransform::default())
+            .insert(SDFObject { root: op });
+    }
 }

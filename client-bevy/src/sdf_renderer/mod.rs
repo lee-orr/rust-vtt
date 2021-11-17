@@ -4,7 +4,16 @@ use core::num;
 
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetimeless::{Read, SQuery}, math::Mat4, prelude::{Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin, Query, Res, ResMut}, reflect::TypeUuid, render2::{
+use bevy::{
+    core_pipeline::{SetItemPipeline, Transparent3d},
+    ecs::system::lifetimeless::{Read, SQuery},
+    math::Mat4,
+    prelude::{
+        Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin,
+        Query, Res, ResMut,
+    },
+    reflect::TypeUuid,
+    render2::{
         camera::PerspectiveProjection,
         render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase},
         render_resource::{
@@ -21,11 +30,15 @@ use bevy::{core_pipeline::{SetItemPipeline, Transparent3d}, ecs::system::lifetim
         texture::BevyDefault,
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    }};
+    },
+};
 
 use wgpu::{util::BufferInitDescriptor, BufferUsages, ShaderStages};
 
-use crate::sdf_renderer::sdf_operation::{BrushSettings, ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode, construct_sdf_object_tree, extract_gpu_node_trees, extract_sdf_brushes, mark_dirty_object};
+use crate::sdf_renderer::sdf_operation::{
+    construct_sdf_object_tree, extract_gpu_node_trees, extract_sdf_brushes, mark_dirty_object,
+    BrushSettings, ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode,
+};
 
 use self::sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP};
 
@@ -230,7 +243,7 @@ impl RenderCommand<Transparent3d> for PrepareSDFBuffer {
         param: bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) {
-        if let Some(bindings) =  param.iter().next() {
+        if let Some(bindings) = param.iter().next() {
             pass.set_bind_group(1, &bindings.binding, &[0, 0]);
         }
     }
@@ -310,7 +323,7 @@ fn prepare_brush_uniforms(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
 ) {
-    let objects : Vec<(&SDFObjectTree, &SDFRootTransform)>= objects.iter().collect();
+    let objects: Vec<(&SDFObjectTree, &SDFRootTransform)> = objects.iter().collect();
     let object_count = objects.len();
     let mut index_so_far = object_count;
     let mut brush_vec: Vec<GpuSDFNode> = Vec::new();
@@ -339,8 +352,7 @@ fn prepare_brush_uniforms(
         }
     }
     //println!("Brushes: {:?}", brush_vec);
-    let brushes: Vec<Std140GpuSDFNode> =
-        brush_vec.iter().map(|val| val.as_std140()).collect();
+    let brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
 
     brush_uniforms.settings.clear();
     brush_uniforms.settings.push(BrushSettings {

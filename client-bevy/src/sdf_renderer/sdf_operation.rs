@@ -143,9 +143,16 @@ pub fn extract_sdf_brushes(
     }
 }
 
-pub fn extract_gpu_node_trees(mut commands: Commands, query: Query<(Entity, &GlobalTransform, &SDFObjectTree)>) {
+pub fn extract_gpu_node_trees(
+    mut commands: Commands,
+    query: Query<(Entity, &GlobalTransform, &SDFObjectTree)>,
+) {
     for (entity, transform, tree) in query.iter() {
-        commands.get_or_spawn(entity).insert(SDFRootTransform { matrix: transform.compute_matrix(), translation: transform.translation, scale: transform.scale, });
+        commands.get_or_spawn(entity).insert(SDFRootTransform {
+            matrix: transform.compute_matrix(),
+            translation: transform.translation,
+            scale: transform.scale,
+        });
         commands.get_or_spawn(entity).insert(tree.clone());
     }
 }
@@ -174,7 +181,8 @@ fn generate_gpu_node(
                     new_node.params.x_axis =
                         Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
                     new_node.center = Vec3::ZERO;
-                    new_node.radius = width.max(height.max(depth.to_owned()));
+                    new_node.radius =
+                        Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length();
                 }
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
@@ -188,17 +196,25 @@ fn generate_gpu_node(
             let (child_b_id, child_b) = generate_gpu_node(&mut tree, child_b, node_query);
             new_node.child_a = child_a_id - (new_id as i32);
             new_node.child_b = child_b_id - (new_id as i32);
-            let mut min_bounds = Vec3::ZERO;
-            let mut max_bounds = Vec3::ZERO;
+            let mut min_bounds_a = Vec3::ZERO;
+            let mut max_bounds_a = Vec3::ZERO;
+            let mut min_bounds_b = Vec3::ZERO;
+            let mut max_bounds_b = Vec3::ZERO;
 
             if let Some(child_a) = child_a {
-                min_bounds = child_a.center - child_a.radius;
-                max_bounds = child_a.center + child_a.radius;
+                min_bounds_a = child_a.center - child_a.radius;
+                max_bounds_a = child_a.center + child_a.radius;
             }
             if let Some(child_b) = child_b {
-                min_bounds = min_bounds.min(child_b.center - child_b.radius);
-                max_bounds = max_bounds.max(child_b.center + child_b.radius);
+                min_bounds_b = child_b.center - child_b.radius;
+                max_bounds_b = child_b.center + child_b.radius;
             }
+
+            let (min_bounds, max_bounds) = match operation {
+                SDFOperation::Union => (min_bounds_a.min(min_bounds_b), max_bounds_a.max(max_bounds_b)),
+                SDFOperation::Subtraction => (min_bounds_a, max_bounds_a),
+                SDFOperation::Intersection => (min_bounds_a.max(min_bounds_b), max_bounds_a.min(max_bounds_b)),
+            };
 
             new_node.center = (max_bounds + min_bounds) / 2.0;
             let extents = (max_bounds - new_node.center) + blending.to_owned();
