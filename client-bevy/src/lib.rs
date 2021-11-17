@@ -42,14 +42,129 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 3;
+const NUM_BRUSHES: i32 = 2;
 const UNOPTIMIZED_OBJECTS: bool = false;
-const TEST_OP: SDFOperation = SDFOperation::Subtraction;
+const OPTIMIZED_OBJECTS: bool = true;
+const TEST_OP: SDFOperation = SDFOperation::Union;
+
+fn spawn_optimized_hierarchy(
+    mut commands: &mut Commands,
+    object: &Entity,
+    num_brushes: u32,
+) -> Option<Entity> {
+    if num_brushes == 0 {
+        return None;
+    }
+    if num_brushes == 1 {
+        let cube = commands
+            .spawn()
+            .insert(SDFNode {
+                object: *object,
+                data: SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.)),
+            })
+            .id();
+        return Some(cube);
+    }
+    if num_brushes % 4 == 0 {
+        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
+        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
+        if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
+            let transform_1 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_1),
+                })
+                .insert(Transform::from_translation(Vec3::Z * 2.))
+                .id();
+            let transform_2 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_2),
+                })
+                .insert(Transform::from_translation(Vec3::Z * -2.))
+                .id();
+            let op = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Operation(SDFOperation::Union, 0., transform_1, transform_2),
+                })
+                .id();
+            return Some(op);
+        }
+        return None;
+    }
+    if num_brushes % 3 == 0 {
+        let third = num_brushes / 3;
+        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, third * 2);
+        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, third);
+        if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
+            let transform_1 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_1),
+                })
+                .insert(Transform::from_translation(Vec3::Z * 2.))
+                .id();
+            let transform_2 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_2),
+                })
+                .insert(Transform::from_translation(Vec3::Z * -2.))
+                .id();
+            let op = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Operation(SDFOperation::Union, 0., transform_1, transform_2),
+                })
+                .id();
+            return Some(op);
+        }
+        return None;
+    }
+    if num_brushes % 2 == 0 {
+        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
+        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
+        if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
+            let transform_1 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_1),
+                })
+                .insert(Transform::from_translation(Vec3::X * 2.))
+                .id();
+            let transform_2 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_2),
+                })
+                .insert(Transform::from_translation(Vec3::X * -2.))
+                .id();
+            let op = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Operation(SDFOperation::Union, 0., transform_1, transform_2),
+                })
+                .id();
+            return Some(op);
+        }
+        return None;
+    }
+    None
+}
 
 fn setup(mut commands: Commands) {
     println!("Setting Up Brushes");
     if UNOPTIMIZED_OBJECTS {
-        let mut is_box = true;
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
                 let object = commands.spawn().id();
@@ -57,11 +172,7 @@ fn setup(mut commands: Commands) {
                     .spawn()
                     .insert(SDFNode {
                         object,
-                        data: SDFNodeData::Primitive(if is_box {
-                            SDFShape::Box(1., 1., 1.)
-                        } else {
-                            SDFShape::Sphere(0.7)
-                        }),
+                        data: SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.)),
                     })
                     .id();
                 commands
@@ -73,8 +184,18 @@ fn setup(mut commands: Commands) {
                     )))
                     .insert(GlobalTransform::default())
                     .insert(SDFObject { root: cube });
-                is_box = !is_box;
             }
+        }
+    } else if OPTIMIZED_OBJECTS {
+        let object = commands.spawn().id();
+        let root = spawn_optimized_hierarchy(&mut commands, &object, NUM_BRUSHES as u32);
+
+        if let Some(root) = root {
+            commands
+                .entity(object)
+                .insert(Transform::from_translation(Vec3::ZERO))
+                .insert(GlobalTransform::default())
+                .insert(SDFObject { root });
         }
     } else {
         let object = commands.spawn().id();
@@ -112,12 +233,7 @@ fn setup(mut commands: Commands) {
             .spawn()
             .insert(SDFNode {
                 object,
-                data: SDFNodeData::Operation(
-                    TEST_OP,
-                    0.,
-                    cube_transform,
-                    sphere_transform,
-                ),
+                data: SDFNodeData::Operation(TEST_OP, 0., cube_transform, sphere_transform),
             })
             .id();
         commands
