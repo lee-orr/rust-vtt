@@ -62,6 +62,7 @@ struct VertexOutput {
     [[builtin(position)]] clip_position: vec4<f32>;
     [[location(0)]] ray_direction: vec3<f32>;
     [[location(1)]] pixel_size: f32;
+    [[location(2)]] max_distance: f32;
 };
 
 [[group(0), binding(0)]]
@@ -93,6 +94,7 @@ fn vs_main(
     let view_space_one = view_extension.view_proj_inverted * clip_space_one;
     let pixel_size = length(view_space_one - view_space_center);
     out.pixel_size = pixel_size;
+    out.max_distance = length(ray) + current_block.scale;
     return out;
 }
 
@@ -107,10 +109,10 @@ struct MarchHit {
     jumps: f32;
 };
 
-let MAX_MARCHING_STEPS = 100;
-let MAX_DISTANCE = 100.0;
+let MAX_MARCHING_STEPS = 5;
+let MAX_DISTANCE = 10.0;
 let NORM_EPSILON = 0.0005;
-let MAX_BRUSH_DEPTH = 5;
+let MAX_BRUSH_DEPTH = 10;
 
 let NORM_EPSILON_X = vec3<f32>(NORM_EPSILON, 0.0, 0.0);
 let NORM_EPSILON_Y = vec3<f32>(0.0, NORM_EPSILON, 0.0);
@@ -308,10 +310,11 @@ fn sceneColor(point: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(0.7, 0.2, 0.2);
 }
 
-fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> MarchHit {
+fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> MarchHit {
     let global_hit_epsilon: f32 = pixel_size;
     var last_epsilon: f32 = pixel_size;
     var depth : f32 = 0.5;
+    var max_depth = min(max_dist, MAX_DISTANCE);
     var out : MarchHit;
     var jumps : f32 = 0.;
     for (var i : i32 = 0; i < MAX_MARCHING_STEPS; i = i + 1) {
@@ -330,7 +333,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, stack: ptr<function,
             out.final_epsilon = last_epsilon;
             out.jumps = jumps;
             return out;
-       } elseif ( distance_to_start > MAX_DISTANCE) {
+       } elseif ( distance_to_start > max_depth) {
             out.distance = depth;
             out.hit = false;
             out.iterations = i;
@@ -358,18 +361,33 @@ fn calculate_normal(point: vec3<f32>, stack: ptr<function, array<NodeStackItem, 
     return normalize(normal);
 }
 
+struct FragmentOut {
+  [[builtin(frag_depth)]] depth: f32;
+  [[location(0)]] color: vec4<f32>;
+};
+
 [[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    return vec4<f32>(0.5, 0.2, 0.3, 1.);
-    // var stack : array<NodeStackItem, MAX_BRUSH_DEPTH>;
-    // let stack_pointer : ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>> = &stack;
-    // let hit = march(view.world_position, in.ray_direction, in.pixel_size, stack_pointer);
-    // //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
-    // if (hit.hit) {
-    //     let norm = calculate_normal(hit.point, stack_pointer);
-    //     let color = sceneColor(hit.point);
-    //     return vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
+fn fs_main(in: VertexOutput) -> FragmentOut {
+    var out : FragmentOut;
+    // out.color = vec4<f32>(in.max_distance/MAX_DISTANCE, in.max_distance/MAX_DISTANCE, in.max_distance/MAX_DISTANCE, 1.);
+    // if (in.ray_direction.x > 0.) {
+    //     out.depth = 0.;
     // } else {
-    //     return vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
+    //     out.depth = 1.;
     // }
+    
+    var stack : array<NodeStackItem, MAX_BRUSH_DEPTH>;
+    let stack_pointer : ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>> = &stack;
+    let hit = march(view.world_position, in.ray_direction, in.pixel_size, in.max_distance,stack_pointer);
+    //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
+    if (hit.hit) {
+        let norm = calculate_normal(hit.point, stack_pointer);
+        let color = sceneColor(hit.point);
+        out.color = vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
+        out.depth = -hit.distance / MAX_DISTANCE;
+    } else {
+        out.color = vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
+        out.depth = -1.;
+    }
+    return out;
 }

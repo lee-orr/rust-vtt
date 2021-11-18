@@ -1,4 +1,7 @@
-use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Entity, GlobalTransform, Query, Transform}};
+use bevy::{
+    math::{Mat4, Vec3, Vec4, Vec4Swizzles},
+    prelude::{Changed, Commands, Entity, GlobalTransform, Query, Transform},
+};
 
 use crevice::std140::AsStd140;
 
@@ -35,7 +38,8 @@ impl SDFShape {
             Self::Sphere(radius) => point.length() - radius,
             Self::Box(width, height, depth) => {
                 let quadrant = point.abs() - Vec3::new(*width, *height, *depth);
-                return quadrant.max(Vec3::ZERO).length() + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0);
+                return quadrant.max(Vec3::ZERO).length()
+                    + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0);
             }
         }
     }
@@ -188,9 +192,15 @@ fn generate_gpu_node(
             }
 
             let (min_bounds, max_bounds) = match operation {
-                SDFOperation::Union => (min_bounds_a.min(min_bounds_b), max_bounds_a.max(max_bounds_b)),
+                SDFOperation::Union => (
+                    min_bounds_a.min(min_bounds_b),
+                    max_bounds_a.max(max_bounds_b),
+                ),
                 SDFOperation::Subtraction => (min_bounds_a, max_bounds_a),
-                SDFOperation::Intersection => (min_bounds_a.max(min_bounds_b), max_bounds_a.min(max_bounds_b)),
+                SDFOperation::Intersection => (
+                    min_bounds_a.max(min_bounds_b),
+                    max_bounds_a.min(max_bounds_b),
+                ),
             };
 
             new_node.center = (max_bounds + min_bounds) / 2.0;
@@ -239,7 +249,8 @@ pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<
 pub fn process_sdf_node(
     point: &Vec3,
     entity: &Entity,
-    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>) -> f32 {
+    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>,
+) -> f32 {
     if let Ok((_entity, sdfnode, transform)) = node_query.get(*entity) {
         let sdfnode = &sdfnode.data;
         match sdfnode {
@@ -249,15 +260,16 @@ pub fn process_sdf_node(
                 let a = process_sdf_node(&point, a, &node_query);
                 let b = process_sdf_node(&point, b, &node_query);
                 op.process(a, b, *smoothness)
-            },
+            }
             SDFNodeData::Transform(entity) => {
                 if let Some(transform) = transform {
-                    let point = transform.compute_matrix() * Vec4::new(point.x, point.y, point.z, 1.);
+                    let point =
+                        transform.compute_matrix() * Vec4::new(point.x, point.y, point.z, 1.);
                     process_sdf_node(&point.xyz(), entity, &node_query)
                 } else {
                     process_sdf_node(&point, entity, &node_query)
                 }
-            },
+            }
         }
     } else {
         99999999999.
