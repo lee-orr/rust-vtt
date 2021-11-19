@@ -63,6 +63,7 @@ struct VertexOutput {
     [[location(0)]] world_position: vec3<f32>;
     [[location(1)]] pixel_size: f32;
     [[location(2)]] max_distance: f32;
+    [[location(3)]] uv: vec2<f32>;
 };
 
 [[group(0), binding(0)]]

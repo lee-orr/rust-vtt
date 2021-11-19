@@ -1,11 +1,12 @@
 [[stage(vertex)]]
 fn vs_main(
-    [[builtin(vertex_index)]] in_vertex_index: u32,
+    vertex: Vertex,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let x = f32(1 - i32(in_vertex_index)) * 5.;
-    let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 5.;
+    let x = vertex.position.x;
+    let y = vertex.position.y;
     out.clip_position = vec4<f32>(x, y, 0.1, 1.0);
+    out.uv = vertex.uv;
     let view_space_position = view_extension.view_proj_inverted * out.clip_position;
     let ray = view_space_position.xyz - view.world_position;
     out.world_position = view_space_position.xyz;

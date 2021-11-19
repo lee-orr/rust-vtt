@@ -5,7 +5,7 @@ use core::num;
 
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::{Opaque3d, draw_3d_graph::{self, node}}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{
+use bevy::{core_pipeline::{Opaque3d, draw_3d_graph::{self, node}}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2}, prelude::{
         Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin,
         Query, QueryState, Res, ResMut, With, World,
     }, reflect::TypeUuid, render::pipeline, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, mesh::{shape, Mesh}, render_asset::RenderAssets, render_graph::{Node, RenderGraph, SlotInfo, SlotType}, render_phase::{
@@ -51,7 +51,7 @@ impl Plugin for SdfPlugin {
             include_str!("vertex_full_screen.wgsl"),
             include_str!("sdf_calculator.wgsl"),
             include_str!("sdf_raymarch.wgsl"),
-            include_str!("depth_read_fragment.wgsl")
+            include_str!("depth_processed_fragment.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
@@ -64,7 +64,8 @@ impl Plugin for SdfPlugin {
         ));
         shaders.set_untracked(SDF_PREPASS_SHADER_HANDLE, shader);
         let mut meshes = app.world.get_resource_mut::<Assets<Mesh>>().unwrap();
-        let mesh = Mesh::from(shape::Cube { size: 1. });
+        let mesh = Mesh::from(shape::Quad { size: 2. * Vec2::ONE, flip: false });
+        println!("Mesh: {:?}", mesh);
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
         app
             // .add_plugin(SdfBlockMeshingPlugin)
@@ -257,11 +258,11 @@ impl FromWorld for SDFPipeline {
                 shader_defs: Vec::new(),
                 entry_point: "vs_main".into(),
                 buffers: vec![
-                    /*VertexBufferLayout {
+                    VertexBufferLayout {
                     array_stride: vertex_array_stride.clone(),
                     step_mode: VertexStepMode::Vertex,
                     attributes: vertex_attributes.clone(),
-                }*/
+                }
                 ],
             },
             primitive: PrimitiveState {
@@ -320,11 +321,11 @@ impl FromWorld for SDFPipeline {
                 shader_defs: Vec::new(),
                 entry_point: "vs_main".into(),
                 buffers: vec![
-                    /*VertexBufferLayout {
+                    VertexBufferLayout {
                     array_stride: vertex_array_stride.clone(),
                     step_mode: VertexStepMode::Vertex,
                     attributes: vertex_attributes.clone(),
-                }*/
+                }
                 ],
             },
             primitive: PrimitiveState {
@@ -403,13 +404,12 @@ impl RenderCommand<Opaque3d> for DrawSDF {
                 &[view_uniform.offset, view_extension_uniform.offset],
             );
             pass.set_bind_group(2, &depth_pass.bind_group, &[]);
-            /* let mesh = meshes.into_inner().get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
+            let mesh = meshes.into_inner().get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
             pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
             if let Some(index_info) = &mesh.index_info {
                 pass.set_index_buffer(index_info.buffer.slice(..), 0, index_info.index_format);
-                pass.draw_indexed(0..index_info.count, 0, 0..view_binding.num_blocks);
-            } */
-            pass.draw(0..3, 0..1);
+                pass.draw_indexed(0..index_info.count, 0, 0..1);
+            } 
         }
     }
 }
@@ -610,6 +610,8 @@ pub struct ViewDepthPass1 {
     bind_group: BindGroup,
 }
 
+const depth_pass_ratio : u32 = 8;
+
 pub fn prepare_depth_pass_texture(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
@@ -624,8 +626,8 @@ pub fn prepare_depth_pass_texture(
                 label: Some("Depth Pass 1"),
                 size: Extent3d {
                     depth_or_array_layers: 1,
-                    width: view.width / 4 as u32,
-                    height: view.height / 4 as u32,
+                    width: view.width / depth_pass_ratio as u32,
+                    height: view.height / depth_pass_ratio as u32,
                 },
                 mip_level_count: 1,
                 sample_count: 1,
@@ -760,6 +762,7 @@ impl Node for DepthPrePassNode {
         let brush_binding = world.get_resource::<BrushBindingGroupResource>().expect("Binding Should Exist");
         let brush_binding = brush_binding.binding.clone().unwrap();
         let pipeline_cache = world.get_resource::<RenderPipelineCache>().expect("Pipeline Cache Should Exist");
+        let meshes = world.get_resource::<RenderAssets<Mesh>>().expect("Mesh Assets");
         let (view_binding, depth_pass, view_offset, extension_offset) = self
             .view_query
             .get_manual(world, view_entity)
@@ -782,7 +785,12 @@ impl Node for DepthPrePassNode {
             pass.set_bind_group(0, &view_binding.binding, &[view_offset.offset,extension_offset.offset]);
             pass.set_bind_group(1, &brush_binding, &[0,0,0]);
             pass.set_pipeline(&pipeline_cache.get(pipeline.prepass).unwrap());
-            pass.draw(0..3, 0..1);
+            let mesh = meshes.get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
+            pass.set_vertex_buffer(0, *mesh.vertex_buffer.slice(..));
+            if let Some(index_info) = &mesh.index_info {
+                pass.set_index_buffer(*index_info.buffer.slice(..), index_info.index_format);
+                pass.draw_indexed(0..index_info.count, 0, 0..1);
+            } 
         }
 
         Ok(())

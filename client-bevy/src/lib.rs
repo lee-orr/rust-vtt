@@ -43,9 +43,9 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 2;
+const NUM_BRUSHES: i32 = 4;
 const UNOPTIMIZED_OBJECTS: bool = false;
-const OPTIMIZED_OBJECTS: bool = false;
+const OPTIMIZED_OBJECTS: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn spawn_optimized_hierarchy(
@@ -67,16 +67,20 @@ fn spawn_optimized_hierarchy(
         return Some(cube);
     }
     if num_brushes % 4 == 0 {
-        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
-        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
-        if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
+        let num_children = num_brushes / 4;
+        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
+        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
+        let child_3 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
+        let child_4 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
+        let level = (num_brushes / 2) as f32;
+        if let (Some(child_1), Some(child_2), Some(child_3), Some(child_4)) = (child_1, child_2, child_3, child_4) {
             let transform_1 = commands
                 .spawn()
                 .insert(SDFNode {
                     object: *object,
                     data: SDFNodeData::Transform(child_1),
                 })
-                .insert(Transform::from_translation(Vec3::Z * 2.))
+                .insert(Transform::from_translation(Vec3::new(level, 0., level)))
                 .id();
             let transform_2 = commands
                 .spawn()
@@ -84,16 +88,46 @@ fn spawn_optimized_hierarchy(
                     object: *object,
                     data: SDFNodeData::Transform(child_2),
                 })
-                .insert(Transform::from_translation(Vec3::Z * -2.))
+                .insert(Transform::from_translation(Vec3::new(level, 0., -level)))
                 .id();
-            let op = commands
+            let transform_3 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_2),
+                })
+                .insert(Transform::from_translation(Vec3::new(-level, 0., level)))
+                .id();
+            let transform_4 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Transform(child_2),
+                })
+                .insert(Transform::from_translation(Vec3::new(-level, 0., -level)))
+                .id();
+            let op1 = commands
                 .spawn()
                 .insert(SDFNode {
                     object: *object,
                     data: SDFNodeData::Operation(SDFOperation::Union, 0., transform_1, transform_2),
                 })
                 .id();
-            return Some(op);
+            let op2 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Operation(SDFOperation::Union, 0., transform_3, transform_4),
+                })
+                .id();
+            let op3 = commands
+                .spawn()
+                .insert(SDFNode {
+                    object: *object,
+                    data: SDFNodeData::Operation(SDFOperation::Union, 0., op1, op2),
+                })
+                .id();
+            return Some(op3);
         }
         return None;
     }
