@@ -26,7 +26,7 @@ fn fs_main(in: VertexOutput) -> FragmentOut {
         out.depth = 1. - hit.distance / MAX_DISTANCE;
     } else {
         out.color = vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
-        out.depth = 0.;
+        out.depth = 1.;
     }
     return out;
 }

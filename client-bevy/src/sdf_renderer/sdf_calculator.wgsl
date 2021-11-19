@@ -97,8 +97,9 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         var node = current_frame.node;
         if (current_frame.process_bounds) {
             var d = distance(current_frame.point, node.center);
-            if (d > node.radius + current_frame.current_epsilon) {
-                last_result = d - node.radius + current_frame.current_epsilon/2.;
+            let radius_extension = current_frame.current_epsilon * 4.;
+            if (d > node.radius + radius_extension) {
+                last_result = d - node.radius + radius_extension/2.;
                 index = index - 1;
                 continue;
             } 

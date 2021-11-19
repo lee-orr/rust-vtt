@@ -80,3 +80,7 @@ var<storage, read> blocks: Blocks;
 var t_depth: texture_depth_2d;
 [[group(2), binding(1)]]
 var s_depth: sampler;
+[[group(2), binding(2)]]
+var t_hits: texture_depth_2d;
+[[group(2), binding(3)]]
+var s_hits: sampler;

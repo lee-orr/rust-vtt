@@ -21,11 +21,7 @@ use bevy::{core_pipeline::{Opaque3d, draw_3d_graph::{self, node}}, ecs::system::
             TextureView, VertexBufferLayout, VertexState,
         }, renderer::{RenderDevice, RenderQueue}, texture::{BevyDefault, CachedTexture, TextureCache}, view::{self, ExtractedView, ViewUniformOffset, ViewUniforms}}};
 
-use wgpu::{
-    util::BufferInitDescriptor, AddressMode, BindingResource, BufferUsages, Extent3d, FilterMode,
-    LoadOp, Operations, RenderPass, RenderPassDescriptor, SamplerDescriptor, ShaderStages,
-    TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode,RenderPassDepthStencilAttachment
-};
+use wgpu::{AddressMode, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp, Operations, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, SamplerDescriptor, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode, util::BufferInitDescriptor};
 
 use crate::sdf_renderer::{
     sdf_block_mesher::{extract_gpu_blocks, SdfBlockMeshingPlugin},
@@ -59,7 +55,7 @@ impl Plugin for SdfPlugin {
             include_str!("structs.wgsl"),
             include_str!("vertex_full_screen.wgsl"),
             include_str!("sdf_calculator.wgsl"),
-            include_str!("sdf_raymarch.wgsl"),
+            include_str!("sdf_raymarch_secondary_hits.wgsl"),
             include_str!("depth_fragment.wgsl")
         ));
         shaders.set_untracked(SDF_PREPASS_SHADER_HANDLE, shader);
@@ -170,6 +166,25 @@ impl FromWorld for SDFPipeline {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler {
+                        filtering: false,
+                        comparison: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 3,
                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler {
                         filtering: false,
@@ -357,7 +372,11 @@ impl FromWorld for SDFPipeline {
                 shader: prepass_shader.clone(),
                 shader_defs: Vec::new(),
                 entry_point: "fs_main".into(),
-                targets: vec![],
+                targets: vec![ColorTargetState {
+                    format: TextureFormat::R32Float,
+                    blend: None,
+                    write_mask: ColorWrites::ALL,
+                }],
             }),
         };
         let mut pipeline_cache = world.get_resource_mut::<RenderPipelineCache>().unwrap();
@@ -606,7 +625,9 @@ pub fn queue_brush_bindings(
 
 pub struct ViewDepthPass1 {
     texture: CachedTexture,
+    second_hit_texture: CachedTexture,
     view: TextureView,
+    second_hit_view: TextureView,
     bind_group: BindGroup,
 }
 
@@ -643,7 +664,31 @@ pub fn prepare_depth_pass_texture(
             mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
+        let second_hit_texture = texture_cache.get(
+            &render_device,
+            TextureDescriptor {
+                label: Some("Second Hit"),
+                size: Extent3d {
+                    depth_or_array_layers: 1,
+                    width: view.width / depth_pass_ratio as u32,
+                    height: view.height / depth_pass_ratio as u32,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: TextureFormat::R32Float,
+                usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            },
+        );
+        let second_hit_sampler = render_device.create_sampler(&SamplerDescriptor {
+            label: Some("Second Hit Sampler"),
+            min_filter: FilterMode::Nearest,
+            mag_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Nearest,
+            ..Default::default()
+        });
         let view = texture.default_view.clone();
+        let second_hit_view = second_hit_texture.default_view.clone();
         let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Depth Pass 1 Binding Group"),
             layout: &sdf_pipeline.depth_layout,
@@ -656,11 +701,21 @@ pub fn prepare_depth_pass_texture(
                     binding: 1,
                     resource: BindingResource::Sampler(&sampler),
                 },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&second_hit_view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&second_hit_sampler),
+                },
             ],
         });
         commands.entity(entity).insert(ViewDepthPass1 {
-            texture: texture,
+            texture,
+            second_hit_texture,
             view,
+            second_hit_view,
             bind_group,
         });
     }
@@ -771,7 +826,7 @@ impl Node for DepthPrePassNode {
         {
             let pass_descriptor = RenderPassDescriptor {
                 label: Some("depth_prepass"),
-                color_attachments: &[],
+                color_attachments: &[RenderPassColorAttachment { view: &depth_pass.second_hit_view, resolve_target: None, ops:Operations { load: LoadOp::Clear(Color::BLACK), store: true } }],
                 depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                     view: &depth_pass.view,
                     depth_ops: Some(Operations {
