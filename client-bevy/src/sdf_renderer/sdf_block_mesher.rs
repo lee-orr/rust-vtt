@@ -1,14 +1,7 @@
-use bevy::{
-    math::Vec3,
-    prelude::{
-        App, Assets, BuildChildren, Changed, Commands, CoreStage, Entity, GlobalTransform, Plugin,
-        Query, ResMut, Transform,
-    },
-    render2::{
+use bevy::{math::Vec3, prelude::{App, Assets, BuildChildren, Changed, Commands, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, ResMut, Transform}, render2::{
         color::Color,
         mesh::{shape, Indices, Mesh},
-    },
-};
+    }};
 use crevice::std140::AsStd140;
 use wgpu::PrimitiveTopology;
 
@@ -22,8 +15,8 @@ impl Plugin for SdfBlockMeshingPlugin {
     }
 }
 
-const blocks_per_level: u32 = 4;
-const max_levels: u32 = 1;
+const blocks_per_level: u32 = 2;
+const max_levels: u32 = 4;
 
 pub struct SDFBlock {
     scale: f32,
@@ -49,18 +42,19 @@ pub fn extract_gpu_blocks(
 
 fn place_sdf_surface_blocks(
     mut commands: Commands,
-    object_query: Query<(Entity, &SDFObject, &SDFObjectTree), Changed<SDFObjectTree>>,
+    object_query: Query<(Entity, &SDFObject, &SDFObjectTree, &Transform), Or<(Changed<SDFObjectTree>, Changed<Transform>)>>,
     node_query: Query<(Entity, &SDFNode, Option<&Transform>)>,
 ) {
-    for (entity, object, tree) in object_query.iter() {
+    for (entity, object, tree, transform) in object_query.iter() {
         if tree.tree.len() < 0 {
             break;
         }
         let center = tree.tree[0].center;
         let radius = tree.tree[0].radius;
-        let min = center - radius;
-        let step_size = (radius * 2.) / (blocks_per_level as f32);
-        let min_dist = step_size;
+        let min_dist = radius / (blocks_per_level as f32);
+        let step_size = min_dist * 2.;
+        let step_squared = (step_size * step_size);
+        let min = center - radius + step_size/2.;
         for x in 0..blocks_per_level {
             for y in 0..blocks_per_level {
                 for z in 0..blocks_per_level {

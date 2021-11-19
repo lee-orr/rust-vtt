@@ -1,60 +1,121 @@
-pub mod sdf_operation;
 pub mod sdf_block_mesher;
+pub mod sdf_operation;
 
 use core::num;
 
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::Opaque3d, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{
+use bevy::{core_pipeline::{Opaque3d, draw_3d_graph::{self, node}}, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::Mat4, prelude::{
         Assets, Commands, CoreStage, Entity, FromWorld, GlobalTransform, HandleUntyped, Plugin,
-        Query, Res, ResMut,
-    }, reflect::TypeUuid, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, mesh::{Mesh, shape}, render_asset::RenderAssets, render_phase::{AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase, SetItemPipeline}, render_resource::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent, BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize, CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache, RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat, VertexBufferLayout, VertexState}, renderer::{RenderDevice, RenderQueue}, texture::BevyDefault, view::{ExtractedView, ViewUniformOffset, ViewUniforms}}};
+        Query, QueryState, Res, ResMut, With, World,
+    }, reflect::TypeUuid, render::pipeline, render2::{RenderApp, RenderStage, camera::PerspectiveProjection, mesh::{shape, Mesh}, render_asset::RenderAssets, render_graph::{Node, RenderGraph, SlotInfo, SlotType}, render_phase::{
+            AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase, SetItemPipeline,
+        }, render_resource::{
+            BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+            BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
+            BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
+            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
+            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
+            PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
+            RenderPipelineDescriptor, Shader, StencilFaceState, StencilState, TextureFormat,
+            TextureView, VertexBufferLayout, VertexState,
+        }, renderer::{RenderDevice, RenderQueue}, texture::{BevyDefault, CachedTexture, TextureCache}, view::{self, ExtractedView, ViewUniformOffset, ViewUniforms}}};
 
-use wgpu::{BufferUsages, RenderPass, ShaderStages, VertexAttribute, VertexFormat, VertexStepMode, util::BufferInitDescriptor};
+use wgpu::{
+    util::BufferInitDescriptor, AddressMode, BindingResource, BufferUsages, Extent3d, FilterMode,
+    LoadOp, Operations, RenderPass, RenderPassDescriptor, SamplerDescriptor, ShaderStages,
+    TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode,RenderPassDepthStencilAttachment
+};
 
-use crate::sdf_renderer::{sdf_block_mesher::{SdfBlockMeshingPlugin, extract_gpu_blocks}, sdf_operation::{
-    construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object,
-    BrushSettings, ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode,
-}};
+use crate::sdf_renderer::{
+    sdf_block_mesher::{extract_gpu_blocks, SdfBlockMeshingPlugin},
+    sdf_operation::{
+        construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object, BrushSettings,
+        ExtractedSDFBrush, SDFRootTransform, Std140GpuSDFNode,
+    },
+};
 
-use self::{sdf_block_mesher::{GpuSDFBlock, SDFBlock, Std140GpuSDFBlock}, sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP}};
+use self::{
+    sdf_block_mesher::{GpuSDFBlock, SDFBlock, Std140GpuSDFBlock},
+    sdf_operation::{ExtractedSDFOrder, GpuSDFNode, SDFObjectTree, TRANSFORM_WARP},
+};
 
 pub struct SdfPlugin;
 
 impl Plugin for SdfPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
-        let shader = Shader::from_wgsl(include_str!("sdf_shader.wgsl"));
+        let shader = Shader::from_wgsl(format!(
+            "{}{}{}{}{}",
+            include_str!("structs.wgsl"),
+            include_str!("vertex_full_screen.wgsl"),
+            include_str!("sdf_calculator.wgsl"),
+            include_str!("sdf_raymarch.wgsl"),
+            include_str!("depth_read_fragment.wgsl")
+        ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
+        let shader = Shader::from_wgsl(format!(
+            "{}{}{}{}{}",
+            include_str!("structs.wgsl"),
+            include_str!("vertex_full_screen.wgsl"),
+            include_str!("sdf_calculator.wgsl"),
+            include_str!("sdf_raymarch.wgsl"),
+            include_str!("depth_fragment.wgsl")
+        ));
+        shaders.set_untracked(SDF_PREPASS_SHADER_HANDLE, shader);
         let mut meshes = app.world.get_resource_mut::<Assets<Mesh>>().unwrap();
-        let mesh = Mesh::from(shape::Cube { size: 1.});
+        let mesh = Mesh::from(shape::Cube { size: 1. });
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
         app
-            .add_plugin(SdfBlockMeshingPlugin)
+            // .add_plugin(SdfBlockMeshingPlugin)
             .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_object)
             .add_system_to_stage(CoreStage::Last, construct_sdf_object_tree);
-        app.sub_app(RenderApp)
+        let mut render_app = app.sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
             .init_resource::<ViewExtensionUniforms>()
             .init_resource::<BrushUniforms>()
+            .init_resource::<BrushBindingGroupResource>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Extract, extract_gpu_blocks)
             .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
+            .add_system_to_stage(RenderStage::Prepare, prepare_depth_pass_texture)
             .add_system_to_stage(RenderStage::Queue, queue_sdf)
             .add_system_to_stage(RenderStage::Queue, queue_brush_bindings);
+
+        
+        let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
+        let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
+        let mut draw_3d_graph = graph.get_sub_graph_mut(draw_3d_graph::NAME);
+        if let Some(mut draw_3d_graph) = draw_3d_graph{
+            draw_3d_graph.add_node(DepthPrePassNode::NAME, depth_pre_pass_node);
+            let input_node_id = draw_3d_graph.input_node().unwrap().id;
+            draw_3d_graph
+                .add_slot_edge(
+                    input_node_id,
+                    draw_3d_graph::input::VIEW_ENTITY,
+                    DepthPrePassNode::NAME,
+                    DepthPrePassNode::IN_VIEW,
+                )
+                .unwrap();
+            draw_3d_graph
+                .add_node_edge(DepthPrePassNode::NAME, node::MAIN_PASS).unwrap();
+        }
     }
 }
 
 pub struct SDFPipeline {
     view_layout: BindGroupLayout,
     brush_layout: BindGroupLayout,
+    depth_layout: BindGroupLayout,
     pipeline: CachedPipelineId,
     prepass: CachedPipelineId,
 }
 pub const SDF_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1836745564647005696);
+pub const SDF_PREPASS_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1356745757609005696);
 pub const SDF_CUBE_MESH_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Mesh::TYPE_UUID, 1674555646470534696);
 
@@ -87,6 +148,31 @@ impl FromWorld for SDFPipeline {
                         // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
                         // Context: https://github.com/LPGhatguy/crevice/issues/29
                         min_binding_size: BufferSize::new(144),
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let depth_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("SDF Pipeline Depth Bind Group Layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler {
+                        filtering: false,
+                        comparison: false,
                     },
                     count: None,
                 },
@@ -135,7 +221,7 @@ impl FromWorld for SDFPipeline {
             ],
         });
 
-        let (vertex_array_stride, vertex_attributes) =  (
+        let (vertex_array_stride, vertex_attributes) = (
             32,
             vec![
                 // Position (GOTCHA! Vertex_Position isn't first in the buffer due to how Mesh sorts attributes (alphabetically))
@@ -161,16 +247,22 @@ impl FromWorld for SDFPipeline {
 
         let descriptor = RenderPipelineDescriptor {
             label: Some("SDF Pipeline".into()),
-            layout: Some(vec![view_layout.clone(), brush_layout.clone()]),
+            layout: Some(vec![
+                view_layout.clone(),
+                brush_layout.clone(),
+                depth_layout.clone(),
+            ]),
             vertex: VertexState {
                 shader: shader.clone(),
                 shader_defs: Vec::new(),
                 entry_point: "vs_main".into(),
-                buffers: vec![VertexBufferLayout {
+                buffers: vec![
+                    /*VertexBufferLayout {
                     array_stride: vertex_array_stride.clone(),
                     step_mode: VertexStepMode::Vertex,
                     attributes: vertex_attributes.clone(),
-                }],
+                }*/
+                ],
             },
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
@@ -219,18 +311,21 @@ impl FromWorld for SDFPipeline {
                 }],
             }),
         };
+        let prepass_shader = SDF_PREPASS_SHADER_HANDLE.typed::<Shader>();
         let prepass_descriptor = RenderPipelineDescriptor {
             label: Some("SDF Prepass Pipeline".into()),
             layout: Some(vec![view_layout.clone(), brush_layout.clone()]),
             vertex: VertexState {
-                shader: shader.clone(),
+                shader: prepass_shader.clone(),
                 shader_defs: Vec::new(),
                 entry_point: "vs_main".into(),
-                buffers: vec![VertexBufferLayout {
+                buffers: vec![
+                    /*VertexBufferLayout {
                     array_stride: vertex_array_stride.clone(),
                     step_mode: VertexStepMode::Vertex,
                     attributes: vertex_attributes.clone(),
-                }],
+                }*/
+                ],
             },
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
@@ -253,16 +348,22 @@ impl FromWorld for SDFPipeline {
                 },
             }),
             multisample: MultisampleState {
-                count: 4,
+                count: 1,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            fragment: None,
+            fragment:  Some(FragmentState {
+                shader: prepass_shader.clone(),
+                shader_defs: Vec::new(),
+                entry_point: "fs_main".into(),
+                targets: vec![],
+            }),
         };
         let mut pipeline_cache = world.get_resource_mut::<RenderPipelineCache>().unwrap();
         SDFPipeline {
             view_layout,
             brush_layout,
+            depth_layout,
             pipeline: pipeline_cache.queue(descriptor),
             prepass: pipeline_cache.queue(prepass_descriptor),
         }
@@ -273,16 +374,19 @@ type DrawSDFCommand = (SetItemPipeline, DrawSDF);
 
 pub struct DrawSDF;
 impl RenderCommand<Opaque3d> for DrawSDF {
-    type Param = (SQuery<(
-        Read<ViewUniformOffset>,
-        Read<ViewExtensionUniformOffset>,
-        Read<SDFViewBinding>,
-    )>,
-    SRes<RenderAssets<Mesh>>,
-    SQuery<Read<SDFBrushBinding>>);
+    type Param = (
+        SQuery<(
+            Read<ViewUniformOffset>,
+            Read<ViewExtensionUniformOffset>,
+            Read<SDFViewBinding>,
+            Read<ViewDepthPass1>,
+        )>,
+        SRes<RenderAssets<Mesh>>,
+        SQuery<Read<SDFBrushBinding>>,
+    );
 
     fn render<'w>(
-        _view: bevy::prelude::Entity,
+        view: bevy::prelude::Entity,
         _item: &Opaque3d,
         (query, meshes, bindings): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
@@ -290,17 +394,22 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         if let Some(bindings) = bindings.iter().next() {
             pass.set_bind_group(1, &bindings.binding, &[0, 0, 0]);
         }
-        let (view_uniform, view_extension_uniform, view_binding) = query.get(_view).unwrap();
-        pass.set_bind_group(
-            0,
-            &view_binding.binding,
-            &[view_uniform.offset, view_extension_uniform.offset],
-        );
-        let mesh = meshes.into_inner().get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
-        pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        if let Some(index_info) = &mesh.index_info {
-            pass.set_index_buffer(index_info.buffer.slice(..), 0, index_info.index_format);
-            pass.draw_indexed(0..index_info.count, 0, 0..view_binding.num_blocks);
+        if let Ok((view_uniform, view_extension_uniform, view_binding, depth_pass)) =
+            query.get(view)
+        {
+            pass.set_bind_group(
+                0,
+                &view_binding.binding,
+                &[view_uniform.offset, view_extension_uniform.offset],
+            );
+            pass.set_bind_group(2, &depth_pass.bind_group, &[]);
+            /* let mesh = meshes.into_inner().get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
+            pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            if let Some(index_info) = &mesh.index_info {
+                pass.set_index_buffer(index_info.buffer.slice(..), 0, index_info.index_format);
+                pass.draw_indexed(0..index_info.count, 0, 0..view_binding.num_blocks);
+            } */
+            pass.draw(0..3, 0..1);
         }
     }
 }
@@ -336,6 +445,11 @@ pub struct BrushUniforms {
 
 pub struct SDFBrushBinding {
     binding: BindGroup,
+}
+
+#[derive(Default)]
+pub struct BrushBindingGroupResource {
+    binding: Option<BindGroup>
 }
 
 fn prepare_view_extensions(
@@ -411,19 +525,21 @@ fn prepare_brush_uniforms(
             brush_vec.push(node.clone());
         }
     }
-    let mut blocks : Vec<Std140GpuSDFBlock> = Vec::<Std140GpuSDFBlock>::new();
+    let mut blocks: Vec<Std140GpuSDFBlock> = Vec::<Std140GpuSDFBlock>::new();
     if let Some((_, view)) = views.iter().next() {
         let position = view.transform.translation;
-        let mut tmpBlocks : Vec<(&GpuSDFBlock, f32)> = block_query.iter().map(|block|(block, (*&block.position - position).length())).collect();
-        tmpBlocks.sort_by(|(_,a), (_,b)| a.partial_cmp(b).unwrap());
-        blocks = tmpBlocks.iter().map(|(val,_)| val.as_std140()).collect();
+        let mut tmpBlocks: Vec<(&GpuSDFBlock, f32)> = block_query
+            .iter()
+            .map(|block| (block, (*&block.position - position).length()))
+            .collect();
+        tmpBlocks.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+        blocks = tmpBlocks.iter().map(|(val, _)| val.as_std140()).collect();
     } else {
         blocks = block_query.iter().map(|block| block.as_std140()).collect();
     }
-    
+
     let mut brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
-    
-    println!("Brushes: {:?}, Blocks: {:?}", brushes.len(), blocks.len());
+
     if brushes.len() == 0 {
         brushes.push(GpuSDFNode::default().as_std140());
     }
@@ -443,7 +559,7 @@ fn prepare_brush_uniforms(
         contents: bytemuck::cast_slice(brushes.as_slice()),
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
     });
-    
+
     let block_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Block Buffer"),
         contents: bytemuck::cast_slice(blocks.as_slice()),
@@ -458,8 +574,11 @@ pub fn queue_brush_bindings(
     buffers: Res<BrushUniforms>,
     render_device: Res<RenderDevice>,
     sdf_pipeline: Res<SDFPipeline>,
+    mut brush_binding: ResMut<BrushBindingGroupResource>,
 ) {
-    if let (Some(brushes), settings, Some(blocks)) = (&buffers.brushes, &buffers.settings, &buffers.blocks) {
+    if let (Some(brushes), settings, Some(blocks)) =
+        (&buffers.brushes, &buffers.settings, &buffers.blocks)
+    {
         let brush_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Brush Bind Group"),
             layout: &sdf_pipeline.brush_layout,
@@ -478,14 +597,71 @@ pub fn queue_brush_bindings(
                 },
             ],
         });
+        brush_binding.binding = Some(brush_bind_group.clone());
         commands.spawn().insert(SDFBrushBinding {
             binding: brush_bind_group,
         });
     }
 }
 
-struct DepthPrepass{
-    render_pass: RenderPass<'static>,
+pub struct ViewDepthPass1 {
+    texture: CachedTexture,
+    view: TextureView,
+    bind_group: BindGroup,
+}
+
+pub fn prepare_depth_pass_texture(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    mut views: Query<(Entity, &ExtractedView)>,
+    mut texture_cache: ResMut<TextureCache>,
+    sdf_pipeline: Res<SDFPipeline>,
+) {
+    for (entity, view) in views.iter() {
+        let texture = texture_cache.get(
+            &render_device,
+            TextureDescriptor {
+                label: Some("Depth Pass 1"),
+                size: Extent3d {
+                    depth_or_array_layers: 1,
+                    width: view.width / 4 as u32,
+                    height: view.height / 4 as u32,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: TextureFormat::Depth32Float,
+                usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+            },
+        );
+        let sampler = render_device.create_sampler(&SamplerDescriptor {
+            label: Some("Depth Sampler"),
+            min_filter: FilterMode::Nearest,
+            mag_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Nearest,
+            ..Default::default()
+        });
+        let view = texture.default_view.clone();
+        let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Depth Pass 1 Binding Group"),
+            layout: &sdf_pipeline.depth_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+            ],
+        });
+        commands.entity(entity).insert(ViewDepthPass1 {
+            texture: texture,
+            view,
+            bind_group,
+        });
+    }
 }
 
 pub fn queue_sdf(
@@ -534,5 +710,81 @@ pub fn queue_sdf(
                 draw_function: draw_sdf,
             });
         }
+    }
+}
+
+pub struct DepthPrePassNode {
+    pub view_query: QueryState<
+        (
+            &'static SDFViewBinding,
+            &'static ViewDepthPass1,
+            &'static ViewUniformOffset,
+            &'static ViewExtensionUniformOffset,
+        ),
+        With<ExtractedView>,
+    >,
+    brush_query: QueryState<&'static SDFBrushBinding>
+}
+
+impl DepthPrePassNode {
+    pub const IN_VIEW: &'static str = "view";
+    pub const NAME: &'static str = "DEPTH_PRE_PASS_NODE";
+
+    pub fn new(world: &mut World) -> Self {
+        Self {
+            view_query: QueryState::new(world),
+            brush_query: QueryState::new(world),
+        }
+    }
+}
+
+impl Node for DepthPrePassNode {
+    fn input(&self) -> Vec<SlotInfo> {
+        vec![SlotInfo::new(DepthPrePassNode::IN_VIEW, SlotType::Entity)]
+    }
+
+    fn update(&mut self, world: &mut World) {
+        self.view_query.update_archetypes(world);
+    }
+
+    fn run(
+        &self,
+        graph: &mut bevy::render2::render_graph::RenderGraphContext,
+        render_context: &mut bevy::render2::renderer::RenderContext,
+        world: &World,
+    ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
+        let view_entity = graph
+            .get_input_entity(Self::IN_VIEW)
+            .expect("Should find attached entity");
+        let pipeline = world.get_resource::<SDFPipeline>().expect("Pipeline Should Exist");
+        let brush_binding = world.get_resource::<BrushBindingGroupResource>().expect("Binding Should Exist");
+        let brush_binding = brush_binding.binding.clone().unwrap();
+        let pipeline_cache = world.get_resource::<RenderPipelineCache>().expect("Pipeline Cache Should Exist");
+        let (view_binding, depth_pass, view_offset, extension_offset) = self
+            .view_query
+            .get_manual(world, view_entity)
+            .expect("View Entity Should Exist");
+
+        {
+            let pass_descriptor = RenderPassDescriptor {
+                label: Some("depth_prepass"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &depth_pass.view,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(0.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            };
+            let mut pass = render_context.command_encoder.begin_render_pass(&pass_descriptor);
+            pass.set_bind_group(0, &view_binding.binding, &[view_offset.offset,extension_offset.offset]);
+            pass.set_bind_group(1, &brush_binding, &[0,0,0]);
+            pass.set_pipeline(&pipeline_cache.get(pipeline.prepass).unwrap());
+            pass.draw(0..3, 0..1);
+        }
+
+        Ok(())
     }
 }

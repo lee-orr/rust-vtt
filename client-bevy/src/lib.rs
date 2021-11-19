@@ -23,7 +23,8 @@ pub fn run() {
     console_error_panic_hook::set_once();
 
     let mut app = App::new();
-    app.insert_resource(Msaa { samples: 4 })
+    app
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(PipelinedDefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
@@ -188,7 +189,7 @@ fn setup(mut commands: Commands) {
         }
     } else if OPTIMIZED_OBJECTS {
         let object = commands.spawn().id();
-        let root = spawn_optimized_hierarchy(&mut commands, &object, NUM_BRUSHES as u32);
+        let root = spawn_optimized_hierarchy(&mut commands, &object, (NUM_BRUSHES * NUM_BRUSHES) as u32);
 
         if let Some(root) = root {
             commands
