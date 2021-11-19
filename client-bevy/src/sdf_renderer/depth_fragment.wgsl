@@ -1,6 +1,5 @@
 struct FragmentOut {
   [[builtin(frag_depth)]] depth: f32;
-  [[location(0)]] second_hit: f32;
 };
 
 [[stage(fragment)]]
@@ -14,6 +13,5 @@ fn fs_main(in: VertexOutput) -> FragmentOut {
     } else {
         out.depth = 0.;
     }
-    out.second_hit = 0.;
     return out;
 }

@@ -8,12 +8,12 @@ struct MarchHit {
 };
 
 let MAX_MARCHING_STEPS = 100;
-let MAX_DISTANCE = 100.0;
+let MAX_DISTANCE = 100.;
 
 fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> MarchHit {
     let global_hit_epsilon: f32 = pixel_size;
     var last_epsilon: f32 = pixel_size;
-    var depth : f32 = 0.5;
+    var depth : f32 = pixel_size;
     var max_depth = min(max_dist, MAX_DISTANCE);
     var out : MarchHit;
     var jumps : f32 = 0.;
@@ -42,7 +42,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
             return out;
         }
         
-        depth = depth + dist.x;
+        depth = depth + max(dist.x, 2. * hit_epsilon);
     }
     out.final_epsilon = last_epsilon;
     out.distance = depth;

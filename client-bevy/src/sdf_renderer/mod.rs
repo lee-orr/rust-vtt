@@ -46,8 +46,8 @@ impl Plugin for SdfPlugin {
             include_str!("structs.wgsl"),
             include_str!("vertex_full_screen.wgsl"),
             include_str!("sdf_calculator.wgsl"),
-            include_str!("sdf_raymarch.wgsl"),
-            include_str!("depth_processed_fragment.wgsl")
+            include_str!("sdf_raymarch_use_secondary_hits.wgsl"),
+            include_str!("full_fragment_secondary_hits.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
@@ -55,8 +55,8 @@ impl Plugin for SdfPlugin {
             include_str!("structs.wgsl"),
             include_str!("vertex_full_screen.wgsl"),
             include_str!("sdf_calculator.wgsl"),
-            include_str!("sdf_raymarch_secondary_hits.wgsl"),
-            include_str!("depth_fragment.wgsl")
+            include_str!("sdf_raymarch_find_secondary_hits.wgsl"),
+            include_str!("depth_fragment_second_hit.wgsl")
         ));
         shaders.set_untracked(SDF_PREPASS_SHADER_HANDLE, shader);
         let mut meshes = app.world.get_resource_mut::<Assets<Mesh>>().unwrap();
@@ -373,7 +373,7 @@ impl FromWorld for SDFPipeline {
                 shader_defs: Vec::new(),
                 entry_point: "fs_main".into(),
                 targets: vec![ColorTargetState {
-                    format: TextureFormat::R32Float,
+                    format: TextureFormat::Rgba32Float,
                     blend: None,
                     write_mask: ColorWrites::ALL,
                 }],
@@ -676,7 +676,7 @@ pub fn prepare_depth_pass_texture(
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: TextureFormat::R32Float,
+                format: TextureFormat::Rgba32Float,
                 usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             },
         );
