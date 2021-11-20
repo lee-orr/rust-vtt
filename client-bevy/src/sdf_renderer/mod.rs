@@ -1,3 +1,4 @@
+pub mod sdf_baker;
 pub mod sdf_block_mesher;
 pub mod sdf_operation;
 
@@ -11,7 +12,7 @@ use bevy::{
     ecs::system::lifetimeless::{Read, SQuery, SRes},
     math::{Mat4, Vec2},
     prelude::{
-        Assets, Commands, CoreStage, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState,
+        Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState,
         Res, ResMut, With, World,
     },
     reflect::TypeUuid,
@@ -21,7 +22,8 @@ use bevy::{
         render_asset::RenderAssets,
         render_graph::{Node, RenderGraph, SlotInfo, SlotType},
         render_phase::{
-            AddRenderCommand, DrawFunctions, RenderCommand, RenderPhase, SetItemPipeline,
+            AddRenderCommand, DrawFunctions, RenderCommand, RenderCommandResult, RenderPhase,
+            SetItemPipeline,
         },
         render_resource::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -50,8 +52,8 @@ use wgpu::{
 use crate::sdf_renderer::{
     sdf_block_mesher::extract_gpu_blocks,
     sdf_operation::{
-        construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object, BrushSettings,
-        SDFRootTransform, Std140GpuSDFNode,
+        extract_gpu_node_trees, BrushSettings,
+        SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode,
     },
 };
 
@@ -90,10 +92,7 @@ impl Plugin for SdfPlugin {
         });
         println!("Mesh: {:?}", mesh);
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
-        app
-            // .add_plugin(SdfBlockMeshingPlugin)
-            .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_object)
-            .add_system_to_stage(CoreStage::Last, construct_sdf_object_tree);
+        app.add_plugin(SDFOperationPlugin);
         let render_app = app
             .sub_app(RenderApp)
             .init_resource::<SDFPipeline>()
@@ -434,7 +433,7 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         _item: &Opaque3d,
         (query, meshes, bindings): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
-    ) {
+    ) -> RenderCommandResult {
         if let Some(bindings) = bindings.iter().next() {
             pass.set_bind_group(1, &bindings.binding, &[0, 0, 0]);
         }
@@ -455,8 +454,10 @@ impl RenderCommand<Opaque3d> for DrawSDF {
             if let Some(index_info) = &mesh.index_info {
                 pass.set_index_buffer(index_info.buffer.slice(..), 0, index_info.index_format);
                 pass.draw_indexed(0..index_info.count, 0, 0..1);
+                return RenderCommandResult::Success;
             }
         }
+        RenderCommandResult::Failure
     }
 }
 
