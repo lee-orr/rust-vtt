@@ -67,20 +67,20 @@ impl Plugin for SdfPlugin {
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}",
-            include_str!("structs.wgsl"),
-            include_str!("vertex_full_screen.wgsl"),
-            include_str!("sdf_calculator.wgsl"),
-            include_str!("sdf_raymarch_use_secondary_hits.wgsl"),
-            include_str!("full_fragment_secondary_hits.wgsl")
+            include_str!("shaders/general/structs.wgsl"),
+            include_str!("shaders/vertex/vertex_full_screen.wgsl"),
+            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
+            include_str!("shaders/fragment/full_fragment_secondary_hits.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}",
-            include_str!("structs.wgsl"),
-            include_str!("vertex_full_screen.wgsl"),
-            include_str!("sdf_calculator.wgsl"),
-            include_str!("sdf_raymarch_find_secondary_hits.wgsl"),
-            include_str!("depth_fragment_second_hit.wgsl")
+            include_str!("shaders/general/structs.wgsl"),
+            include_str!("shaders/vertex/vertex_full_screen.wgsl"),
+            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/sdf_raymarch_find_secondary_hits.wgsl"),
+            include_str!("shaders/fragment/depth_fragment_second_hit.wgsl")
         ));
         shaders.set_untracked(SDF_PREPASS_SHADER_HANDLE, shader);
         let mut meshes = app.world.get_resource_mut::<Assets<Mesh>>().unwrap();
