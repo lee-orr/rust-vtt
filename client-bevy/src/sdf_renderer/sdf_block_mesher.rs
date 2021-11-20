@@ -1,12 +1,11 @@
 use bevy::{
     math::Vec3,
     prelude::{
-        App, BuildChildren, Changed, Commands, CoreStage, Entity, GlobalTransform, Or,
-        Plugin, Query, Transform,
+        App, BuildChildren, Changed, Commands, CoreStage, Entity, GlobalTransform, Or, Plugin,
+        Query, Transform,
     },
 };
 use crevice::std140::AsStd140;
-
 
 use super::sdf_operation::{process_sdf_node, SDFNode, SDFObject, SDFObjectTree};
 

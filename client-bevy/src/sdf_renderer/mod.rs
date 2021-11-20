@@ -1,8 +1,6 @@
 pub mod sdf_block_mesher;
 pub mod sdf_operation;
 
-
-
 use crevice::std140::AsStd140;
 
 use bevy::{
@@ -13,8 +11,8 @@ use bevy::{
     ecs::system::lifetimeless::{Read, SQuery, SRes},
     math::{Mat4, Vec2},
     prelude::{
-        Assets, Commands, CoreStage, Entity, FromWorld, HandleUntyped, Plugin,
-        Query, QueryState, Res, ResMut, With, World,
+        Assets, Commands, CoreStage, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState,
+        Res, ResMut, With, World,
     },
     reflect::TypeUuid,
     render2::{
@@ -32,8 +30,8 @@ use bevy::{
             CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
             DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
             PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
-            RenderPipelineDescriptor, Shader, StencilState, TextureFormat,
-            TextureView, VertexBufferLayout, VertexState,
+            RenderPipelineDescriptor, Shader, StencilState, TextureFormat, TextureView,
+            VertexBufferLayout, VertexState,
         },
         renderer::{RenderDevice, RenderQueue},
         texture::{BevyDefault, CachedTexture, TextureCache},
@@ -43,16 +41,17 @@ use bevy::{
 };
 
 use wgpu::{
-    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d,
-    FilterMode, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, SamplerDescriptor, ShaderStages,
-    TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode,
+    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp,
+    Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    SamplerDescriptor, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute,
+    VertexFormat, VertexStepMode,
 };
 
 use crate::sdf_renderer::{
-    sdf_block_mesher::{extract_gpu_blocks},
+    sdf_block_mesher::extract_gpu_blocks,
     sdf_operation::{
-        construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object, BrushSettings, SDFRootTransform, Std140GpuSDFNode,
+        construct_sdf_object_tree, extract_gpu_node_trees, mark_dirty_object, BrushSettings,
+        SDFRootTransform, Std140GpuSDFNode,
     },
 };
 
