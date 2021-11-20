@@ -23,8 +23,7 @@ pub fn run() {
     console_error_panic_hook::set_once();
 
     let mut app = App::new();
-    app
-        .insert_resource(Msaa { samples: 4 })
+    app.insert_resource(Msaa { samples: 4 })
         .add_plugins(PipelinedDefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
@@ -43,13 +42,13 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 10;
-const UNOPTIMIZED_OBJECTS: bool = true;
+const NUM_BRUSHES: i32 = 2;
+const UNOPTIMIZED_OBJECTS: bool = false;
 const OPTIMIZED_OBJECTS: bool = false;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn spawn_optimized_hierarchy(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     object: &Entity,
     num_brushes: u32,
 ) -> Option<Entity> {
@@ -68,12 +67,14 @@ fn spawn_optimized_hierarchy(
     }
     if num_brushes % 4 == 0 {
         let num_children = num_brushes / 4;
-        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
-        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
-        let child_3 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
-        let child_4 = spawn_optimized_hierarchy(&mut commands, &object, num_children);
+        let child_1 = spawn_optimized_hierarchy(commands, object, num_children);
+        let child_2 = spawn_optimized_hierarchy(commands, object, num_children);
+        let child_3 = spawn_optimized_hierarchy(commands, object, num_children);
+        let child_4 = spawn_optimized_hierarchy(commands, object, num_children);
         let level = (num_brushes / 2) as f32;
-        if let (Some(child_1), Some(child_2), Some(child_3), Some(child_4)) = (child_1, child_2, child_3, child_4) {
+        if let (Some(child_1), Some(child_2), Some(_child_3), Some(_child_4)) =
+            (child_1, child_2, child_3, child_4)
+        {
             let transform_1 = commands
                 .spawn()
                 .insert(SDFNode {
@@ -133,8 +134,8 @@ fn spawn_optimized_hierarchy(
     }
     if num_brushes % 3 == 0 {
         let third = num_brushes / 3;
-        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, third * 2);
-        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, third);
+        let child_1 = spawn_optimized_hierarchy(commands, object, third * 2);
+        let child_2 = spawn_optimized_hierarchy(commands, object, third);
         if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
             let transform_1 = commands
                 .spawn()
@@ -164,8 +165,8 @@ fn spawn_optimized_hierarchy(
         return None;
     }
     if num_brushes % 2 == 0 {
-        let child_1 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
-        let child_2 = spawn_optimized_hierarchy(&mut commands, &object, num_brushes / 2);
+        let child_1 = spawn_optimized_hierarchy(commands, object, num_brushes / 2);
+        let child_2 = spawn_optimized_hierarchy(commands, object, num_brushes / 2);
         if let (Some(child_1), Some(child_2)) = (child_1, child_2) {
             let transform_1 = commands
                 .spawn()
@@ -223,7 +224,8 @@ fn setup(mut commands: Commands) {
         }
     } else if OPTIMIZED_OBJECTS {
         let object = commands.spawn().id();
-        let root = spawn_optimized_hierarchy(&mut commands, &object, (NUM_BRUSHES * NUM_BRUSHES) as u32);
+        let root =
+            spawn_optimized_hierarchy(&mut commands, &object, (NUM_BRUSHES * NUM_BRUSHES) as u32);
 
         if let Some(root) = root {
             commands

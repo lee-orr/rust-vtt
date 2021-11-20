@@ -38,8 +38,8 @@ impl SDFShape {
             Self::Sphere(radius) => point.length() - radius,
             Self::Box(width, height, depth) => {
                 let quadrant = point.abs() - Vec3::new(*width, *height, *depth);
-                return quadrant.max(Vec3::ZERO).length()
-                    + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0);
+                quadrant.max(Vec3::ZERO).length()
+                    + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0)
             }
         }
     }
@@ -139,7 +139,7 @@ pub fn extract_gpu_node_trees(
 }
 
 fn generate_gpu_node(
-    mut tree: &mut Vec<GpuSDFNode>,
+    tree: &mut Vec<GpuSDFNode>,
     entity: &Entity,
     node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>,
 ) -> (i32, Option<GpuSDFNode>) {
@@ -173,8 +173,8 @@ fn generate_gpu_node(
                 SDFOperation::Intersection => INTERSECTION_OP,
             };
             new_node.params.x_axis.x = blending.to_owned();
-            let (child_a_id, child_a) = generate_gpu_node(&mut tree, child_a, node_query);
-            let (child_b_id, child_b) = generate_gpu_node(&mut tree, child_b, node_query);
+            let (child_a_id, child_a) = generate_gpu_node(tree, child_a, node_query);
+            let (child_b_id, child_b) = generate_gpu_node(tree, child_b, node_query);
             new_node.child_a = child_a_id - (new_id as i32);
             new_node.child_b = child_b_id - (new_id as i32);
             let mut min_bounds_a = Vec3::ZERO;
@@ -210,7 +210,7 @@ fn generate_gpu_node(
             if let Some(transform) = transform {
                 new_node.node_type = TRANSFORM_WARP;
                 new_node.params = transform.compute_matrix();
-                let (child_id, child) = generate_gpu_node(&mut tree, child, node_query);
+                let (child_id, child) = generate_gpu_node(tree, child, node_query);
                 new_node.child_a = child_id - (new_id as i32);
                 if let Some(child) = child {
                     new_node.center = child.center - transform.translation;
@@ -257,17 +257,17 @@ pub fn process_sdf_node(
             SDFNodeData::Empty => 9999999.,
             SDFNodeData::Primitive(primitive) => primitive.process(*point),
             SDFNodeData::Operation(op, smoothness, a, b) => {
-                let a = process_sdf_node(&point, a, &node_query);
-                let b = process_sdf_node(&point, b, &node_query);
+                let a = process_sdf_node(point, a, node_query);
+                let b = process_sdf_node(point, b, node_query);
                 op.process(a, b, *smoothness)
             }
             SDFNodeData::Transform(entity) => {
                 if let Some(transform) = transform {
                     let point =
                         transform.compute_matrix() * Vec4::new(point.x, point.y, point.z, 1.);
-                    process_sdf_node(&point.xyz(), entity, &node_query)
+                    process_sdf_node(&point.xyz(), entity, node_query)
                 } else {
-                    process_sdf_node(&point, entity, &node_query)
+                    process_sdf_node(point, entity, node_query)
                 }
             }
         }
