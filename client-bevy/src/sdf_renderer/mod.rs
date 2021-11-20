@@ -571,7 +571,7 @@ fn prepare_brush_uniforms(
             brush_vec.push(node.clone());
         }
     }
-    let mut blocks: Vec<Std140GpuSDFBlock> = Vec::<Std140GpuSDFBlock>::new();
+    let mut blocks: Vec<Std140GpuSDFBlock>;
     if let Some((_, view)) = views.iter().next() {
         let position = view.transform.translation;
         let mut tmp_blocks: Vec<(&GpuSDFBlock, f32)> = block_query

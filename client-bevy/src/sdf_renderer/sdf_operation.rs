@@ -341,8 +341,8 @@ mod tests {
             let root = &tree[0];
             assert_eq!(root.node_type, UNION_OP);
             assert!(assert_eq_f32(root.params.x_axis.x, 0.));
-            assert_eq!(root.center, Vec3::new(-0.75, 0., 0.));
-            assert!(assert_eq_f32(root.radius, 1.25));
+            assert_eq!(root.center, Vec3::new(-0.5669873, 0., 0.));
+            assert!(assert_eq_f32(root.radius, 1.4330127));
             let left_child = &tree[root.child_a as usize];
             let transform_matrix = world
                 .get::<Transform>(sphere_transform)
@@ -356,7 +356,10 @@ mod tests {
             let right_child_extents = right_child.params.x_axis;
             assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
             assert_eq!(right_child.center, Vec3::ZERO);
-            assert!(assert_eq_f32(right_child.radius, 0.5));
+            assert!(assert_eq_f32(
+                right_child.radius,
+                (3. * 0.5 * 0.5 as f32).sqrt()
+            ));
             let sphere = &tree[(root.child_a + left_child.child_a) as usize];
             assert_eq!(sphere.node_type, SPHERE_PRIM);
             assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
@@ -479,8 +482,8 @@ mod tests {
             let root = &tree[0];
             assert_eq!(root.node_type, UNION_OP);
             assert!(assert_eq_f32(root.params.x_axis.x, 0.));
-            assert_eq!(root.center, Vec3::new(-0.75, 0., 0.));
-            assert!(assert_eq_f32(root.radius, 1.25));
+            assert_eq!(root.center, Vec3::new(-0.5669873, 0., 0.));
+            assert!(assert_eq_f32(root.radius, 1.4330127));
             let left_child = &tree[root.child_a as usize];
             let transform_matrix = world
                 .get::<Transform>(sphere_transform)
@@ -494,7 +497,10 @@ mod tests {
             let right_child_extents = right_child.params.x_axis;
             assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
             assert_eq!(right_child.center, Vec3::ZERO);
-            assert!(assert_eq_f32(right_child.radius, 0.5));
+            assert!(assert_eq_f32(
+                right_child.radius,
+                (3. * 0.5 * 0.5 as f32).sqrt()
+            ));
             let sphere = &tree[(root.child_a + left_child.child_a) as usize];
             assert_eq!(sphere.node_type, SPHERE_PRIM);
             assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
