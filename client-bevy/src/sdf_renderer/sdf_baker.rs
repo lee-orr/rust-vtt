@@ -25,42 +25,47 @@ impl Plugin for SDFBakerPlugin {
 #[derive(Clone, Copy)]
 pub struct SDFBakerSettings {
     pub max_size: Vec3,
-    pub max_depth: u32,
+    pub layer_size: u8,
+    pub num_layers: u8,
+    pub layer_multiplier: u8,
 }
 
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
             max_size: Vec3::new(100., 100., 100.),
-            max_depth: 4,
+            layer_size: 8,
+            num_layers: 6,
+            layer_multiplier: 4,
         }
     }
 }
 
 #[derive(Default)]
 pub struct SDFTextures {
-    pub texture: Option<CachedTexture>,
-    pub view: Option<TextureView>,
+    pub textures: Vec<CachedTexture>,
+    pub views: Vec<TextureView>,
 }
 
-const LAYER_SIZE: u32 = 8;
 
 fn extract_settings(mut commands: Commands, settings: Res<SDFBakerSettings>) {
     commands.insert_resource(settings.clone());
 }
 
 fn setup_textures(settings: Res<SDFBakerSettings>,render_device: Res<RenderDevice>, mut texture_cache: ResMut<TextureCache>, mut textures: ResMut<SDFTextures>) {
-    if textures.texture.is_none() {
+    let current_len = textures.textures.len();
+    let layer_size = settings.layer_size as u32;
+    for i in current_len..(settings.num_layers as usize) {
         let texture = texture_cache.get(
             &render_device,
             TextureDescriptor {
                 label: Some("Baked SDF"),
                 size: Extent3d {
-                    depth_or_array_layers: LAYER_SIZE,
-                    width: LAYER_SIZE,
-                    height: LAYER_SIZE,
+                    depth_or_array_layers: layer_size,
+                    width: layer_size,
+                    height: layer_size,
                 },
-                mip_level_count: settings.max_depth,
+                mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D3,
                 format: TextureFormat::R32Float,
@@ -68,8 +73,8 @@ fn setup_textures(settings: Res<SDFBakerSettings>,render_device: Res<RenderDevic
             }
         );
         let view = texture.default_view.clone();
-        textures.texture = Some(texture);
-        textures.view = Some(view);
+        textures.textures.push(texture);
+        textures.views.push(view);
     }
 }
 
