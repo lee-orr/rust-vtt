@@ -32,19 +32,9 @@ struct GpuSDFNode {
     center: vec3<f32>;
 };
 
-struct GpuSDFBlock {
-    scale: f32;
-    position: vec3<f32>;
-};
-
 [[block]]
 struct Brushes {
     brushes: array<GpuSDFNode>;
-};
-
-[[block]]
-struct Blocks {
-    blocks: array<GpuSDFBlock>;
 };
 
 [[block]]
@@ -74,8 +64,6 @@ var<uniform> view_extension: ViewExtension;
 var<storage, read> brushes: Brushes;
 [[group(1), binding(1)]]
 var<uniform> brush_settings: BrushSettings;
-[[group(1), binding(2)]]
-var<storage, read> blocks: Blocks;
 [[group(2), binding(0)]]
 var t_depth: texture_depth_2d;
 [[group(2), binding(1)]]

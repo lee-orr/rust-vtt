@@ -1,5 +1,4 @@
 pub mod sdf_baker;
-pub mod sdf_block_mesher;
 pub mod sdf_operation;
 
 use crevice::std140::AsStd140;
@@ -49,13 +48,12 @@ use wgpu::{
     VertexFormat, VertexStepMode,
 };
 
-use crate::sdf_renderer::{sdf_baker::SDFBakerPlugin, sdf_block_mesher::extract_gpu_blocks, sdf_operation::{
+use crate::sdf_renderer::{sdf_baker::SDFBakerPlugin, sdf_operation::{
         extract_gpu_node_trees, BrushSettings,
         SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode,
     }};
 
 use self::{
-    sdf_block_mesher::{GpuSDFBlock, Std140GpuSDFBlock},
     sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP},
 };
 
@@ -98,7 +96,6 @@ impl Plugin for SdfPlugin {
             .init_resource::<BrushUniforms>()
             .init_resource::<BrushBindingGroupResource>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
-            .add_system_to_stage(RenderStage::Extract, extract_gpu_blocks)
             .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
@@ -244,18 +241,6 @@ impl FromWorld for SDFPipeline {
                         // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
                         // Context: https://github.com/LPGhatguy/crevice/issues/29
                         min_binding_size: BufferSize::new(4),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: true,
-                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
-                        // Context: https://github.com/LPGhatguy/crevice/issues/29
-                        min_binding_size: None,
                     },
                     count: None,
                 },
@@ -433,7 +418,7 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         if let Some(bindings) = bindings.iter().next() {
-            pass.set_bind_group(1, &bindings.binding, &[0, 0, 0]);
+            pass.set_bind_group(1, &bindings.binding, &[0, 0]);
         }
         if let Ok((view_uniform, view_extension_uniform, view_binding, depth_pass)) =
             query.get(view)
@@ -461,7 +446,6 @@ impl RenderCommand<Opaque3d> for DrawSDF {
 
 pub struct SDFViewBinding {
     binding: BindGroup,
-    pub num_blocks: u32,
 }
 
 #[derive(Clone, AsStd140)]
@@ -485,7 +469,6 @@ pub struct ViewExtensionUniformOffset {
 pub struct BrushUniforms {
     pub brushes: Option<Buffer>,
     pub settings: DynamicUniformVec<BrushSettings>,
-    pub blocks: Option<Buffer>,
 }
 
 pub struct SDFBrushBinding {
@@ -537,7 +520,6 @@ fn prepare_view_extensions(
 fn prepare_brush_uniforms(
     mut brush_uniforms: ResMut<BrushUniforms>,
     objects: Query<(&SDFObjectTree, &SDFRootTransform)>,
-    block_query: Query<&GpuSDFBlock>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     views: Query<(Entity, &ExtractedView)>,
@@ -570,26 +552,11 @@ fn prepare_brush_uniforms(
             brush_vec.push(node.clone());
         }
     }
-    let mut blocks: Vec<Std140GpuSDFBlock>;
-    if let Some((_, view)) = views.iter().next() {
-        let position = view.transform.translation;
-        let mut tmp_blocks: Vec<(&GpuSDFBlock, f32)> = block_query
-            .iter()
-            .map(|block| (block, (block.position - position).length()))
-            .collect();
-        tmp_blocks.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
-        blocks = tmp_blocks.iter().map(|(val, _)| val.as_std140()).collect();
-    } else {
-        blocks = block_query.iter().map(|block| block.as_std140()).collect();
-    }
 
     let mut brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
 
     if brushes.is_empty() {
         brushes.push(GpuSDFNode::default().as_std140());
-    }
-    if blocks.is_empty() {
-        blocks.push(GpuSDFBlock::default().as_std140());
     }
     brush_uniforms.settings.clear();
     brush_uniforms.settings.push(BrushSettings {
@@ -605,13 +572,7 @@ fn prepare_brush_uniforms(
         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
     });
 
-    let block_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
-        label: Some("Block Buffer"),
-        contents: bytemuck::cast_slice(blocks.as_slice()),
-        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-    });
     brush_uniforms.brushes = Some(buffer);
-    brush_uniforms.blocks = Some(block_buffer);
 }
 
 pub fn queue_brush_bindings(
@@ -621,8 +582,8 @@ pub fn queue_brush_bindings(
     sdf_pipeline: Res<SDFPipeline>,
     mut brush_binding: ResMut<BrushBindingGroupResource>,
 ) {
-    if let (Some(brushes), settings, Some(blocks)) =
-        (&buffers.brushes, &buffers.settings, &buffers.blocks)
+    if let (Some(brushes), settings) =
+        (&buffers.brushes, &buffers.settings)
     {
         let brush_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Brush Bind Group"),
@@ -635,10 +596,6 @@ pub fn queue_brush_bindings(
                 BindGroupEntry {
                     binding: 1,
                     resource: settings.binding().unwrap(),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: blocks.as_entire_binding(),
                 },
             ],
         });
@@ -754,7 +711,6 @@ pub fn queue_sdf(
     view_uniforms: Res<ViewUniforms>,
     view_extension_uniforms: Res<ViewExtensionUniforms>,
     render_device: Res<RenderDevice>,
-    blocks: Query<&GpuSDFBlock>,
     mut views: Query<(Entity, &ExtractedView, &mut RenderPhase<Opaque3d>)>,
 ) {
     let draw_sdf = transparent_3d_draw_functions
@@ -782,7 +738,6 @@ pub fn queue_sdf(
             });
             let view_binding = SDFViewBinding {
                 binding: view_bind_group,
-                num_blocks: blocks.iter().count() as u32,
             };
             commands.entity(entity).insert(view_binding);
 
@@ -883,7 +838,7 @@ impl Node for DepthPrePassNode {
                 &view_binding.binding,
                 &[view_offset.offset, extension_offset.offset],
             );
-            pass.set_bind_group(1, &brush_binding, &[0, 0, 0]);
+            pass.set_bind_group(1, &brush_binding, &[0, 0]);
             pass.set_pipeline(pipeline_cache.get(pipeline.prepass).unwrap());
             let mesh = meshes.get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
             pass.set_vertex_buffer(0, *mesh.vertex_buffer.slice(..));
