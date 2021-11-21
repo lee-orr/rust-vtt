@@ -49,13 +49,10 @@ use wgpu::{
     VertexFormat, VertexStepMode,
 };
 
-use crate::sdf_renderer::{
-    sdf_block_mesher::extract_gpu_blocks,
-    sdf_operation::{
+use crate::sdf_renderer::{sdf_baker::SDFBakerPlugin, sdf_block_mesher::extract_gpu_blocks, sdf_operation::{
         extract_gpu_node_trees, BrushSettings,
         SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode,
-    },
-};
+    }};
 
 use self::{
     sdf_block_mesher::{GpuSDFBlock, Std140GpuSDFBlock},
@@ -73,7 +70,7 @@ impl Plugin for SdfPlugin {
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
             include_str!("shaders/general/sdf_calculator.wgsl"),
             include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
-            include_str!("shaders/fragment/full_fragment_secondary_hits.wgsl")
+            include_str!("shaders/fragment/depth_read_fragment.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
@@ -93,6 +90,7 @@ impl Plugin for SdfPlugin {
         println!("Mesh: {:?}", mesh);
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
         app.add_plugin(SDFOperationPlugin);
+        app.add_plugin(SDFBakerPlugin);
         let render_app = app
             .sub_app(RenderApp)
             .init_resource::<SDFPipeline>()

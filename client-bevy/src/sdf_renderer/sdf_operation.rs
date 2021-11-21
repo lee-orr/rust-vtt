@@ -244,11 +244,10 @@ fn construct_node_tree_bounds(
     mut commands: Commands,
     object_query: Query<
         (Entity, &SDFObject, &GlobalTransform),
-        Or<(Changed<SDFObjectDirty>, Changed<GlobalTransform>)>,
+        Or<(Changed<SDFObjectDirty>, Changed<Transform>)>,
     >,
     node_query: Query<(Entity, &SDFNode, Option<&Transform>)>,
 ) {
-    println!("Constructing tree bounds");
     for (entity, object, transform) in object_query.iter() {
         let tree_bounds = generate_node_bounds(
             &mut commands,
@@ -267,7 +266,6 @@ fn generate_gpu_node(
     node_query: &Query<(Entity, &SDFNode, &SDFGlobalNodeBounds, Option<&Transform>)>,
 ) -> (i32, Option<GpuSDFNode>) {
     if let Ok((_entity, sdfnode, bounds, transform)) = node_query.get(entity.to_owned()) {
-        println!("Generating GPU Node!");
         let new_id = tree.len();
         tree.push(GpuSDFNode::default());
         let mut new_node = GpuSDFNode {
@@ -320,7 +318,7 @@ fn generate_gpu_node(
 
 pub fn construct_sdf_object_tree(
     mut commands: Commands,
-    object_query: Query<(Entity, &SDFObject), Changed<SDFObjectDirty>>,
+    object_query: Query<(Entity, &SDFObject), Or<(Changed<SDFObjectDirty>, Changed<Transform>)>>,
     node_query: Query<(Entity, &SDFNode, &SDFGlobalNodeBounds, Option<&Transform>)>,
 ) {
     for (entity, object) in object_query.iter() {

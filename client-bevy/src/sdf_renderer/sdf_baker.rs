@@ -1,19 +1,28 @@
-use bevy::{math::Vec3, prelude::{Plugin, Res, ResMut}, render2::{RenderApp, render_resource::TextureView, renderer::RenderDevice, texture::{CachedTexture, TextureCache}}};
-use wgpu::{Extent3d, TextureDescriptor, TextureFormat, TextureUsages};
+use std::num::NonZeroU32;
+
+use bevy::{math::Vec3, prelude::{Commands, Plugin, Query, Res, ResMut}, render2::{RenderApp, RenderStage, render_resource::TextureView, renderer::{RenderDevice, RenderQueue}, texture::{CachedTexture, TextureCache}}};
+use crevice::std430::AsStd430;
+use wgpu::{Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, TextureDescriptor, TextureFormat, TextureUsages};
+
+use super::sdf_operation::{SDFObjectTree, SDFRootTransform};
 
 pub struct SDFBakerPlugin;
 
 impl Plugin for SDFBakerPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app
-            .init_resource::<SDFBakerSettings>()
-            .init_resource::<SDFTextures>();
+            .init_resource::<SDFBakerSettings>();
         let render_app = app
             .sub_app(RenderApp)
-            .add_startup_system(setup_textures);
+            .init_resource::<SDFBakerSettings>()
+            .init_resource::<SDFTextures>()
+            .add_system_to_stage(RenderStage::Extract, extract_settings)
+            .add_system_to_stage(RenderStage::Prepare, setup_textures)
+            .add_system_to_stage(RenderStage::Queue, bake_sdf_texture);
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct SDFBakerSettings {
     pub max_size: Vec3,
     pub max_depth: u32,
@@ -36,7 +45,12 @@ pub struct SDFTextures {
 
 const LAYER_SIZE: u32 = 8;
 
+fn extract_settings(mut commands: Commands, settings: Res<SDFBakerSettings>) {
+    commands.insert_resource(settings.clone());
+}
+
 fn setup_textures(settings: Res<SDFBakerSettings>,render_device: Res<RenderDevice>, mut texture_cache: ResMut<TextureCache>, mut textures: ResMut<SDFTextures>) {
+    if textures.texture.is_none() {
         let texture = texture_cache.get(
             &render_device,
             TextureDescriptor {
@@ -56,4 +70,9 @@ fn setup_textures(settings: Res<SDFBakerSettings>,render_device: Res<RenderDevic
         let view = texture.default_view.clone();
         textures.texture = Some(texture);
         textures.view = Some(view);
+    }
+}
+
+fn bake_sdf_texture (settings: Res<SDFBakerSettings>, mut textures: ResMut<SDFTextures>, mut queue: ResMut<RenderQueue>, 
+    sdf_roots: Query<(&SDFRootTransform, &SDFObjectTree)>) {
 }
