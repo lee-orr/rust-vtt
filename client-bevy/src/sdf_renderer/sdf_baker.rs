@@ -12,11 +12,17 @@ impl Plugin for SDFBakerPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app
             .init_resource::<SDFBakerSettings>();
+        let settings = app.world.get_resource::<SDFBakerSettings>();
+        let settings = if let Some(settings) = settings {
+            println!("Settings are ready!");
+            settings.clone()
+        } else {
+            SDFBakerSettings::default()
+        };
         let render_app = app
             .sub_app(RenderApp)
-            .init_resource::<SDFBakerSettings>()
+            .insert_resource(settings)
             .init_resource::<SDFTextures>()
-            .add_system_to_stage(RenderStage::Extract, extract_settings)
             .add_system_to_stage(RenderStage::Prepare, setup_textures)
             .add_system_to_stage(RenderStage::Queue, bake_sdf_texture);
     }
@@ -47,10 +53,6 @@ pub struct SDFTextures {
     pub views: Vec<TextureView>,
 }
 
-
-fn extract_settings(mut commands: Commands, settings: Res<SDFBakerSettings>) {
-    commands.insert_resource(settings.clone());
-}
 
 fn setup_textures(settings: Res<SDFBakerSettings>,render_device: Res<RenderDevice>, mut texture_cache: ResMut<TextureCache>, mut textures: ResMut<SDFTextures>) {
     let current_len = textures.textures.len();

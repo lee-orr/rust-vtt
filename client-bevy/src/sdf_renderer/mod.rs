@@ -63,8 +63,9 @@ impl Plugin for SdfPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
         let shader = Shader::from_wgsl(format!(
-            "{}{}{}{}{}",
+            "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
+            include_str!("shaders/general/render_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
             include_str!("shaders/general/sdf_calculator.wgsl"),
             include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
@@ -72,8 +73,9 @@ impl Plugin for SdfPlugin {
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
-            "{}{}{}{}{}",
+            "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
+            include_str!("shaders/general/render_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
             include_str!("shaders/general/sdf_calculator.wgsl"),
             include_str!("shaders/general/sdf_raymarch_find_secondary_hits.wgsl"),
