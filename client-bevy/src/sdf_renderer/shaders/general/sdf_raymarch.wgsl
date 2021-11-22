@@ -16,7 +16,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
     var depth : f32 = pixel_size;
     var max_depth = min(max_dist, MAX_DISTANCE);
     var out : MarchHit;
-    var jumps : f32 = 0.;
+    var closest : f32 = MAX_DISTANCE;
     for (var i : i32 = 0; i < MAX_MARCHING_STEPS; i = i + 1) {
         let offset = depth * ray;
         let point = start + offset;
@@ -24,21 +24,21 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
         let hit_epsilon = global_hit_epsilon * (view_extension.cone_scaler * distance_to_start);
         last_epsilon = hit_epsilon;
         let dist : vec2<f32> = sceneSDF(point, hit_epsilon * 10., stack);
-        jumps = dist.y;
+        closest = min(dist.x, closest);
         if (dist.x < hit_epsilon) {
             out.distance = dist.x;
             out.point = point;
             out.hit = true;
             out.iterations = i;
             out.final_epsilon = last_epsilon;
-            out.jumps = jumps;
+            out.jumps = closest;
             return out;
        } elseif ( distance_to_start > max_depth) {
             out.distance = depth;
             out.hit = false;
             out.iterations = i;
             out.final_epsilon = last_epsilon;
-            out.jumps = jumps;
+            out.jumps = closest;
             return out;
         }
         
@@ -48,6 +48,6 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
     out.distance = depth;
     out.hit = false;
     out.iterations = MAX_MARCHING_STEPS;
-    out.jumps = jumps;
+    out.jumps = closest;
     return out;
 }

@@ -18,11 +18,11 @@ fn fs_main(in: VertexOutput) -> FragmentOut {
     if (hit.hit) {
         let norm = calculate_normal(hit.point, stack_pointer);
         let color = sceneColor(hit.point);
-        out.color = vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
+        out.color = vec4<f32>((color * clamp(norm.y, 0.2, 1.0)).x, hit.jumps / MAX_DISTANCE, f32(hit.iterations)/f32(MAX_MARCHING_STEPS),1.0);
         out.depth = 1. - hit.distance / MAX_DISTANCE;
     } else {
-        out.color = vec4<f32>(0.,hit.final_epsilon / (view_extension.pixel_size * 100.), f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
-        out.depth = 0.;
+        out.color = vec4<f32>(0., hit.jumps / MAX_DISTANCE, f32(hit.iterations)/f32(MAX_MARCHING_STEPS), 1.0);
+        out.depth = 1.;
     }
     return out;
 }

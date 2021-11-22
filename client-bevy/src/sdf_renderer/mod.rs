@@ -3,19 +3,13 @@ pub mod sdf_operation;
 
 use crevice::std140::AsStd140;
 
-use bevy::{
-    core_pipeline::{
+use bevy::{core_pipeline::{
         draw_3d_graph::{self, node},
         Opaque3d,
-    },
-    ecs::system::lifetimeless::{Read, SQuery, SRes},
-    math::{Mat4, Vec2},
-    prelude::{
+    }, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2}, prelude::{
         Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState,
         Res, ResMut, With, World,
-    },
-    reflect::TypeUuid,
-    render2::{
+    }, reflect::TypeUuid, render::renderer::BufferUsage, render2::{
         camera::PerspectiveProjection,
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
@@ -31,31 +25,23 @@ use bevy::{
             CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
             DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
             PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
-            RenderPipelineDescriptor, Shader, StencilState, TextureFormat, TextureView,
+            RenderPipelineDescriptor, ComputePipelineDescriptor, Shader, StencilState, TextureFormat, TextureView,
             VertexBufferLayout, VertexState,
         },
         renderer::{RenderDevice, RenderQueue},
         texture::{BevyDefault, CachedTexture, TextureCache},
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    },
-};
+    }};
 
-use wgpu::{
-    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp,
-    Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    SamplerDescriptor, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute,
-    VertexFormat, VertexStepMode,
-};
+use wgpu::{BindingResource, BufferBinding, BufferUsages, Color, Extent3d, FilterMode, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode, util::BufferInitDescriptor};
 
-use crate::sdf_renderer::{sdf_baker::SDFBakerPlugin, sdf_operation::{
+use crate::sdf_renderer::{sdf_baker::{SDFBakePassNode, SDFBakerPlugin}, sdf_operation::{
         extract_gpu_node_trees, BrushSettings,
         SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode,
     }};
 
-use self::{
-    sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP},
-};
+use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP}};
 
 pub struct SdfPlugin;
 
@@ -65,19 +51,19 @@ impl Plugin for SdfPlugin {
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
-            include_str!("shaders/general/render_bindings.wgsl"),
+            include_str!("shaders/general/baked_render_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/baked_sdf_reader.wgsl"),
             include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
-            include_str!("shaders/fragment/depth_read_fragment.wgsl")
+            include_str!("shaders/fragment/full_fragment_secondary_hits.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
-            include_str!("shaders/general/render_bindings.wgsl"),
+            include_str!("shaders/general/baked_render_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/baked_sdf_reader.wgsl"),
             include_str!("shaders/general/sdf_raymarch_find_secondary_hits.wgsl"),
             include_str!("shaders/fragment/depth_fragment_second_hit.wgsl")
         ));
@@ -97,13 +83,15 @@ impl Plugin for SdfPlugin {
             .init_resource::<ViewExtensionUniforms>()
             .init_resource::<BrushUniforms>()
             .init_resource::<BrushBindingGroupResource>()
+            .init_resource::<BakedSDFBindingGroupResource>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
             .add_system_to_stage(RenderStage::Prepare, prepare_depth_pass_texture)
             .add_system_to_stage(RenderStage::Queue, queue_sdf)
-            .add_system_to_stage(RenderStage::Queue, queue_brush_bindings);
+            .add_system_to_stage(RenderStage::Queue, queue_brush_bindings)
+            .add_system_to_stage(RenderStage::Queue, queue_baked_textures);
 
         let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
@@ -122,6 +110,9 @@ impl Plugin for SdfPlugin {
             draw_3d_graph
                 .add_node_edge(DepthPrePassNode::NAME, node::MAIN_PASS)
                 .unwrap();
+            draw_3d_graph
+                .add_node_edge(SDFBakePassNode::NAME, DepthPrePassNode::NAME)
+                .unwrap();
         }
     }
 }
@@ -129,6 +120,7 @@ impl Plugin for SdfPlugin {
 pub struct SDFPipeline {
     view_layout: BindGroupLayout,
     brush_layout: BindGroupLayout,
+    baked_layout: BindGroupLayout,
     depth_layout: BindGroupLayout,
     pipeline: CachedPipelineId,
     prepass: CachedPipelineId,
@@ -224,7 +216,7 @@ impl FromWorld for SDFPipeline {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
+                    visibility: ShaderStages::FRAGMENT | ShaderStages::COMPUTE,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: true,
@@ -236,13 +228,59 @@ impl FromWorld for SDFPipeline {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    visibility: ShaderStages::COMPUTE | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: true,
                         // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
                         // Context: https://github.com/LPGhatguy/crevice/issues/29
                         min_binding_size: BufferSize::new(4),
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let baked_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("SDF Pipeline Baked Group Layout"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D3,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler { filtering: true, comparison: false },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: true,
+                        // TODO: change this to ViewUniform::std140_size_static once crevice fixes this!
+                        // Context: https://github.com/LPGhatguy/crevice/issues/29
+                        min_binding_size: None,
                     },
                     count: None,
                 },
@@ -277,7 +315,7 @@ impl FromWorld for SDFPipeline {
             label: Some("SDF Pipeline".into()),
             layout: Some(vec![
                 view_layout.clone(),
-                brush_layout.clone(),
+                baked_layout.clone(),
                 depth_layout.clone(),
             ]),
             vertex: VertexState {
@@ -340,7 +378,7 @@ impl FromWorld for SDFPipeline {
         let prepass_shader = SDF_PREPASS_SHADER_HANDLE.typed::<Shader>();
         let prepass_descriptor = RenderPipelineDescriptor {
             label: Some("SDF Prepass Pipeline".into()),
-            layout: Some(vec![view_layout.clone(), brush_layout.clone()]),
+            layout: Some(vec![view_layout.clone(), baked_layout.clone()]),
             vertex: VertexState {
                 shader: prepass_shader.clone(),
                 shader_defs: Vec::new(),
@@ -387,11 +425,13 @@ impl FromWorld for SDFPipeline {
                 }],
             }),
         };
+       
         let mut pipeline_cache = world.get_resource_mut::<RenderPipelineCache>().unwrap();
         SDFPipeline {
             view_layout,
             brush_layout,
             depth_layout,
+            baked_layout,
             pipeline: pipeline_cache.queue(descriptor),
             prepass: pipeline_cache.queue(prepass_descriptor),
         }
@@ -410,7 +450,7 @@ impl RenderCommand<Opaque3d> for DrawSDF {
             Read<ViewDepthPass1>,
         )>,
         SRes<RenderAssets<Mesh>>,
-        SQuery<Read<SDFBrushBinding>>,
+        SQuery<Read<BakedSDFBinding>>,
     );
 
     fn render<'w>(
@@ -477,10 +517,15 @@ pub struct SDFBrushBinding {
     binding: BindGroup,
 }
 
+pub struct BakedSDFBinding {
+    binding: BindGroup,
+}
+
 #[derive(Default)]
-pub struct BrushBindingGroupResource {
+pub struct BakedSDFBindingGroupResource {
     binding: Option<BindGroup>,
 }
+
 
 fn prepare_view_extensions(
     mut commands: Commands,
@@ -575,6 +620,57 @@ fn prepare_brush_uniforms(
     });
 
     brush_uniforms.brushes = Some(buffer);
+}
+
+pub fn queue_baked_textures(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    sdf_pipeline: Res<SDFPipeline>,
+    bake_settings: Res<SDFBakerSettings>,
+    origins: Res<SDFBakedLayerOrigins>,
+    textures: Res<SDFTextures>,
+    mut baked_binding: ResMut<BakedSDFBindingGroupResource>,
+) {
+    if let (Some(view), Some(sampler)) =
+        (&textures.view, &textures.sampler)
+    {   
+        let setting_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: Some("Bake Settings"),
+            contents: bytemuck::cast_slice(&[bake_settings.as_std140()]),
+            usage: BufferUsages::UNIFORM
+        });
+        let origin_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: Some("Bake Origins"),
+            contents: bytemuck::cast_slice(&[origins.as_std140()]),
+            usage: BufferUsages::UNIFORM
+        });
+        let bake_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Bake Bind Group"),
+            layout: &sdf_pipeline.baked_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: setting_buffer.as_entire_binding()
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: origin_buffer.as_entire_binding()
+                },
+            ],
+        });
+        baked_binding.binding = Some(bake_bind_group.clone());
+        commands.spawn().insert(BakedSDFBinding {
+            binding: bake_bind_group,
+        });
+    }
 }
 
 pub fn queue_brush_bindings(
@@ -798,7 +894,7 @@ impl Node for DepthPrePassNode {
             .get_resource::<SDFPipeline>()
             .expect("Pipeline Should Exist");
         let brush_binding = world
-            .get_resource::<BrushBindingGroupResource>()
+            .get_resource::<BakedSDFBindingGroupResource>()
             .expect("Binding Should Exist");
         let brush_binding = brush_binding.binding.clone().unwrap();
         let pipeline_cache = world

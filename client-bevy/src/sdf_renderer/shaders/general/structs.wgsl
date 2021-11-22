@@ -15,9 +15,15 @@ struct ViewExtension {
 };
 
 [[block]]
-struct TextureSettings {
-    max_size: f32;
-    num_levels: i32;
+struct SDFBakerSettings {
+    max_size: vec3<f32>;
+    layer_size: vec3<f32>;
+    num_layers: u32;
+    layer_multiplier: u32;
+};
+
+[[block]]
+struct SDFBakedLayerOrigins {
     origin: vec3<f32>;
 };
 
@@ -62,3 +68,11 @@ struct VertexOutput {
     [[location(2)]] max_distance: f32;
     [[location(3)]] uv: vec2<f32>;
 };
+
+
+fn max_component(point: vec3<f32>) -> f32 {
+    return max(point.x, max(point.y, point.z));
+}
+fn min_component(point: vec3<f32>) -> f32 {
+    return min(point.x, max(point.y, point.z));
+}
