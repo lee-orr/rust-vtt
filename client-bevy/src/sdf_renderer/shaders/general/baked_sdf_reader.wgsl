@@ -46,10 +46,13 @@ fn sceneColor(point: vec3<f32>) -> vec3<f32> {
 }
 
 fn calculate_normal(point: vec3<f32>, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>)-> vec3<f32> {
+    var level_size : vec3<f32> = baker_settings.max_size;
+    let voxels_per_layer : vec3<f32> = baker_settings.layer_size;
+    var level_voxel_size: f32 = max_component(level_size / voxels_per_layer);
     var normal = vec3<f32>(
-        sceneSDF(point + NORM_EPSILON_X, NORM_EPSILON, stack).x - sceneSDF(point - NORM_EPSILON_X, NORM_EPSILON, stack).x,
-        sceneSDF(point + NORM_EPSILON_Y, NORM_EPSILON, stack).x - sceneSDF(point - NORM_EPSILON_Y, NORM_EPSILON, stack).x,
-        sceneSDF(point + NORM_EPSILON_Z, NORM_EPSILON, stack).x - sceneSDF(point - NORM_EPSILON_Z, NORM_EPSILON, stack).x,
+        sceneSDF(point + vec3<f32>(level_voxel_size / 2., 0., 0.), level_voxel_size, stack).x - sceneSDF(point - vec3<f32>(level_voxel_size / 2., 0., 0.), level_voxel_size, stack).x,
+        sceneSDF(point + vec3<f32>(0., level_voxel_size / 2.,  0.), level_voxel_size,  stack).x - sceneSDF(point - vec3<f32>(0., level_voxel_size / 2.,  0.), level_voxel_size,   stack).x,
+        sceneSDF(point  + vec3<f32>(0., 0., level_voxel_size / 2.), level_voxel_size,  stack).x - sceneSDF(point -vec3<f32>(0., 0., level_voxel_size / 2.), level_voxel_size,  stack).x,
     );
     return normalize(normal);
 }

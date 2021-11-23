@@ -18,7 +18,7 @@ fn cmp_main([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     // let r_a = sceneSDF(pos_a, voxel_size, stack_pointer);
     // let r_b = sceneSDF(pos_b, voxel_size, stack_pointer);
     // let r_c = sceneSDF(pos_c, voxel_size, stack_pointer);
-    let r_d = sceneSDF(pos_d, voxel_size, stack_pointer);
+    let r_d = sceneSDF(pos_d, voxel_size * 8., stack_pointer);
     var result : f32 = r_d.x;//min(min(r_a.x, r_b.x),min(r_c.x, r_d.x));
     result = clamp(result, -2., 6.) + 2.;
     result = result / 8.;

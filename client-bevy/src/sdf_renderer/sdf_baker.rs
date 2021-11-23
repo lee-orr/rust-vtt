@@ -197,11 +197,11 @@ impl Default for SDFBakerSettings {
 
 pub struct SDFBakeOrigin;
 
-fn extract_sdf_origin(mut commands: Commands, query: Query<&GlobalTransform, With<SDFBakeOrigin>>) {
+fn extract_sdf_origin(mut commands: Commands, query: Query<&GlobalTransform, With<SDFBakeOrigin>>, settings: Res<SDFBakerSettings>) {
     let originTransform = query.get_single();
     let origins = SDFBakedLayerOrigins {
         origin: if let Ok(transform) = originTransform {
-            transform.translation
+            (transform.translation * settings.max_size / settings.layer_size).floor() * settings.layer_size / settings.max_size
         } else {
             Vec3::ZERO
         },

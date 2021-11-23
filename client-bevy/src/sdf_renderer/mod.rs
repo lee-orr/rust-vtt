@@ -47,7 +47,7 @@ pub struct SdfPlugin;
 
 impl Plugin for SdfPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();ssss
+        let mut shaders = app.world.get_resource_mut::<Assets<Shader>>().unwrap();
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
