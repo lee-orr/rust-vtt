@@ -35,12 +35,12 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
         let dist : vec2<f32> = sceneSDF(point, hit_epsilon, stack).xy;
         jumps = dist.y;
         if (dist.x < hit_epsilon) {
-            depth = depth + hit_epsilon * 10.;
             if (!found_first_hit) {
                 found_first_hit = true;
-                first_hit = depth;
+                first_hit = depth - last_epsilon;;
                 left_first_object = depth + last_epsilon;
                 second_hit = depth + last_epsilon;
+                depth = depth + 2. * last_epsilon;
             } elseif (!left_first_hit) {
                 out.distance = first_hit;
                 out.distance_2 = second_hit;
@@ -53,7 +53,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
                 return out;
             } elseif (!found_second_hit) {
                 found_second_hit = true;
-                second_hit = depth;
+                second_hit = depth - 2. * hit_epsilon;
             }
         } elseif (found_first_hit && !left_first_hit && dist.x > 0.) {
             left_first_hit = true;

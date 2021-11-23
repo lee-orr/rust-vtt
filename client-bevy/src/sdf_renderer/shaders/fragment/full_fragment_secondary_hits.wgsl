@@ -29,12 +29,12 @@ fn fs_main(in: VertexOutput) -> FragmentOut {
     var level_size : vec3<f32> = baker_settings.max_size;
     let voxels_per_layer : vec3<f32> = baker_settings.layer_size;
     var level_voxel_size: f32 = max_component(level_size / voxels_per_layer);
-    var hit : MarchHit = march(view.world_position, ray, start_distance - max(last_epsilon * 50., level_voxel_size * 10.), in.pixel_size, left_first_object + last_epsilon * 10., MAX_MARCHING_STEPS, stack_pointer);
+    var hit : MarchHit = march(view.world_position, ray, start_distance - last_epsilon * 10., in.pixel_size, left_first_object + last_epsilon * 10., MAX_MARCHING_STEPS, stack_pointer);
     // in.pixel_size * 8. * start_distance * view_extension.cone_scaler
     //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
 
     if (!hit.hit && second_hit_distance < MAX_DISTANCE) {
-         hit = march(view.world_position, ray, second_hit_distance - max(last_epsilon * 50., level_voxel_size * 3.), in.pixel_size, MAX_DISTANCE, MAX_MARCHING_STEPS, stack_pointer);
+         hit = march(view.world_position, ray, second_hit_distance - last_epsilon * 10., in.pixel_size, MAX_DISTANCE, MAX_MARCHING_STEPS, stack_pointer);
     }
 
     if (hit.hit) {
