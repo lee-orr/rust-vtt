@@ -19,15 +19,15 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
 
     if (any(relative_position_dist > level_size)) { return vec4<f32>(10000., 0., 0., 0.); }
 
-    loop {
-        if (current_level == 0 || level_voxel_size <= current_epsilon) { break; }
-        let next_level_size = level_size / layer_multiplier;
-        let next_level_voxel_size = max_component(level_size / voxels_per_layer);
-        if (any(relative_position_dist + (next_level_voxel_size/2.) > next_level_size)) { break; }
-        current_level = current_level - 1;
-        level_size = next_level_size;
-        level_voxel_size =next_level_voxel_size;
-    }
+    // loop {
+    //     if (current_level == 0 || level_voxel_size <= current_epsilon) { break; }
+    //     let next_level_size = level_size / layer_multiplier;
+    //     let next_level_voxel_size = max_component(level_size / voxels_per_layer);
+    //     if (any(relative_position_dist + (next_level_voxel_size/2.) > next_level_size)) { break; }
+    //     current_level = current_level - 1;
+    //     level_size = next_level_size;
+    //     level_voxel_size =next_level_voxel_size;
+    // }
 
     var uvw : vec3<f32> = relative_position/level_size + 0.5;
     if (max_component(uvw) >= 1. || min_component(uvw) <= 0.) {

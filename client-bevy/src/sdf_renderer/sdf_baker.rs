@@ -106,7 +106,7 @@ impl FromWorld for SDFBakerPipelineDefinitions {
                     visibility: ShaderStages::COMPUTE,
                     ty: BindingType::StorageTexture {
                         access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: TextureFormat::Rgba8Unorm,
+                        format: TextureFormat::R8Unorm,
                         view_dimension: wgpu::TextureViewDimension::D3,
                     },
                     count: None,
@@ -171,11 +171,6 @@ impl FromWorld for SDFBakerPipelineDefinitions {
     }
 }
 
-pub struct SDFBakedLayer {
-    pub layer_size: (u32, u32, u32),
-    pub world_size: Vec3,
-}
-
 #[derive(Clone, Copy, AsStd140)]
 pub struct SDFBakerSettings {
     pub max_size: Vec3,
@@ -192,8 +187,8 @@ pub struct SDFBakedLayerOrigins {
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
-            max_size: Vec3::new(100., 50., 100.),
-            layer_size: Vec3::new(128., 64., 128.),
+            max_size: Vec3::new(100., 25., 100.),
+            layer_size: Vec3::new(512., 64., 512.),
             num_layers: 1,
             layer_multiplier: 2,
         }
@@ -242,14 +237,14 @@ fn setup_textures(
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D3,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::R8Unorm,
                 usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
             },
         );
         let view = texture.default_view.clone();
         let storage = texture.texture.create_view(&TextureViewDescriptor {
             label: Some("Baked SDF StorageDescriptor"),
-            format: Some(TextureFormat::Rgba8Unorm),
+            format: Some(TextureFormat::R8Unorm),
             dimension: Some(TextureViewDimension::D3),
             aspect: wgpu::TextureAspect::All,
             ..Default::default()
