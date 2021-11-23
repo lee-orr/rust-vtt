@@ -42,9 +42,9 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 2;
-const UNOPTIMIZED_OBJECTS: bool = true;
-const OPTIMIZED_OBJECTS: bool = false;
+const NUM_BRUSHES: i32 = 3;
+const UNOPTIMIZED_OBJECTS: bool = false;
+const OPTIMIZED_OBJECTS: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn spawn_optimized_hierarchy(

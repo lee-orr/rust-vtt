@@ -3,13 +3,19 @@ pub mod sdf_operation;
 
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::{
+use bevy::{
+    core_pipeline::{
         draw_3d_graph::{self, node},
         Opaque3d,
-    }, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2}, prelude::{
-        Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState,
-        Res, ResMut, With, World,
-    }, reflect::TypeUuid, render::renderer::BufferUsage, render2::{
+    },
+    ecs::system::lifetimeless::{Read, SQuery, SRes},
+    math::{Mat4, Vec2},
+    prelude::{
+        Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState, Res, ResMut,
+        With, World,
+    },
+    reflect::TypeUuid,
+    render2::{
         camera::PerspectiveProjection,
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
@@ -22,26 +28,37 @@ use bevy::{core_pipeline::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
             BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
-            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
-            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
-            PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
-            RenderPipelineDescriptor, ComputePipelineDescriptor, Shader, StencilState, TextureFormat, TextureView,
-            VertexBufferLayout, VertexState,
+            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, DynamicUniformVec, Face,
+            FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
+            PrimitiveTopology, RenderPipelineCache, RenderPipelineDescriptor, Shader, StencilState,
+            TextureFormat, TextureView, VertexBufferLayout, VertexState,
         },
         renderer::{RenderDevice, RenderQueue},
         texture::{BevyDefault, CachedTexture, TextureCache},
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    }};
+    },
+};
 
-use wgpu::{BindingResource, BufferBinding, BufferUsages, Color, Extent3d, FilterMode, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode, util::BufferInitDescriptor};
+use wgpu::{
+    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d,
+    FilterMode, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
+    RenderPassDescriptor, SamplerDescriptor,
+    ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode,
+};
 
-use crate::sdf_renderer::{sdf_baker::{SDFBakePassNode, SDFBakerPlugin}, sdf_operation::{
-        extract_gpu_node_trees, BrushSettings,
-        SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode,
-    }};
+use crate::sdf_renderer::{
+    sdf_baker::{SDFBakePassNode, SDFBakerPlugin},
+    sdf_operation::{
+        extract_gpu_node_trees, BrushSettings, SDFOperationPlugin, SDFRootTransform,
+        Std140GpuSDFNode,
+    },
+};
 
-use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP}};
+use self::{
+    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures},
+    sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP},
+};
 
 pub struct SdfPlugin;
 
@@ -257,7 +274,10 @@ impl FromWorld for SDFPipeline {
                 BindGroupLayoutEntry {
                     binding: 1,
                     visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler { filtering: true, comparison: false },
+                    ty: BindingType::Sampler {
+                        filtering: true,
+                        comparison: false,
+                    },
                     count: None,
                 },
                 BindGroupLayoutEntry {
@@ -425,7 +445,7 @@ impl FromWorld for SDFPipeline {
                 }],
             }),
         };
-       
+
         let mut pipeline_cache = world.get_resource_mut::<RenderPipelineCache>().unwrap();
         SDFPipeline {
             view_layout,
@@ -526,7 +546,6 @@ pub struct BakedSDFBindingGroupResource {
     binding: Option<BindGroup>,
 }
 
-
 fn prepare_view_extensions(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
@@ -569,7 +588,7 @@ fn prepare_brush_uniforms(
     objects: Query<(&SDFObjectTree, &SDFRootTransform)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
-    views: Query<(Entity, &ExtractedView)>,
+    _views: Query<(Entity, &ExtractedView)>,
 ) {
     let objects: Vec<(&SDFObjectTree, &SDFRootTransform)> = objects.iter().collect();
     let object_count = objects.len();
@@ -631,18 +650,16 @@ pub fn queue_baked_textures(
     textures: Res<SDFTextures>,
     mut baked_binding: ResMut<BakedSDFBindingGroupResource>,
 ) {
-    if let (Some(view), Some(sampler)) =
-        (&textures.view, &textures.sampler)
-    {   
+    if let (Some(view), Some(sampler)) = (&textures.view, &textures.sampler) {
         let setting_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: Some("Bake Settings"),
             contents: bytemuck::cast_slice(&[bake_settings.as_std140()]),
-            usage: BufferUsages::UNIFORM
+            usage: BufferUsages::UNIFORM,
         });
         let origin_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: Some("Bake Origins"),
             contents: bytemuck::cast_slice(&[origins.as_std140()]),
-            usage: BufferUsages::UNIFORM
+            usage: BufferUsages::UNIFORM,
         });
         let bake_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Bake Bind Group"),
@@ -650,19 +667,19 @@ pub fn queue_baked_textures(
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: BindingResource::TextureView(&view),
+                    resource: BindingResource::TextureView(view),
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::Sampler(&sampler),
+                    resource: BindingResource::Sampler(sampler),
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: setting_buffer.as_entire_binding()
+                    resource: setting_buffer.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 3,
-                    resource: origin_buffer.as_entire_binding()
+                    resource: origin_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -680,9 +697,7 @@ pub fn queue_brush_bindings(
     sdf_pipeline: Res<SDFPipeline>,
     mut brush_binding: ResMut<BrushBindingGroupResource>,
 ) {
-    if let (Some(brushes), settings) =
-        (&buffers.brushes, &buffers.settings)
-    {
+    if let (Some(brushes), settings) = (&buffers.brushes, &buffers.settings) {
         let brush_bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             label: Some("Brush Bind Group"),
             layout: &sdf_pipeline.brush_layout,

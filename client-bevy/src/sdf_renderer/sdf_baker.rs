@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+
 
 use bevy::{
     core_pipeline::draw_3d_graph,
@@ -12,12 +12,11 @@ use bevy::{
         RenderApp, RenderStage,
     },
 };
-use crevice::{std140::AsStd140, std430::AsStd430};
+use crevice::{std140::AsStd140};
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, BufferBindingType, BufferSize,
-    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, ImageCopyTexture, ImageDataLayout,
-    Origin3d, PipelineLayout, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
+    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, PipelineLayout, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
     ShaderSource, ShaderStages, TextureDescriptor, TextureFormat, TextureUsages,
     TextureViewDescriptor, TextureViewDimension,
 };
@@ -32,7 +31,7 @@ impl Plugin for SDFBakerPlugin {
         let settings = app.world.get_resource::<SDFBakerSettings>();
         let settings = if let Some(settings) = settings {
             println!("Settings are ready!");
-            settings.clone()
+            *settings
         } else {
             SDFBakerSettings::default()
         };
@@ -197,11 +196,17 @@ impl Default for SDFBakerSettings {
 
 pub struct SDFBakeOrigin;
 
-fn extract_sdf_origin(mut commands: Commands, query: Query<&GlobalTransform, With<SDFBakeOrigin>>, settings: Res<SDFBakerSettings>) {
+fn extract_sdf_origin(
+    mut commands: Commands,
+    query: Query<&GlobalTransform, With<SDFBakeOrigin>>,
+    settings: Res<SDFBakerSettings>,
+) {
     let originTransform = query.get_single();
     let origins = SDFBakedLayerOrigins {
         origin: if let Ok(transform) = originTransform {
-            (transform.translation * settings.max_size / settings.layer_size).floor() * settings.layer_size / settings.max_size
+            (transform.translation * settings.max_size / settings.layer_size).floor()
+                * settings.layer_size
+                / settings.max_size
         } else {
             Vec3::ZERO
         },
@@ -267,10 +272,10 @@ fn setup_textures(
 }
 
 fn bake_sdf_texture(
-    settings: Res<SDFBakerSettings>,
-    mut textures: ResMut<SDFTextures>,
-    mut queue: ResMut<RenderQueue>,
-    sdf_roots: Query<(&SDFRootTransform, &SDFObjectTree)>,
+    _settings: Res<SDFBakerSettings>,
+    _textures: ResMut<SDFTextures>,
+    _queue: ResMut<RenderQueue>,
+    _sdf_roots: Query<(&SDFRootTransform, &SDFObjectTree)>,
 ) {
 }
 
@@ -283,7 +288,7 @@ pub fn queue_baking_group(
     sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
     mut baked_binding: ResMut<BakingGroupResource>,
 ) {
-    if let (Some(storage)) = (&textures.storage) {
+    if let Some(storage) = &textures.storage {
         let setting_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             label: Some("Bake Settings"),
             contents: bytemuck::cast_slice(&[bake_settings.as_std140()]),
@@ -300,7 +305,7 @@ pub fn queue_baking_group(
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: BindingResource::TextureView(&storage),
+                    resource: BindingResource::TextureView(storage),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -346,7 +351,7 @@ pub struct BrushBindingGroupResource {
 impl Node for SDFBakePassNode {
     fn run(
         &self,
-        graph: &mut bevy::render2::render_graph::RenderGraphContext,
+        _graph: &mut bevy::render2::render_graph::RenderGraphContext,
         render_context: &mut bevy::render2::renderer::RenderContext,
         world: &World,
     ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
