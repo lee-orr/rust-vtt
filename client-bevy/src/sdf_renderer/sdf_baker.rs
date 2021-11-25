@@ -1,17 +1,12 @@
 
 
-use bevy::{
-    core_pipeline::draw_3d_graph,
-    math::Vec3,
-    prelude::{Commands, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With, World},
-    render2::{
+use bevy::{core_pipeline::draw_3d_graph, math::Vec3, prelude::{Changed, Commands, Entity, FromWorld, GlobalTransform, Or, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, Transform, With, World}, render2::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         RenderApp, RenderStage,
-    },
-};
+    }};
 use crevice::{std140::AsStd140};
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
@@ -21,7 +16,7 @@ use wgpu::{
     TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::sdf_operation::{SDFObjectTree, SDFRootTransform};
+use super::sdf_operation::{SDFObject, SDFObjectDirty, SDFObjectTree, SDFRootTransform};
 
 pub struct SDFBakerPlugin;
 
@@ -42,8 +37,12 @@ impl Plugin for SDFBakerPlugin {
             .init_resource::<SDFTextures>()
             .init_resource::<SDFBakedLayerOrigins>()
             .init_resource::<BakingGroupResource>()
+            .init_resource::<ReBakeSDFResource>()
             .add_system_to_stage(RenderStage::Prepare, setup_textures)
             .add_system_to_stage(RenderStage::Extract, extract_sdf_origin)
+            .add_system_to_stage(RenderStage::Extract, extract_rebuild)
+            .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin.before("prepare_bake"))
+            .add_system_to_stage(RenderStage::Queue, prepare_bake.label("prepare_bake"))
             .add_system_to_stage(RenderStage::Queue, queue_baking_group)
             .add_system_to_stage(RenderStage::Queue, bake_sdf_texture);
 
@@ -178,9 +177,15 @@ pub struct SDFBakerSettings {
     pub layer_multiplier: u32,
 }
 
-#[derive(Clone, Default, Debug, Copy, AsStd140)]
+#[derive(Clone, Debug, Copy, AsStd140)]
 pub struct SDFBakedLayerOrigins {
     pub origin: Vec3,
+}
+
+impl Default for SDFBakedLayerOrigins {
+    fn default() -> Self {
+        Self { origin: Vec3::new(9999999., 9999999., 9999999.) }
+    }
 }
 
 impl Default for SDFBakerSettings {
@@ -196,22 +201,65 @@ impl Default for SDFBakerSettings {
 
 pub struct SDFBakeOrigin;
 
+pub struct ReBakeSDF;
+
+#[derive(Default)]
+pub struct ReBakeSDFResource {
+    pub rebake: bool,
+}
+
 fn extract_sdf_origin(
     mut commands: Commands,
-    query: Query<&GlobalTransform, With<SDFBakeOrigin>>,
+    query: Query<(Entity, &GlobalTransform), With<SDFBakeOrigin>>,
     settings: Res<SDFBakerSettings>,
 ) {
+    for (entity, transform) in query.iter() {
+        commands.get_or_spawn(entity).insert(transform.clone()).insert(SDFBakeOrigin);
+    }
+    // let originTransform = query.get_single();
+    // let origins = SDFBakedLayerOrigins {
+    //     origin: if let Ok(transform) = originTransform {
+    //         (transform.translation * settings.max_size / settings.layer_size).floor()
+    //             * settings.layer_size
+    //             / settings.max_size
+    //     } else {
+    //         Vec3::ZERO
+    //     },
+    // };
+    // commands.insert_resource(origins);
+}
+
+fn extract_rebuild(mut commands: Commands, query: Query<(Entity), Changed<SDFObjectTree>>) {
+    let exists = query.get_single().is_ok();
+    if exists {
+        commands.spawn().insert(ReBakeSDF);
+    }
+}
+
+fn prepare_sdf_origin(
+    mut commands: Commands,
+    query: Query<(Entity, &GlobalTransform), With<SDFBakeOrigin>>,
+    settings: Res<SDFBakerSettings>,
+    mut origin: ResMut<SDFBakedLayerOrigins>,
+) {
     let originTransform = query.get_single();
-    let origins = SDFBakedLayerOrigins {
-        origin: if let Ok(transform) = originTransform {
-            (transform.translation * settings.max_size / settings.layer_size).floor()
-                * settings.layer_size
-                / settings.max_size
-        } else {
-            Vec3::ZERO
-        },
+    let transform = match originTransform {
+        Ok((_, transform)) => transform.translation,
+        Err(_) => Vec3::ZERO,
     };
-    commands.insert_resource(origins);
+    let dist = (origin.origin - transform).length();
+    if dist > (settings.max_size / 3.).min_element() {
+        origin.origin = (transform * settings.max_size / settings.layer_size).floor() * settings.layer_size / settings.max_size;
+        commands.spawn().insert(ReBakeSDF);
+    }
+}
+
+fn prepare_bake(query: Query<Entity, With<ReBakeSDF>>, mut rebake: ResMut<ReBakeSDFResource>) {
+    let exists = query.get_single().is_ok();
+    if (exists) {
+        println!("Setting up new bake");
+    }
+    rebake.rebake = exists;
 }
 
 #[derive(Default)]
@@ -355,6 +403,11 @@ impl Node for SDFBakePassNode {
         render_context: &mut bevy::render2::renderer::RenderContext,
         world: &World,
     ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
+        let rebake = world.get_resource::<ReBakeSDFResource>();
+        if rebake.is_none() || !rebake.unwrap().rebake {
+            return Ok(());
+        }
+        println!("Baking...");
         let pipeline = world
             .get_resource::<SDFBakerPipelineDefinitions>()
             .expect("Pipeline Should Exist");
