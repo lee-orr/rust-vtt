@@ -585,16 +585,17 @@ fn prepare_view_extensions(
 
 fn prepare_brush_uniforms(
     mut brush_uniforms: ResMut<BrushUniforms>,
-    objects: Query<(&SDFObjectTree, &SDFRootTransform)>,
+    objects: Query<(&SDFObjectTree, &SDFRootTransform, Entity)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     _views: Query<(Entity, &ExtractedView)>,
 ) {
-    let objects: Vec<(&SDFObjectTree, &SDFRootTransform)> = objects.iter().collect();
+    let mut objects = objects.iter().collect::<Vec<_>>();
+    objects.sort_by(|a, b| a.2.cmp(&b.2));
     let object_count = objects.len();
     let mut index_so_far = object_count;
     let mut brush_vec: Vec<GpuSDFNode> = Vec::new();
-    for (tree, transform) in &objects {
+    for (tree, transform, _) in &objects {
         let num_nodes = tree.tree.len();
         if num_nodes > 0 {
             let root = &tree.tree[0];
@@ -613,7 +614,7 @@ fn prepare_brush_uniforms(
             brush_vec.push(GpuSDFNode::default());
         }
     }
-    for (tree, _) in &objects {
+    for (tree, _, _) in &objects {
         for node in &tree.tree {
             brush_vec.push(node.clone());
         }

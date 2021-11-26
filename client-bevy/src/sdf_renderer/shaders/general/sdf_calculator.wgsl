@@ -96,10 +96,11 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         var current_frame = stack[index];
         var node = current_frame.node;
         if (current_frame.process_bounds) {
-            var d = distance(point, node.center);
-            let radius_extension = current_frame.current_epsilon * 10.;
-            if (d > node.radius + radius_extension) {
-                last_result = d - node.radius + radius_extension/2.;
+            var d = abs(point - node.center);
+            let radius_extension = current_frame.current_epsilon * 2.;
+            let threshold = node.radius + radius_extension;
+            if (d.x > threshold || d.y > threshold || d.z > threshold) {
+                last_result = max_component(d) - node.radius + radius_extension/2.;
                 index = index - 1;
                 continue;
             } 
@@ -180,19 +181,24 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
 }
 
 fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> vec2<f32> {
-    var dist : f32 = 9999999999.9;
-    var num_jumps : f32 = 0.0;
-    let num_objects : i32 = i32(brush_settings.num_objects);
-    let p : vec4<f32> = vec4<f32>(point.xyz, 1.0);
-    for (var i : i32 = 0; i < num_objects; i = i + 1) {
-        var result = processNode(point, i, current_epsilon, stack);
-        var brush_dist : f32 = result.x;
-        if (dist > brush_dist) {
-            num_jumps = result.y;
+    //let dist_form_origin = point - baker_origins.origin;
+    var dist : f32 = num_zones.zone_radius; //min_component(dist_form_origin / num_zones.zone_size - floor(dist_form_origin / num_zones.zone_size) + current_epsilon * 2.);
+    for (var i : i32 = 0; i < num_zones.num_zones; i = i + 1) {
+        let zone = zones.zones[i];
+        if (all(zone.min <= point) && all(zone.max >= point)) {
+            let final_object : i32 = zone.final_object;
+            let first_object : i32 = zone.first_object;
+            let p : vec4<f32> = vec4<f32>(point.xyz, 1.0);
+            for (var i : i32 = first_object; i < final_object; i = i + 1) {
+                let object_id = zone_objects.zone_objects[i];
+                var result = processNode(point, object_id, current_epsilon, stack);
+                var brush_dist : f32 = result.x;
+                dist = min(dist, brush_dist);
+            }
+            break;
         }
-        dist = min(dist, brush_dist);
     }
-    return vec2<f32>(dist, num_jumps);
+    return vec2<f32>(dist, 0.);
 }
 
 fn sceneColor(point: vec3<f32>) -> vec3<f32> {

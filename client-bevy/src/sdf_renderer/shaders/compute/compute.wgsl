@@ -11,17 +11,8 @@ fn cmp_main([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     let voxel_size = max_component(layer_size/voxels_per_layer);
     var position : vec3<f32> = layer_size * (voxel_in_layer - 0.5) - baker_origins.origin;
     let epsilon = voxel_size / 4.;
-    // let pos_a = position + vec3<f32>(epsilon, 0., 0.);
-    // let pos_b = position + vec3<f32>( 0.,epsilon, 0.);
-    // let pos_c = position + vec3<f32>(0., 0., epsilon);
-    let pos_d = position + vec3<f32>( 0.,0., 0.);
-    // let r_a = sceneSDF(pos_a, voxel_size, stack_pointer);
-    // let r_b = sceneSDF(pos_b, voxel_size, stack_pointer);
-    // let r_c = sceneSDF(pos_c, voxel_size, stack_pointer);
-    let r_d = sceneSDF(pos_d, voxel_size * 8., stack_pointer);
-    var result : f32 = r_d.x;//min(min(r_a.x, r_b.x),min(r_c.x, r_d.x));
+    var result : f32 = sceneSDF(position, voxel_size * 8., stack_pointer).x;
     result = clamp(result, -2., 6.) + 2.;
     result = result / 8.;
-    //let normal = 0.5 + 0.5 * normalize(vec3<f32>(r_a.x - r_d.x, r_b.x - r_d.x, r_c.x - r_d.x));
     textureStore(baked_map, vec3<i32>(global_invocation_id), vec4<f32>(result,0.,0.,0.));
 }

@@ -150,15 +150,23 @@ pub const BOX_PRIM: i32 = 6;
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
-    query: Query<(Entity, &GlobalTransform, &SDFObjectTree)>,
+    query: Query<(
+        Entity,
+        &GlobalTransform,
+        &SDFObjectTree,
+        &SDFGlobalNodeBounds,
+    )>,
 ) {
-    for (entity, transform, tree) in query.iter() {
-        commands.get_or_spawn(entity).insert(SDFRootTransform {
-            matrix: transform.compute_matrix(),
-            translation: transform.translation,
-            scale: transform.scale,
-        });
-        commands.get_or_spawn(entity).insert(tree.clone());
+    for (entity, transform, tree, bounds) in query.iter() {
+        commands
+            .get_or_spawn(entity)
+            .insert(SDFRootTransform {
+                matrix: transform.compute_matrix(),
+                translation: transform.translation,
+                scale: transform.scale,
+            })
+            .insert(tree.clone())
+            .insert(bounds.clone());
     }
 }
 
