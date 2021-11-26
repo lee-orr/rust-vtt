@@ -20,6 +20,21 @@
 			"type": "shell",
 			"command": "./build-dev-wasm.sh",
 			"label": "watch wasm client"
+		},
+		{
+			"type": "shell",
+			"command": "cargo build --bin client-bevy-native",
+			"label": "build native client"
+		},
+		{
+			"type": "shell",
+			"command": "cargo fmt && cargo clippy --fix --allow-dirty",
+			"label": "format & clippy"
+		},
+		{
+			"type": "shell",
+			"command": "cargo test",
+			"label": "unit tests"
 		}
 	]
 }

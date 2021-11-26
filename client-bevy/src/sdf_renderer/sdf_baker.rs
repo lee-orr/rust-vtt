@@ -1,27 +1,30 @@
-
-
 use std::collections::HashMap;
 
-use bevy::{core_pipeline::draw_3d_graph, math::Vec3, prelude::{
-        Changed, Commands, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With, World,
-    }, render2::{
+use bevy::{
+    core_pipeline::draw_3d_graph,
+    math::Vec3,
+    prelude::{
+        Changed, Commands, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With,
+        World,
+    },
+    render2::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         RenderApp, RenderStage,
-    }};
+    },
+};
 use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, BufferBindingType, BufferSize,
-    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor,
-    TextureFormat, TextureUsages, TextureViewDescriptor, TextureViewDimension,
+    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor, TextureFormat,
+    TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::sdf_operation::{
-    SDFGlobalNodeBounds, SDFObjectTree, SDFRootTransform,
-};
+use super::sdf_operation::{SDFGlobalNodeBounds, SDFObjectTree, SDFRootTransform};
 
 pub struct SDFBakerPlugin;
 
@@ -245,8 +248,8 @@ impl Default for SDFBakedLayerOrigins {
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
-            max_size: Vec3::new(100., 25., 100.),
-            layer_size: Vec3::new(512., 64., 512.),
+            max_size: Vec3::new(100., 100., 100.),
+            layer_size: Vec3::new(512., 512., 512.),
             num_layers: 1,
             layer_multiplier: 2,
         }
@@ -285,12 +288,12 @@ fn extract_rebuild(
     query: Query<(Entity, &SDFGlobalNodeBounds), Changed<SDFObjectTree>>,
 ) {
     let exists = query.get_single().is_ok();
-    if exists {
-        commands.spawn().insert(ReBakeSDF);
-    }
+    // if exists {
+    //     commands.spawn().insert(ReBakeSDF);
+    // }
 }
 
-const ZONES_PER_DIMENSION: i32 = 8;
+const ZONES_PER_DIMENSION: i32 = 10;
 
 #[derive(AsStd140)]
 struct NumZones {
@@ -313,14 +316,18 @@ fn prepare_zones(
     objects.sort_by(|a, b| a.0.cmp(&b.0));
     let mut zone_objects: Vec<i32> = Vec::new();
     let mut active_zones: Vec<SDFZoneDefinitions> = Vec::new();
-    let mut zone_hash : HashMap<(u32, u32, u32), Vec<i32>> = HashMap::new();
+    let mut zone_hash: HashMap<(u32, u32, u32), Vec<i32>> = HashMap::new();
     let zone_size = (settings.max_size / (ZONES_PER_DIMENSION as f32)).abs();
     let zone_half_size = zone_size / 2.;
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (settings.max_size / 2.);
     let _bounds_max = origin.origin + (settings.max_size / 2.);
     let voxel_size = (settings.max_size / settings.layer_size).max_element();
-    let effective_radius = zone_radius * 2. + 8. * voxel_size;
+    let effective_radius = zone_radius * 2.;
+    println!(
+        "Zone Settings - size: {}, radius: {}, world bounds min: {}, effective radius: {}, origin: {} ",
+        &zone_size, &zone_radius, &bounds_min, &effective_radius, &origin.origin
+    );
 
     for (obj, (_, bounds, _)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius * 2. + effective_radius;
@@ -328,12 +335,32 @@ fn prepare_zones(
         let max_zone_bound = bounds.center + zone_bound_radius;
         let min_zone_bound = ((min_zone_bound - bounds_min) / zone_size).floor();
         let max_zone_bound = ((max_zone_bound - bounds_min) / zone_size).floor();
+        // println!(
+        //     "Object: center: {}, radius: {}, min: {}, max: {}",
+        //     &bounds.center, &bounds.radius, &min_zone_bound, &max_zone_bound
+        // );
         for x in (min_zone_bound.x as i32)..(max_zone_bound.x as i32) {
-            if x > ZONES_PER_DIMENSION { break; }
+            if x > ZONES_PER_DIMENSION {
+                break;
+            }
+            if x < 0 {
+                continue;
+            }
             for y in (min_zone_bound.y as i32)..(max_zone_bound.y as i32) {
-                if y > ZONES_PER_DIMENSION { break; }
+                if y > ZONES_PER_DIMENSION {
+                    break;
+                }
+
+                if y < 0 {
+                    continue;
+                }
                 for z in (min_zone_bound.z as i32)..(max_zone_bound.z as i32) {
-                    if z > ZONES_PER_DIMENSION { break; }
+                    if z > ZONES_PER_DIMENSION {
+                        break;
+                    }
+                    if z < 0 {
+                        continue;
+                    }
                     let key = (x as u32, y as u32, z as u32);
                     if !zone_hash.contains_key(&key) {
                         zone_hash.insert(*&key, Vec::new());
@@ -347,15 +374,14 @@ fn prepare_zones(
         }
     }
 
-    for ((x,y,z), mut vec) in zone_hash.into_iter() {
+    for ((x, y, z), mut vec) in zone_hash.into_iter() {
         let offset = Vec3::new(x as f32, y as f32, z as f32);
-        let position = offset * zone_size
-            + bounds_min
-            + zone_half_size;
-        let min = position - zone_half_size;
-        let max = position + zone_half_size;
+        let min = offset * zone_size + bounds_min;
+        let max = min + zone_size;
         let first_object = zone_objects.len() as i32;
         let final_object = first_object + vec.len() as i32;
+        println!("Zone {} {} {}", &offset, &min, &max);
+        println!("{:?}", &vec);
         zone_objects.append(&mut vec);
         let zone = SDFZoneDefinitions {
             min,
@@ -365,41 +391,6 @@ fn prepare_zones(
         };
         active_zones.push(zone);
     }
-
-    // for x in 0..ZONES_PER_DIMENSION {
-    //     for y in 0..ZONES_PER_DIMENSION {
-    //         for z in 0..ZONES_PER_DIMENSION {
-    //             let offset = Vec3::new(x as f32, y as f32, z as f32);
-    //             let position = (offset / (ZONES_PER_DIMENSION as f32)) * settings.max_size
-    //                 + bounds_min
-    //                 + zone_half_size;
-    //             let mut found_in_zone = false;
-    //             let mut first_in_zone = 0;
-    //             let mut count_in_zone = 0;
-    //             let zone_min = position - zone_half_size;
-    //             let zone_max = position + zone_half_size;
-    //             for (obj, (_, bounds, _)) in objects.iter().enumerate() {
-    //                 if bounds.center.distance(position) < bounds.radius * 2. + effective_radius {
-    //                     if !found_in_zone {
-    //                         first_in_zone = zone_objects.len();
-    //                         found_in_zone = true;
-    //                     }
-    //                     count_in_zone += 1;
-    //                     zone_objects.push(obj as i32);
-    //                 }
-    //             }
-    //             if found_in_zone {
-    //                 let zone = SDFZoneDefinitions {
-    //                     min: zone_min,
-    //                     max: zone_max,
-    //                     first_object: first_in_zone as i32,
-    //                     final_object: (first_in_zone + count_in_zone) as i32,
-    //                 };
-    //                 active_zones.push(zone);
-    //             }
-    //         }
-    //     }
-    // }
 
     if zone_objects.is_empty() {
         zone_objects.push(0);
@@ -481,12 +472,12 @@ fn prepare_sdf_origin(
         Err(_) => Vec3::ZERO,
     };
     let dist = (origin.origin - transform).abs();
-    let bounds = settings.max_size / 3.;
+    let bounds = 2. * settings.max_size / 3.;
     if dist.x > bounds.x || dist.y > bounds.y || dist.z > bounds.z {
         origin.origin = (transform * settings.max_size / settings.layer_size).floor()
             * settings.layer_size
             / settings.max_size;
-        commands.spawn().insert(ReBakeSDF);
+        //commands.spawn().insert(ReBakeSDF);
     }
 }
 

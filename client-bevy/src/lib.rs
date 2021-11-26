@@ -31,6 +31,7 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
+        //.add_system(animate)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
@@ -196,6 +197,12 @@ fn spawn_optimized_hierarchy(
         return None;
     }
     None
+}
+
+fn animate(mut query: Query<(&SDFObject, &mut Transform)>, time: Res<Time>) {
+    for (_, mut transform) in query.iter_mut() {
+        transform.translation += Vec3::X * time.delta().as_secs_f32() * (if time.seconds_since_startup() as i32 % 2 == 0 { 0.5 } else { -0.5 });
+    }
 }
 
 fn setup(mut commands: Commands) {

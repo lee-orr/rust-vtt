@@ -185,7 +185,7 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
     var dist : f32 = num_zones.zone_radius; //min_component(dist_form_origin / num_zones.zone_size - floor(dist_form_origin / num_zones.zone_size) + current_epsilon * 2.);
     for (var i : i32 = 0; i < num_zones.num_zones; i = i + 1) {
         let zone = zones.zones[i];
-        if (all(zone.min <= point) && all(zone.max >= point)) {
+        if (all(zone.min <= point) && all(zone.max > point)) {
             let final_object : i32 = zone.final_object;
             let first_object : i32 = zone.first_object;
             let p : vec4<f32> = vec4<f32>(point.xyz, 1.0);
