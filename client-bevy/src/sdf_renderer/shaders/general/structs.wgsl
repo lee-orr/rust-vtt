@@ -45,6 +45,13 @@ struct GpuSDFNode {
     center: vec3<f32>;
 };
 
+struct Zone {
+    min: vec3<f32>;
+    max: vec3<f32>;
+    first_object: i32;
+    final_object: i32;
+};
+
 [[block]]
 struct Brushes {
     brushes: array<GpuSDFNode>;
@@ -53,6 +60,25 @@ struct Brushes {
 [[block]]
 struct BrushSettings {
     num_objects: i32;
+};
+
+[[block]]
+struct Zones {
+    zones: array<Zone>;
+};
+
+[[block]]
+struct ZoneObjects {
+    zone_objects: array<i32>;
+};
+
+[[block]]
+struct NumZones {
+    num_zones: i32;
+    zone_radius: f32;
+    zone_size: vec3<f32>;
+    zone_origin: vec3<f32>;
+    zones_per_dimension: i32;
 };
 
 struct Vertex {
