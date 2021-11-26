@@ -28,10 +28,11 @@ use bevy::{
             BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendComponent,
             BlendFactor, BlendOperation, BlendState, Buffer, BufferBindingType, BufferSize,
-            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, DynamicUniformVec, Face,
-            FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
-            PrimitiveTopology, RenderPipelineCache, RenderPipelineDescriptor, Shader, StencilState,
-            TextureFormat, TextureView, VertexBufferLayout, VertexState,
+            CachedPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState,
+            DepthStencilState, DynamicUniformVec, Face, FragmentState, FrontFace, MultisampleState,
+            PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineCache,
+            RenderPipelineDescriptor, Shader, StencilState, TextureFormat, TextureView,
+            VertexBufferLayout, VertexState,
         },
         renderer::{RenderDevice, RenderQueue},
         texture::{BevyDefault, CachedTexture, TextureCache},
@@ -41,10 +42,10 @@ use bevy::{
 };
 
 use wgpu::{
-    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d,
-    FilterMode, LoadOp, Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment,
-    RenderPassDescriptor, SamplerDescriptor,
-    ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute, VertexFormat, VertexStepMode,
+    util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp,
+    Operations, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    SamplerDescriptor, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute,
+    VertexFormat, VertexStepMode,
 };
 
 use crate::sdf_renderer::{

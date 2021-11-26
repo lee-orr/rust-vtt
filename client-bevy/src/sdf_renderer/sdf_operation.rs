@@ -166,7 +166,7 @@ pub fn extract_gpu_node_trees(
                 scale: transform.scale,
             })
             .insert(tree.clone())
-            .insert(bounds.clone());
+            .insert(*bounds);
     }
 }
 

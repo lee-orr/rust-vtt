@@ -1,24 +1,31 @@
 
 
-use core::num;
-
-use bevy::{core_pipeline::draw_3d_graph, math::Vec3, prelude::{Changed, Commands, Entity, FromWorld, GlobalTransform, Or, ParallelSystemDescriptorCoercion, Plugin, Query, Res, ResMut, Transform, With, World}, render2::{
+use bevy::{
+    core_pipeline::draw_3d_graph,
+    math::Vec3,
+    prelude::{
+        Changed, Commands, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With, World,
+    },
+    render2::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         RenderApp, RenderStage,
-    }};
-use crevice::{std140::AsStd140};
+    },
+};
+use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, BufferBindingType, BufferSize,
-    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, PipelineLayout, SamplerDescriptor, ShaderModule, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, TextureDescriptor, TextureFormat, TextureUsages,
-    TextureViewDescriptor, TextureViewDimension,
+    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, PipelineLayout, SamplerDescriptor,
+    ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor,
+    TextureFormat, TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::sdf_operation::{SDFGlobalNodeBounds, SDFObject, SDFObjectDirty, SDFObjectTree, SDFRootTransform};
+use super::sdf_operation::{
+    SDFGlobalNodeBounds, SDFObjectTree, SDFRootTransform,
+};
 
 pub struct SDFBakerPlugin;
 
@@ -239,7 +246,9 @@ pub struct SDFZoneDefinitions {
 
 impl Default for SDFBakedLayerOrigins {
     fn default() -> Self {
-        Self { origin: Vec3::new(9999999., 9999999., 9999999.) }
+        Self {
+            origin: Vec3::new(9999999., 9999999., 9999999.),
+        }
     }
 }
 
@@ -265,27 +274,33 @@ pub struct ReBakeSDFResource {
 
 #[derive(Default)]
 pub struct SDFZones {
-    zone_group: Option<BindGroup>
+    zone_group: Option<BindGroup>,
 }
 
 fn extract_sdf_origin(
     mut commands: Commands,
     query: Query<(Entity, &GlobalTransform), With<SDFBakeOrigin>>,
-    settings: Res<SDFBakerSettings>,
+    _settings: Res<SDFBakerSettings>,
 ) {
     for (entity, transform) in query.iter() {
-        commands.get_or_spawn(entity).insert(transform.clone()).insert(SDFBakeOrigin);
+        commands
+            .get_or_spawn(entity)
+            .insert(*transform)
+            .insert(SDFBakeOrigin);
     }
 }
 
-fn extract_rebuild(mut commands: Commands, query: Query<(Entity, &SDFGlobalNodeBounds), Changed<SDFObjectTree>>) {
+fn extract_rebuild(
+    mut commands: Commands,
+    query: Query<(Entity, &SDFGlobalNodeBounds), Changed<SDFObjectTree>>,
+) {
     let exists = query.get_single().is_ok();
     if exists {
         commands.spawn().insert(ReBakeSDF);
     }
 }
 
-const ZONES_PER_DIMENSION : u32 = 8;
+const ZONES_PER_DIMENSION: u32 = 8;
 
 #[derive(AsStd140)]
 struct NumZones {
@@ -296,22 +311,31 @@ struct NumZones {
     zones_per_dimension: i32,
 }
 
-fn prepare_zones(query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>, render_device: Res<RenderDevice>,settings: Res<SDFBakerSettings>, origin: Res<SDFBakedLayerOrigins>, mut zones: ResMut<SDFZones>, sdf_pipeline: Res<SDFBakerPipelineDefinitions>) {
+fn prepare_zones(
+    query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>,
+    render_device: Res<RenderDevice>,
+    settings: Res<SDFBakerSettings>,
+    origin: Res<SDFBakedLayerOrigins>,
+    mut zones: ResMut<SDFZones>,
+    sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
+) {
     let mut objects = query.iter().collect::<Vec<_>>();
     objects.sort_by(|a, b| a.0.cmp(&b.0));
-    let mut zone_objects : Vec<i32> = Vec::new();
-    let mut active_zones : Vec<SDFZoneDefinitions> = Vec::new();
+    let mut zone_objects: Vec<i32> = Vec::new();
+    let mut active_zones: Vec<SDFZoneDefinitions> = Vec::new();
     let zone_half_size = (settings.max_size / (ZONES_PER_DIMENSION as f32)).abs() / 2.;
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (settings.max_size / 2.);
-    let bounds_max = origin.origin + (settings.max_size / 2.);
+    let _bounds_max = origin.origin + (settings.max_size / 2.);
     let voxel_size = (settings.max_size / settings.layer_size).max_element();
     let effective_radius = zone_radius * 2. + 8. * voxel_size;
     for x in 0..ZONES_PER_DIMENSION {
         for y in 0..ZONES_PER_DIMENSION {
             for z in 0..ZONES_PER_DIMENSION {
                 let offset = Vec3::new(x as f32, y as f32, z as f32);
-                let position = (offset / (ZONES_PER_DIMENSION as f32)) * settings.max_size + bounds_min + zone_half_size;
+                let position = (offset / (ZONES_PER_DIMENSION as f32)) * settings.max_size
+                    + bounds_min
+                    + zone_half_size;
                 let mut found_in_zone = false;
                 let mut first_in_zone = 0;
                 let mut count_in_zone = 0;
@@ -341,7 +365,7 @@ fn prepare_zones(query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>, r
         }
     }
 
-    if zone_objects.len() == 0 {
+    if zone_objects.is_empty() {
         zone_objects.push(0);
     }
     let num_zones = active_zones.len();
@@ -351,13 +375,25 @@ fn prepare_zones(query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>, r
 
     let zone_object_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Zone Objects"),
-        contents: bytemuck::cast_slice(&zone_objects.iter().map(|a| a.as_std140()).collect::<Vec<_>>().as_slice()),
+        contents: bytemuck::cast_slice(
+            zone_objects
+                .iter()
+                .map(|a| a.as_std140())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ),
         usage: BufferUsages::STORAGE,
     });
-    
+
     let zone_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Zones"),
-        contents: bytemuck::cast_slice(&active_zones.iter().map(|a| a.as_std140()).collect::<Vec<_>>().as_slice()),
+        contents: bytemuck::cast_slice(
+            active_zones
+                .iter()
+                .map(|a| a.as_std140())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ),
         usage: BufferUsages::STORAGE,
     });
 
@@ -365,7 +401,14 @@ fn prepare_zones(query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>, r
 
     let num_zones = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Num Zones"),
-        contents: bytemuck::cast_slice(&[(NumZones { num_zones: num_zones as i32, zone_radius, zone_size: zone_half_size * 2., zone_origin: bounds_min, zones_per_dimension: ZONES_PER_DIMENSION as i32 }).as_std140()]),
+        contents: bytemuck::cast_slice(&[(NumZones {
+            num_zones: num_zones as i32,
+            zone_radius,
+            zone_size: zone_half_size * 2.,
+            zone_origin: bounds_min,
+            zones_per_dimension: ZONES_PER_DIMENSION as i32,
+        })
+        .as_std140()]),
         usage: BufferUsages::UNIFORM,
     });
 
@@ -403,15 +446,17 @@ fn prepare_sdf_origin(
     };
     let dist = (origin.origin - transform).abs();
     let bounds = settings.max_size / 3.;
-    if  dist.x > bounds.x || dist.y > bounds.y || dist.z > bounds.z {
-        origin.origin = (transform * settings.max_size / settings.layer_size).floor() * settings.layer_size / settings.max_size;
+    if dist.x > bounds.x || dist.y > bounds.y || dist.z > bounds.z {
+        origin.origin = (transform * settings.max_size / settings.layer_size).floor()
+            * settings.layer_size
+            / settings.max_size;
         commands.spawn().insert(ReBakeSDF);
     }
 }
 
 fn prepare_bake(query: Query<Entity, With<ReBakeSDF>>, mut rebake: ResMut<ReBakeSDFResource>) {
     let exists = query.get_single().is_ok();
-    if (exists) {
+    if exists {
         println!("Setting up new bake");
     }
     rebake.rebake = exists;
@@ -578,7 +623,12 @@ impl Node for SDFBakePassNode {
             .binding
             .clone()
             .unwrap();
-        let zone_binding = world.get_resource::<SDFZones>().expect("Zones should exist").zone_group.clone().unwrap();
+        let zone_binding = world
+            .get_resource::<SDFZones>()
+            .expect("Zones should exist")
+            .zone_group
+            .clone()
+            .unwrap();
         let settings = world
             .get_resource::<SDFBakerSettings>()
             .expect("Bake settings should exist");
