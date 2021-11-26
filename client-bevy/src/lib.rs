@@ -44,7 +44,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
 }
 
 const NUM_BRUSHES: i32 = 4;
-const UNOPTIMIZED_OBJECTS: bool = true;
+const UNOPTIMIZED_OBJECTS: bool = false;
 const OPTIMIZED_OBJECTS: bool = false;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 

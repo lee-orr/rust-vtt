@@ -47,11 +47,11 @@ impl Plugin for SDFBakerPlugin {
             .init_resource::<BakingGroupResource>()
             .init_resource::<ReBakeSDFResource>()
             .init_resource::<SDFZones>()
-            .add_system_to_stage(RenderStage::Prepare, setup_textures)
             .add_system_to_stage(RenderStage::Extract, extract_sdf_origin)
             .add_system_to_stage(RenderStage::Extract, extract_rebuild)
             .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin)
             .add_system_to_stage(RenderStage::Prepare, prepare_zones)
+            .add_system_to_stage(RenderStage::Prepare, setup_textures)
             .add_system_to_stage(RenderStage::Queue, prepare_bake)
             .add_system_to_stage(RenderStage::Queue, queue_baking_group)
             .add_system_to_stage(RenderStage::Queue, bake_sdf_texture);
@@ -288,9 +288,9 @@ fn extract_rebuild(
     query: Query<(Entity, &SDFGlobalNodeBounds), Changed<SDFObjectTree>>,
 ) {
     let exists = query.get_single().is_ok();
-    // if exists {
-    //     commands.spawn().insert(ReBakeSDF);
-    // }
+    if exists {
+      // commands.spawn().insert(ReBakeSDF);
+    }
 }
 
 const ZONES_PER_DIMENSION: i32 = 10;
@@ -477,7 +477,7 @@ fn prepare_sdf_origin(
         origin.origin = (transform * settings.max_size / settings.layer_size).floor()
             * settings.layer_size
             / settings.max_size;
-        //commands.spawn().insert(ReBakeSDF);
+        commands.spawn().insert(ReBakeSDF);
     }
 }
 
@@ -630,10 +630,10 @@ impl Node for SDFBakePassNode {
         render_context: &mut bevy::render2::renderer::RenderContext,
         world: &World,
     ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
-        // let rebake = world.get_resource::<ReBakeSDFResource>();
-        // if rebake.is_none() || !rebake.unwrap().rebake {
-        //     return Ok(());
-        // }
+        let rebake = world.get_resource::<ReBakeSDFResource>();
+        if rebake.is_none() || !rebake.unwrap().rebake {
+            return Ok(());
+        }
         println!("Baking...");
         let pipeline = world
             .get_resource::<SDFBakerPipelineDefinitions>()
