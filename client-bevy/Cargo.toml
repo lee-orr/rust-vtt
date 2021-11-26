@@ -1,4 +1,3 @@
-cargo-features = ["edition2021"]
 [package]
 name = "client-bevy"
 version = "0.1.0"

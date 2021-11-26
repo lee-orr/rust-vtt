@@ -534,10 +534,6 @@ pub struct BrushUniforms {
     pub settings: DynamicUniformVec<BrushSettings>,
 }
 
-pub struct SDFBrushBinding {
-    binding: BindGroup,
-}
-
 pub struct BakedSDFBinding {
     binding: BindGroup,
 }
@@ -693,7 +689,7 @@ pub fn queue_baked_textures(
 }
 
 pub fn queue_brush_bindings(
-    mut commands: Commands,
+    _commands: Commands,
     buffers: Res<BrushUniforms>,
     render_device: Res<RenderDevice>,
     sdf_pipeline: Res<SDFPipeline>,
@@ -714,10 +710,7 @@ pub fn queue_brush_bindings(
                 },
             ],
         });
-        brush_binding.binding = Some(brush_bind_group.clone());
-        commands.spawn().insert(SDFBrushBinding {
-            binding: brush_bind_group,
-        });
+        brush_binding.binding = Some(brush_bind_group);
     }
 }
 

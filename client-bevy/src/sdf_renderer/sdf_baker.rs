@@ -18,8 +18,7 @@ use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, BufferBindingType, BufferSize,
-    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, PipelineLayout, SamplerDescriptor,
-    ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor,
+    BufferUsages, ComputePassDescriptor, Extent3d, FilterMode, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureDescriptor,
     TextureFormat, TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 
@@ -67,9 +66,6 @@ impl Plugin for SDFBakerPlugin {
 }
 
 pub struct SDFBakerPipelineDefinitions {
-    shader_module: ShaderModule,
-    pipeline_layout: PipelineLayout,
-    brush_layout: BindGroupLayout,
     zone_layout: BindGroupLayout,
     texture_layout: BindGroupLayout,
     compute: ComputePipeline,
@@ -213,9 +209,6 @@ impl FromWorld for SDFBakerPipelineDefinitions {
             entry_point: "cmp_main",
         });
         SDFBakerPipelineDefinitions {
-            shader_module: compute_shader_module,
-            pipeline_layout: compute_pipeline_layout,
-            brush_layout,
             texture_layout,
             zone_layout,
             compute,
@@ -341,8 +334,7 @@ fn prepare_zones(
                 let mut count_in_zone = 0;
                 let zone_min = position - zone_half_size - 8. * voxel_size;
                 let zone_max = position + zone_half_size + 8. * voxel_size;
-                for obj in 0..objects.len() {
-                    let (_, bounds, _) = objects[obj];
+                for (obj, (_, bounds, _)) in objects.iter().enumerate() {
                     if bounds.center.distance(position) < bounds.radius * 2. + effective_radius {
                         if !found_in_zone {
                             first_in_zone = zone_objects.len();
@@ -439,8 +431,8 @@ fn prepare_sdf_origin(
     settings: Res<SDFBakerSettings>,
     mut origin: ResMut<SDFBakedLayerOrigins>,
 ) {
-    let originTransform = query.get_single();
-    let transform = match originTransform {
+    let origin_transform = query.get_single();
+    let transform = match origin_transform {
         Ok((_, transform)) => transform.translation,
         Err(_) => Vec3::ZERO,
     };
