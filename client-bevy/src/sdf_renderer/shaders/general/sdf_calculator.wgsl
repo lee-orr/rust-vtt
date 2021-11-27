@@ -188,7 +188,6 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
         if (all(zone.min <= point) && all(zone.max > point)) {
             let final_object : i32 = zone.final_object;
             let first_object : i32 = zone.first_object;
-            let p : vec4<f32> = vec4<f32>(point.xyz, 1.0);
             for (var i : i32 = first_object; i <= final_object; i = i + 1) {
                 let object_id = zone_objects.zone_objects[i];
                 var result = processNode(point, object_id, current_epsilon, stack);
@@ -198,6 +197,12 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
             break;
         }
     }
+    // var dist : f32 = 9999.0;
+    // for (var i: i32 = 0; i < brush_settings.num_objects; i = i + 1) {
+    //             var result = processNode(point, i, current_epsilon, stack);
+    //             var brush_dist : f32 = result.x;
+    //             dist = min(dist, brush_dist);
+    // }
     return vec2<f32>(dist, 0.);
 }
 
