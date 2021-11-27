@@ -10,5 +10,5 @@ members = [
 ]
 
 [patch.crates-io]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "pipelined-rendering" }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui", branch = "bevy-pipelined"}

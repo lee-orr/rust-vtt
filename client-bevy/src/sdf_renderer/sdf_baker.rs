@@ -1,20 +1,12 @@
 use std::collections::HashMap;
 
-use bevy::{
-    core_pipeline::draw_3d_graph,
-    math::Vec3,
-    prelude::{
-        Changed, Commands, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With,
-        World,
-    },
-    render2::{
+use bevy::{core_pipeline::draw_3d_graph, math::Vec3, prelude::{Changed, Commands, Component, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With, World}, render2::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         RenderApp, RenderStage,
-    },
-};
+    }};
 use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
@@ -256,8 +248,10 @@ impl Default for SDFBakerSettings {
     }
 }
 
+#[derive(Component)]
 pub struct SDFBakeOrigin;
 
+#[derive(Component)]
 pub struct ReBakeSDF;
 
 #[derive(Default)]
@@ -609,6 +603,7 @@ impl SDFBakePassNode {
     }
 }
 
+#[derive(Component)]
 pub struct BakingGroup {
     pub binding: BindGroup,
 }

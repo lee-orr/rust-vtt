@@ -3,19 +3,10 @@ pub mod sdf_operation;
 
 use crevice::std140::AsStd140;
 
-use bevy::{
-    core_pipeline::{
+use bevy::{core_pipeline::{
         draw_3d_graph::{self, node},
         Opaque3d,
-    },
-    ecs::system::lifetimeless::{Read, SQuery, SRes},
-    math::{Mat4, Vec2},
-    prelude::{
-        Assets, Commands, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState, Res, ResMut,
-        With, World,
-    },
-    reflect::TypeUuid,
-    render2::{
+    }, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2}, prelude::{Assets, Commands, Component, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState, Res, ResMut, With, World}, reflect::TypeUuid, render2::{
         camera::PerspectiveProjection,
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
@@ -38,8 +29,7 @@ use bevy::{
         texture::{BevyDefault, CachedTexture, TextureCache},
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    },
-};
+    }};
 
 use wgpu::{
     util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp,
@@ -507,11 +497,12 @@ impl RenderCommand<Opaque3d> for DrawSDF {
     }
 }
 
+#[derive(Component)]
 pub struct SDFViewBinding {
     binding: BindGroup,
 }
 
-#[derive(Clone, AsStd140)]
+#[derive(Clone, AsStd140, Component)]
 pub struct ViewExtension {
     view_proj_inverted: Mat4,
     proj_inverted: Mat4,
@@ -519,21 +510,23 @@ pub struct ViewExtension {
     pixel_size: f32,
 }
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct ViewExtensionUniforms {
     pub uniforms: DynamicUniformVec<ViewExtension>,
 }
 
+#[derive(Component)]
 pub struct ViewExtensionUniformOffset {
     pub offset: u32,
 }
 
-#[derive(Default)]
+#[derive(Default, Component)]
 pub struct BrushUniforms {
     pub brushes: Option<Buffer>,
     pub settings: DynamicUniformVec<BrushSettings>,
 }
 
+#[derive(Component)]
 pub struct BakedSDFBinding {
     binding: BindGroup,
 }
@@ -714,6 +707,7 @@ pub fn queue_brush_bindings(
     }
 }
 
+#[derive(Component)]
 pub struct ViewDepthPass1 {
     pub texture: CachedTexture,
     pub second_hit_texture: CachedTexture,

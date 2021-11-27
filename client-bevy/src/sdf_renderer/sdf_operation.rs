@@ -1,10 +1,4 @@
-use bevy::{
-    math::{Mat4, Vec3, Vec4, Vec4Swizzles},
-    prelude::{
-        Changed, Commands, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, StageLabel,
-        SystemStage, Transform,
-    },
-};
+use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, StageLabel, SystemStage, Transform}};
 
 use crevice::std140::AsStd140;
 
@@ -44,7 +38,7 @@ pub struct BrushSettings {
     pub num_brushes: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
@@ -112,29 +106,32 @@ impl Default for SDFNodeData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 pub struct SDFNode {
     pub data: SDFNodeData,
     pub object: Entity,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, Component)]
 pub struct SDFGlobalNodeBounds {
     pub radius: f32,
     pub center: Vec3,
 }
 
+#[derive(Component)]
 pub struct SDFObject {
     pub root: Entity,
 }
+#[derive(Component)]
 
 pub struct SDFObjectDirty;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Component)]
 pub struct SDFObjectTree {
     pub tree: Vec<GpuSDFNode>,
 }
 
+#[derive(Component)]
 pub struct SDFRootTransform {
     pub matrix: Mat4,
     pub translation: Vec3,

@@ -1,12 +1,4 @@
-use bevy::{
-    input::Input,
-    math::prelude::*,
-    prelude::{
-        BuildChildren, Commands, GlobalTransform, KeyCode, Plugin, Query, Res, Time, Transform,
-        With,
-    },
-    render2::camera::PerspectiveCameraBundle,
-};
+use bevy::{input::Input, math::prelude::*, prelude::{BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, Time, Transform, With}, render2::camera::PerspectiveCameraBundle};
 
 use crate::sdf_renderer::sdf_baker::SDFBakeOrigin;
 
@@ -42,12 +34,15 @@ fn setup(mut commands: Commands) {
     commands.entity(parent).push_children(&[camera]);
 }
 
+#[derive(Component)]
 pub struct CameraFocus;
 
+#[derive(Component)]
 pub struct CameraRadius {
     pub radius: f32,
 }
 
+#[derive(Component)]
 pub struct CameraHeight {
     pub height: f32,
 }
