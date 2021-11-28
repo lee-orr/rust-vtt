@@ -319,6 +319,7 @@ fn prepare_zones(
     objects.sort_by(|a, b| a.0.cmp(&b.0));
 
     if last_num_objects.num_objects != objects.len() as u32 {
+        println!("Num Objects changed");
         commands.insert_resource(ReBakeSDFResource { rebake: true });
     }
     last_num_objects.num_objects = objects.len() as u32;
@@ -334,10 +335,10 @@ fn prepare_zones(
     let _bounds_max = origin.origin + (settings.max_size / 2.);
     let voxel_size = (settings.max_size / settings.layer_size).max_element();
     let effective_radius = zone_radius * 2.;
-    println!(
-        "Zone Settings - size: {}, radius: {}, world bounds min: {}, effective radius: {}, origin: {} ",
-        &zone_size, &zone_radius, &bounds_min, &effective_radius, &origin.origin
-    );
+    // println!(
+    //     "Zone Settings - size: {}, radius: {}, world bounds min: {}, effective radius: {}, origin: {} ",
+    //     &zone_size, &zone_radius, &bounds_min, &effective_radius, &origin.origin
+    // );
 
     for (obj, (_, bounds, _)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius * 2. + effective_radius;
@@ -435,7 +436,7 @@ fn prepare_zones(
         usage: BufferUsages::STORAGE,
     });
 
-    println!("Num Zones: {}", num_zones);
+    // println!("Num Zones: {}", num_zones);
 
     let num_zones = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Num Zones"),

@@ -11,7 +11,7 @@ fn cmp_main([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     let voxel_size = max_component(layer_size/voxels_per_layer);
     var position : vec3<f32> = layer_size * (voxel_in_layer - 0.5) - baker_origins.origin;
     let epsilon = voxel_size / 4.;
-    var result : f32 = sceneSDF(position, voxel_size * 8., stack_pointer).x;
+    var result : f32 = sceneSDF(position, max_component(bake_settings.layer_size), stack_pointer).x;
     result = clamp(result, -2., 6.) + 2.;
     result = result / 8.;
     textureStore(baked_map, vec3<i32>(global_invocation_id), vec4<f32>(result,0.,0.,0.));
