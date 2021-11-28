@@ -46,10 +46,7 @@ use crate::sdf_renderer::{
     },
 };
 
-use self::{
-    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures},
-    sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP},
-};
+use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, SortedSDFObjects, TRANSFORM_WARP}};
 
 pub struct SdfPlugin;
 
@@ -578,10 +575,14 @@ fn prepare_brush_uniforms(
     objects: Query<(&SDFObjectTree, &SDFRootTransform, Entity)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
+   //sorted: Res<SortedSDFObjects>,
     _views: Query<(Entity, &ExtractedView)>,
 ) {
+    // let objects = sorted.objects.iter().map(|entity| objects.get(*entity).unwrap()).collect::<Vec<_>>();
+
     let mut objects = objects.iter().collect::<Vec<_>>();
     objects.sort_by(|a, b| a.2.cmp(&b.2));
+
     let object_count = objects.len();
     let mut index_so_far = object_count;
     let mut brush_vec: Vec<GpuSDFNode> = Vec::new();

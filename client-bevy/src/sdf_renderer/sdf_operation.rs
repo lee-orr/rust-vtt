@@ -1,4 +1,4 @@
-use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, StageLabel, SystemStage, Transform}};
+use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, Res, ResMut, StageLabel, SystemStage, Transform, With}};
 
 use crevice::std140::AsStd140;
 
@@ -12,7 +12,9 @@ pub enum SDFStages {
 pub struct SDFOperationPlugin;
 impl Plugin for SDFOperationPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_stage_after(
+        app
+        .init_resource::<SortedSDFObjects>()
+        .add_stage_after(
             CoreStage::Update,
             SDFStages::MarkDirty,
             SystemStage::parallel(),
@@ -29,6 +31,7 @@ impl Plugin for SDFOperationPlugin {
         )
         .add_system_to_stage(SDFStages::MarkDirty, mark_dirty_object)
         .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds)
+        // .add_system_to_stage(SDFStages::GenerateGpu, sort_sdf_objects)
         .add_system_to_stage(SDFStages::GenerateGpu, construct_sdf_object_tree);
     }
 }
@@ -131,11 +134,16 @@ pub struct SDFObjectTree {
     pub tree: Vec<GpuSDFNode>,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct SDFRootTransform {
     pub matrix: Mat4,
     pub translation: Vec3,
     pub scale: Vec3,
+}
+
+#[derive(Default, Clone)]
+pub struct SortedSDFObjects {
+    pub objects: Vec<Entity>,
 }
 
 pub const UNION_OP: i32 = 1;
@@ -153,6 +161,7 @@ pub fn extract_gpu_node_trees(
         &SDFObjectTree,
         &SDFGlobalNodeBounds,
     )>,
+    ordered: Res<SortedSDFObjects>
 ) {
     for (entity, transform, tree, bounds) in query.iter() {
         commands
@@ -165,6 +174,7 @@ pub fn extract_gpu_node_trees(
             .insert(tree.clone())
             .insert(*bounds);
     }
+    commands.insert_resource(ordered.clone());
 }
 
 fn generate_node_bounds(
@@ -339,6 +349,11 @@ pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<
         commands.entity(node.object).insert(SDFObjectDirty);
     }
 }
+
+// fn sort_sdf_objects(objects: Query<Entity, With<SDFObject>>, mut sorted_objects: ResMut<SortedSDFObjects>) {
+//     let mut objects = objects.iter().collect::<Vec<_>>();
+//     sorted_objects.objects = objects;
+// }
 
 pub fn process_sdf_node(
     point: &Vec3,
