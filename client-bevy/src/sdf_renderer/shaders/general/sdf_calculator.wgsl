@@ -181,22 +181,7 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
 }
 
 fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> vec2<f32> {
-    //let dist_form_origin = point - baker_origins.origin;
-    var dist : f32 = num_zones.zone_radius; //min_component(dist_form_origin / num_zones.zone_size - floor(dist_form_origin / num_zones.zone_size) + current_epsilon * 2.);
-    // for (var i : i32 = 0; i < num_zones.num_zones; i = i + 1) {
-    //     let zone = zones.zones[i];
-    //     if (all(zone.Smin <= point) && all(zone.max > point)) {
-    //         let final_object : i32 = zone.final_object;
-    //         let first_object : i32 = zone.first_object;
-    //         for (var i : i32 = first_object; i < final_object; i = i + 1) {
-    //             let object_id = zone_objects.zone_objects[i];
-    //             var result = processNode(point, object_id, num_zones.zone_radius * 3., stack);
-    //             var brush_dist : f32 = result.x;
-    //             dist = min(dist, brush_dist);
-    //         }
-    //         break;
-    //     }
-    // }
+    var dist : f32 = num_zones.zone_radius;
     let zone_size :vec3<f32> = num_zones.zone_size;
     let relative_pos = point - num_zones.zone_origin;
     let zone_id = relative_pos / zone_size;
@@ -212,17 +197,10 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
     let first_object : i32 = zone.first_object;
     for (var i : i32 = first_object; i < final_object; i = i + 1) {
         let object_id = zone_objects.zone_objects[i];
-        var result = processNode(point, object_id, num_zones.zone_radius * 3., stack);
+        var result = processNode(point, object_id, num_zones.zone_radius * 6., stack);
         var brush_dist : f32 = result.x;
         dist = min(dist, brush_dist);
     } 
-
-    // var dist : f32 = 9999.0;
-    // for (var i: i32 = 0; i < brush_settings.num_objects; i = i + 1) {
-    //             var result = processNode(point, i, current_epsilon, stack);
-    //             var brush_dist : f32 = result.x;
-    //             dist = min(dist, brush_dist);
-    // }
     return vec2<f32>(dist, 0.);
 }
 
