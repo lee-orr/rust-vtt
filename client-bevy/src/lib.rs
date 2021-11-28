@@ -44,7 +44,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
 }
 
 const NUM_BRUSHES: i32 = 50;
-const UNOPTIMIZED_OBJECTS: bool = true;
+const UNOPTIMIZED_OBJECTS: bool = false;
 const OPTIMIZED_OBJECTS: bool = false;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
@@ -277,7 +277,7 @@ fn setup(mut commands: Commands) {
             .spawn()
             .insert(SDFNode {
                 object,
-                data: SDFNodeData::Operation(TEST_OP, 0., cube_transform, sphere_transform),
+                data: SDFNodeData::Operation(TEST_OP, 0.5, cube_transform, sphere_transform),
             })
             .id();
         commands

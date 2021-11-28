@@ -241,8 +241,8 @@ impl Default for SDFBakedLayerOrigins {
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
-            max_size: Vec3::new(100., 100., 100.),
-            layer_size: Vec3::new(512., 512., 512.),
+            max_size: Vec3::new(50., 25., 50.),
+            layer_size: Vec3::new(512., 256., 512.),
             num_layers: 1,
             layer_multiplier: 2,
         }
