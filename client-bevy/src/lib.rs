@@ -31,7 +31,7 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
-        //.add_system(animate)
+        .add_system(animate)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
@@ -43,7 +43,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 15;
+const NUM_BRUSHES: i32 = 20;
 const UNOPTIMIZED_OBJECTS: bool = true;
 const OPTIMIZED_OBJECTS: bool = false;
 const TEST_OP: SDFOperation = SDFOperation::Union;

@@ -38,13 +38,7 @@ use wgpu::{
     VertexFormat, VertexStepMode,
 };
 
-use crate::sdf_renderer::{
-    sdf_baker::{SDFBakePassNode, SDFBakerPlugin},
-    sdf_operation::{
-        extract_gpu_node_trees, BrushSettings, SDFOperationPlugin, SDFRootTransform,
-        Std140GpuSDFNode,
-    },
-};
+use crate::sdf_renderer::{sdf_baker::{SDFBakePassNode, SDFBakerPlugin}, sdf_operation::{BrushSettings, SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode, extract_dirty_object, extract_gpu_node_trees}};
 
 use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, SortedSDFObjects, TRANSFORM_WARP}};
 
@@ -91,6 +85,7 @@ impl Plugin for SdfPlugin {
             .init_resource::<BakedSDFBindingGroupResource>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees)
+            .add_system_to_stage(RenderStage::Extract, extract_dirty_object)
             .add_system_to_stage(RenderStage::Prepare, prepare_brush_uniforms)
             .add_system_to_stage(RenderStage::Prepare, prepare_view_extensions)
             .add_system_to_stage(RenderStage::Prepare, prepare_depth_pass_texture)

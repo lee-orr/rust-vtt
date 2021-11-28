@@ -29,6 +29,7 @@ impl Plugin for SDFOperationPlugin {
             SDFStages::GenerateGpu,
             SystemStage::parallel(),
         )
+        .add_system_to_stage(CoreStage::PreUpdate, clean_dirty_object)
         .add_system_to_stage(SDFStages::MarkDirty, mark_dirty_object)
         .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds)
         // .add_system_to_stage(SDFStages::GenerateGpu, sort_sdf_objects)
@@ -159,14 +160,14 @@ pub fn extract_gpu_node_trees(
         Entity,
         &GlobalTransform,
         &SDFObjectTree,
-        &SDFGlobalNodeBounds,
+        &SDFGlobalNodeBounds
     )>,
     ordered: Res<SortedSDFObjects>
 ) {
     for (entity, transform, tree, bounds) in query.iter() {
-        commands
-            .get_or_spawn(entity)
-            .insert(SDFRootTransform {
+        let mut ecommands = commands
+            .get_or_spawn(entity);
+        ecommands.insert(SDFRootTransform {
                 matrix: transform.compute_matrix(),
                 translation: transform.translation,
                 scale: transform.scale,
@@ -175,6 +176,12 @@ pub fn extract_gpu_node_trees(
             .insert(*bounds);
     }
     commands.insert_resource(ordered.clone());
+}
+
+pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
+    for (entity, _) in query.iter() {
+        commands.get_or_spawn(entity).insert(SDFObjectDirty);
+    }
 }
 
 fn generate_node_bounds(
@@ -339,14 +346,19 @@ pub fn construct_sdf_object_tree(
     for (entity, object) in object_query.iter() {
         let mut tree = Vec::<GpuSDFNode>::new();
         generate_gpu_node(&mut tree, &object.root, &node_query);
-        commands.entity(entity).insert(SDFObjectTree { tree });
-        commands.entity(entity).remove::<SDFObjectDirty>();
+        commands.entity(entity).insert(SDFObjectTree { tree }).insert(SDFObjectDirty);
     }
 }
 
 pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<SDFNode>>) {
     for node in query.iter() {
         commands.entity(node.object).insert(SDFObjectDirty);
+    }
+}
+
+fn clean_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
+    for (entity, _) in query.iter() {
+        commands.entity(entity).remove::<SDFObjectDirty>();
     }
 }
 

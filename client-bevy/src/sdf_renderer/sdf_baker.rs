@@ -16,7 +16,7 @@ use wgpu::{
     TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::sdf_operation::{SDFGlobalNodeBounds, SDFObjectTree, SDFRootTransform, SortedSDFObjects};
+use super::sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform, SortedSDFObjects};
 
 pub struct SDFBakerPlugin;
 
@@ -42,7 +42,7 @@ impl Plugin for SDFBakerPlugin {
             .init_resource::<LastNumObjects>()
             .add_system_to_stage(RenderStage::Cleanup, reset_bake)
             .add_system_to_stage(RenderStage::Extract, extract_sdf_origin)
-            .add_system_to_stage(RenderStage::Extract, extract_rebuild)
+            .add_system_to_stage(RenderStage::Prepare, prepare_rebuild)
             .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin)
             .add_system_to_stage(RenderStage::Prepare, prepare_zones)
             .add_system_to_stage(RenderStage::Prepare, setup_textures)
@@ -278,17 +278,17 @@ fn extract_sdf_origin(
     }
 }
 
-fn extract_rebuild(
+fn prepare_rebuild(
     mut commands: Commands,
-    query: Query<(Entity, &SDFGlobalNodeBounds), Changed<SDFObjectTree>>,
+    query: Query<(Entity, &SDFObjectDirty)>,
 ) {
-    let exists = query.get_single().is_ok();
+    let exists = !query.iter().collect::<Vec<_>>().is_empty();
     if exists {
         commands.insert_resource(ReBakeSDFResource { rebake: true });
     }
 }
 
-const ZONES_PER_DIMENSION: i32 = 10;
+const ZONES_PER_DIMENSION: i32 = 32;
 
 #[derive(AsStd140)]
 struct NumZones {
@@ -313,7 +313,6 @@ fn prepare_zones(
     mut zones: ResMut<SDFZones>,
     sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
     mut last_num_objects: ResMut<LastNumObjects>,
-    // sorted: Res<SortedSDFObjects>,
 ) {
     let mut objects = query.iter().collect::<Vec<_>>();
     objects.sort_by(|a, b| a.0.cmp(&b.0));
@@ -324,7 +323,6 @@ fn prepare_zones(
     }
     last_num_objects.num_objects = objects.len() as u32;
 
-    // let objects = sorted.objects.iter().map(|entity| query.get(*entity).unwrap()).collect::<Vec<_>>();
     let mut zone_objects: Vec<i32> = Vec::new();
     let mut active_zones: Vec<SDFZoneDefinitions> = Vec::new();
     let mut zone_hash: HashMap<(u32, u32, u32), Vec<i32>> = HashMap::new();
@@ -334,11 +332,7 @@ fn prepare_zones(
     let bounds_min = origin.origin - (settings.max_size / 2.);
     let _bounds_max = origin.origin + (settings.max_size / 2.);
     let voxel_size = (settings.max_size / settings.layer_size).max_element();
-    let effective_radius = zone_radius * 2.;
-    // println!(
-    //     "Zone Settings - size: {}, radius: {}, world bounds min: {}, effective radius: {}, origin: {} ",
-    //     &zone_size, &zone_radius, &bounds_min, &effective_radius, &origin.origin
-    // );
+    let effective_radius = zone_radius;
 
     for (obj, (_, bounds, _)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius * 2. + effective_radius;
@@ -346,10 +340,6 @@ fn prepare_zones(
         let max_zone_bound = bounds.center + zone_bound_radius;
         let min_zone_bound = ((min_zone_bound - bounds_min) / zone_size).floor();
         let max_zone_bound = ((max_zone_bound - bounds_min) / zone_size).floor();
-        // println!(
-        //     "Object: center: {}, radius: {}, min: {}, max: {}",
-        //     &bounds.center, &bounds.radius, &min_zone_bound, &max_zone_bound
-        // );
         for x in (min_zone_bound.x as i32)..(max_zone_bound.x as i32) {
             if x > ZONES_PER_DIMENSION {
                 break;
@@ -385,21 +375,49 @@ fn prepare_zones(
         }
     }
 
-    for ((x, y, z), mut vec) in zone_hash.into_iter() {
-        let offset = Vec3::new(x as f32, y as f32, z as f32);
-        let min = offset * zone_size + bounds_min;
-        let max = min + zone_size;
-        let first_object = zone_objects.len() as i32;
-        zone_objects.append(&mut vec);
-        let final_object = zone_objects.len() as i32;
-        let zone = SDFZoneDefinitions {
-            min,
-            max,
-            first_object,
-            final_object,
-        };
-        // println!("Zone: {:?}", zone);
-        active_zones.push(zone);
+    // for ((x, y, z), mut vec) in zone_hash.into_iter() {
+    //     let offset = Vec3::new(x as f32, y as f32, z as f32);
+    //     let min = offset * zone_size + bounds_min;
+    //     let max = min + zone_size;
+    //     let first_object = zone_objects.len() as i32;
+    //     zone_objects.append(&mut vec);
+    //     let final_object = zone_objects.len() as i32;
+    //     let zone = SDFZoneDefinitions {
+    //         min,
+    //         max,
+    //         first_object,
+    //         final_object,
+    //     };
+    //     // println!("Zone: {:?}", zone);
+    //     active_zones.push(zone);
+    // }
+
+    for x in 0..ZONES_PER_DIMENSION {
+        for y in 0..ZONES_PER_DIMENSION {
+            for z in 0..ZONES_PER_DIMENSION {
+                let zone_objects_vec = zone_hash.get_mut(&(x as u32, y as u32, z as u32));
+                let offset = Vec3::new(x as f32, y as f32, z as f32);
+                let min = offset * zone_size + bounds_min;
+                let max = min + zone_size;
+                let (first_object, final_object) = match zone_objects_vec {
+                    Some(mut vec) => {
+                        let a = zone_objects.len() as i32;
+                        zone_objects.append(&mut vec);
+                        let b = zone_objects.len() as i32;
+                        (a, b)
+                    },
+                    None => (0, 0),
+                };
+                let zone = SDFZoneDefinitions {
+                    min,
+                    max,
+                    first_object,
+                    final_object,
+                };
+                // println!("Zone: {:?}", zone);
+                active_zones.push(zone);
+            }
+        }
     }
 
     if zone_objects.is_empty() {
@@ -443,7 +461,7 @@ fn prepare_zones(
         contents: bytemuck::cast_slice(&[(NumZones {
             num_zones: num_zones as i32,
             zone_radius,
-            zone_size: zone_half_size * 2.,
+            zone_size: zone_size,
             zone_origin: bounds_min,
             zones_per_dimension: ZONES_PER_DIMENSION as i32,
         })
