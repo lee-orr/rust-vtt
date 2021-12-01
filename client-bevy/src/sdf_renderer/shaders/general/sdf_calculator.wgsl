@@ -95,16 +95,21 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         var child_index = index + 1;
         var current_frame = stack[index];
         var node = current_frame.node;
-        if (current_frame.process_bounds) {
-            var d = abs(point - node.center);
-            let radius_extension = current_frame.current_epsilon * 2.;
-            let threshold = node.radius + radius_extension;
-            if (d.x > threshold || d.y > threshold || d.z > threshold) {
-                last_result = max_component(d) - node.radius + radius_extension/2.;
-                index = index - 1;
-                continue;
-            } 
-        }
+        // if (current_frame.process_bounds) {
+        //     // var d = length(point - node.center);
+        //     // let radius_extension = current_frame.current_epsilon;
+        //     // let threshold = node.radius + radius_extension;
+        //     // if (d > threshold) {
+        //     //     last_result = d - threshold + radius_extension / 2.;
+        //     //     index = index - 1;
+        //     //     continue;
+        //     // }
+        //     var d = point - node.center;
+        //     let threshold = node.radius + current_frame.current_epsilon;
+        //     last_result = sphereSDF(d, node.radius);
+        //     index = index - 1;
+        //     continue;
+        // }
         if (node.node_type == SPHERE_PRIM) {
             last_result = sphereSDF(current_frame.point, node.params[0].x);
         } elseif (node.node_type == BOX_PRIM) {
@@ -197,7 +202,7 @@ fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<N
     let first_object : i32 = zone.first_object;
     for (var i : i32 = first_object; i < final_object; i = i + 1) {
         let object_id = zone_objects.zone_objects[i];
-        var result = processNode(point, object_id, num_zones.zone_radius * 6., stack);
+        var result = processNode(point, object_id, num_zones.zone_radius, stack);
         var brush_dist : f32 = result.x;
         dist = min(dist, brush_dist);
     } 

@@ -241,9 +241,9 @@ impl Default for SDFBakedLayerOrigins {
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
-            max_size: Vec3::new(50., 25., 50.),
-            layer_size: Vec3::new(512., 256., 512.),
-            num_layers: 1,
+            max_size: Vec3::new(100., 50., 100.),
+            layer_size: Vec3::new(128., 64., 128.),
+            num_layers: 5,
             layer_multiplier: 2,
         }
     }
@@ -288,7 +288,7 @@ fn prepare_rebuild(
     }
 }
 
-const ZONES_PER_DIMENSION: i32 = 32;
+const ZONES_PER_DIMENSION: i32 = 10;
 
 #[derive(AsStd140)]
 struct NumZones {
@@ -315,13 +315,14 @@ fn prepare_zones(
     mut last_num_objects: ResMut<LastNumObjects>,
 ) {
     let mut objects = query.iter().collect::<Vec<_>>();
-    objects.sort_by(|a, b| a.0.cmp(&b.0));
 
     if last_num_objects.num_objects != objects.len() as u32 {
         println!("Num Objects changed");
         commands.insert_resource(ReBakeSDFResource { rebake: true });
     }
     last_num_objects.num_objects = objects.len() as u32;
+
+    objects.sort_by(|a, b| a.0.cmp(&b.0));
 
     let mut zone_objects: Vec<i32> = Vec::new();
     let mut active_zones: Vec<SDFZoneDefinitions> = Vec::new();
@@ -502,11 +503,12 @@ fn prepare_sdf_origin(
         Err(_) => Vec3::ZERO,
     };
     let dist = (origin.origin - transform).abs();
-    let bounds = 2. * settings.max_size / 3.;
+    let bounds = settings.max_size / 3.;
     if dist.x > bounds.x || dist.y > bounds.y || dist.z > bounds.z {
         origin.origin = (transform * settings.max_size / settings.layer_size).floor()
             * settings.layer_size
             / settings.max_size;
+        println!("Move origin");
         commands.insert_resource(ReBakeSDFResource { rebake: true });
     }
 }

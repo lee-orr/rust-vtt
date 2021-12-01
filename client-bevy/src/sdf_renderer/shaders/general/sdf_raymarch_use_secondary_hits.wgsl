@@ -9,7 +9,7 @@ struct MarchHit {
 };
 
 let MAX_MARCHING_STEPS = 100;
-let MAX_DISTANCE = 50.;
+let MAX_DISTANCE = 100.;
 
 fn march(start: vec3<f32>, ray: vec3<f32>, start_distance: f32, pixel_size: f32, max_dist: f32, max_steps: i32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> MarchHit {
     let global_hit_epsilon: f32 = pixel_size;
