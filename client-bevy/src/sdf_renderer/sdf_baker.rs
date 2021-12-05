@@ -1,12 +1,20 @@
 use std::collections::HashMap;
 
-use bevy::{core_pipeline::draw_3d_graph, ecs::system::Command, math::Vec3, prelude::{Changed, Commands, Component, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With, World}, render2::{
+use bevy::{
+    core_pipeline::draw_3d_graph,
+    math::Vec3,
+    prelude::{
+        Commands, Component, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With,
+        World,
+    },
+    render2::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         RenderApp, RenderStage,
-    }};
+    },
+};
 use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
@@ -278,10 +286,7 @@ fn extract_sdf_origin(
     }
 }
 
-fn prepare_rebuild(
-    mut commands: Commands,
-    query: Query<(Entity, &SDFObjectDirty)>,
-) {
+fn prepare_rebuild(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
     let exists = !query.iter().collect::<Vec<_>>().is_empty();
     if exists {
         commands.insert_resource(ReBakeSDFResource { rebake: true });
@@ -306,7 +311,7 @@ struct LastNumObjects {
 
 fn prepare_zones(
     mut commands: Commands,
-    query: Query<(Entity, &SDFGlobalNodeBounds, &SDFObjectTree)>,
+    query: Query<(Entity, &SDFGlobalNodeBounds)>,
     render_device: Res<RenderDevice>,
     settings: Res<SDFBakerSettings>,
     origin: Res<SDFBakedLayerOrigins>,
@@ -332,10 +337,10 @@ fn prepare_zones(
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (settings.max_size / 2.);
     let _bounds_max = origin.origin + (settings.max_size / 2.);
-    let voxel_size = (settings.max_size / settings.layer_size).max_element();
+    let _voxel_size = (settings.max_size / settings.layer_size).max_element();
     let effective_radius = zone_radius;
 
-    for (obj, (_, bounds, _)) in objects.iter().enumerate() {
+    for (obj, (_, bounds)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius * 2. + effective_radius;
         let min_zone_bound = bounds.center - zone_bound_radius;
         let max_zone_bound = bounds.center + zone_bound_radius;
@@ -364,34 +369,15 @@ fn prepare_zones(
                         continue;
                     }
                     let key = (x as u32, y as u32, z as u32);
-                    if !zone_hash.contains_key(&key) {
-                        zone_hash.insert(*&key, Vec::new());
-                    }
-                    let mut vec = zone_hash.get_mut(&key);
-                    if let Some(mut vec) = vec {
+                    zone_hash.entry(key).or_insert_with(Vec::new);
+                    let vec = zone_hash.get_mut(&key);
+                    if let Some(vec) = vec {
                         vec.push(obj as i32);
                     }
                 }
             }
         }
     }
-
-    // for ((x, y, z), mut vec) in zone_hash.into_iter() {
-    //     let offset = Vec3::new(x as f32, y as f32, z as f32);
-    //     let min = offset * zone_size + bounds_min;
-    //     let max = min + zone_size;
-    //     let first_object = zone_objects.len() as i32;
-    //     zone_objects.append(&mut vec);
-    //     let final_object = zone_objects.len() as i32;
-    //     let zone = SDFZoneDefinitions {
-    //         min,
-    //         max,
-    //         first_object,
-    //         final_object,
-    //     };
-    //     // println!("Zone: {:?}", zone);
-    //     active_zones.push(zone);
-    // }
 
     for x in 0..ZONES_PER_DIMENSION {
         for y in 0..ZONES_PER_DIMENSION {
@@ -401,12 +387,13 @@ fn prepare_zones(
                 let min = offset * zone_size + bounds_min;
                 let max = min + zone_size;
                 let (first_object, final_object) = match zone_objects_vec {
-                    Some(mut vec) => {
+                    Some(vec) => {
                         let a = zone_objects.len() as i32;
-                        zone_objects.append(&mut vec);
+                        zone_objects.append(vec);
                         let b = zone_objects.len() as i32;
+                        //println!("Zone: {} {} {} {}", min, max, a, b);
                         (a, b)
-                    },
+                    }
                     None => (0, 0),
                 };
                 let zone = SDFZoneDefinitions {
@@ -415,7 +402,6 @@ fn prepare_zones(
                     first_object,
                     final_object,
                 };
-                // println!("Zone: {:?}", zone);
                 active_zones.push(zone);
             }
         }
@@ -462,7 +448,7 @@ fn prepare_zones(
         contents: bytemuck::cast_slice(&[(NumZones {
             num_zones: num_zones as i32,
             zone_radius,
-            zone_size: zone_size,
+            zone_size,
             zone_origin: bounds_min,
             zones_per_dimension: ZONES_PER_DIMENSION as i32,
         })

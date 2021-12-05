@@ -10,12 +10,10 @@ use bevy::{
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
 use sdf_renderer::{
-    sdf_operation::{SDFOperation, SDFShape, SDFObjectAsset},
+    sdf_operation::{SDFObjectAsset, SDFOperation},
     SdfPlugin,
 };
 use wasm_bindgen::prelude::*;
-
-use crate::sdf_renderer::sdf_operation::{ SDFNodeData, SDFObject};
 
 #[wasm_bindgen]
 pub fn run() {
@@ -43,14 +41,19 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 50;
+const NUM_BRUSHES: i32 = 10;
 const UNOPTIMIZED_OBJECTS: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
-
-fn animate(mut query: Query<(&SDFObject, &mut Transform)>, time: Res<Time>) {
+fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
     for (_, mut transform) in query.iter_mut() {
-        transform.translation += Vec3::X * time.delta().as_secs_f32() * (if time.seconds_since_startup() as i32 % 2 == 0 { 0.5 } else { -0.5 });
+        transform.translation += Vec3::X
+            * time.delta().as_secs_f32()
+            * (if time.seconds_since_startup() as i32 % 2 == 0 {
+                0.5
+            } else {
+                -0.5
+            });
     }
 }
 
@@ -61,7 +64,8 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
         let sdf_object = sdf_objects.add(sdf_object);
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
-                commands.spawn()
+                commands
+                    .spawn()
                     .insert(sdf_object.clone())
                     .insert(Transform::from_translation(Vec3::new(
                         i as f32 * 4.,
@@ -74,9 +78,10 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
     } else {
         let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.5);
         let sdf_object = sdf_objects.add(sdf_object);
-        commands.spawn()
+        commands
+            .spawn()
             .insert(Transform::default())
             .insert(GlobalTransform::default())
-            .insert(sdf_object.clone());
+            .insert(sdf_object);
     }
 }
