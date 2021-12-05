@@ -380,8 +380,12 @@ fn generate_gpu_node(
 fn set_dirty_object(
     mut commands: Commands,
     query: Query<(Entity, &Handle<SDFObjectAsset>), Changed<GlobalTransform>>,
+    query_2: Query<(Entity, &Handle<SDFObjectAsset>), Changed<Handle<SDFObjectAsset>>>,
 ) {
     for (entity, _) in query.iter() {
+        commands.entity(entity).insert(SDFObjectDirty);
+    }
+    for (entity, _) in query_2.iter() {
         commands.entity(entity).insert(SDFObjectDirty);
     }
 }
