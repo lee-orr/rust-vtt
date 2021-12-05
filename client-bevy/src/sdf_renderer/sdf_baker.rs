@@ -16,7 +16,7 @@ use wgpu::{
     TextureUsages, TextureViewDescriptor, TextureViewDimension,
 };
 
-use super::sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform, SortedSDFObjects};
+use super::sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform};
 
 pub struct SDFBakerPlugin;
 

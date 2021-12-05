@@ -40,7 +40,7 @@ use wgpu::{
 
 use crate::sdf_renderer::{sdf_baker::{SDFBakePassNode, SDFBakerPlugin}, sdf_operation::{BrushSettings, SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode, extract_dirty_object, extract_gpu_node_trees}};
 
-use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, SortedSDFObjects, TRANSFORM_WARP}};
+use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, TRANSFORM_WARP}};
 
 pub struct SdfPlugin;
 
@@ -53,8 +53,8 @@ impl Plugin for SdfPlugin {
             include_str!("shaders/general/baked_render_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
             include_str!("shaders/general/baked_sdf_reader.wgsl"),
-            include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
-            include_str!("shaders/fragment/full_fragment_secondary_hits.wgsl")
+            include_str!("shaders/general/sdf_raymarch.wgsl"),
+            include_str!("shaders/fragment/full_fragment.wgsl")
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
@@ -93,25 +93,28 @@ impl Plugin for SdfPlugin {
             .add_system_to_stage(RenderStage::Queue, queue_brush_bindings)
             .add_system_to_stage(RenderStage::Queue, queue_baked_textures);
 
-        let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
+        // let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
         let draw_3d_graph = graph.get_sub_graph_mut(draw_3d_graph::NAME);
         if let Some(draw_3d_graph) = draw_3d_graph {
-            draw_3d_graph.add_node(DepthPrePassNode::NAME, depth_pre_pass_node);
-            let input_node_id = draw_3d_graph.input_node().unwrap().id;
+            // draw_3d_graph.add_node(DepthPrePassNode::NAME, depth_pre_pass_node);
+            // let input_node_id = draw_3d_graph.input_node().unwrap().id;
+            // draw_3d_graph
+            //     .add_slot_edge(
+            //         input_node_id,
+            //         draw_3d_graph::input::VIEW_ENTITY,
+            //         DepthPrePassNode::NAME,
+            //         DepthPrePassNode::IN_VIEW,
+            //     )
+            //     .unwrap();
+            // draw_3d_graph
+            //     .add_node_edge(DepthPrePassNode::NAME, node::MAIN_PASS)
+            //     .unwrap();
+            // draw_3d_graph
+            // .add_node_edge(SDFBakePassNode::NAME, DepthPrePassNode::NAME)
+            // .unwrap();
             draw_3d_graph
-                .add_slot_edge(
-                    input_node_id,
-                    draw_3d_graph::input::VIEW_ENTITY,
-                    DepthPrePassNode::NAME,
-                    DepthPrePassNode::IN_VIEW,
-                )
-                .unwrap();
-            draw_3d_graph
-                .add_node_edge(DepthPrePassNode::NAME, node::MAIN_PASS)
-                .unwrap();
-            draw_3d_graph
-                .add_node_edge(SDFBakePassNode::NAME, DepthPrePassNode::NAME)
+                .add_node_edge(SDFBakePassNode::NAME, node::MAIN_PASS)
                 .unwrap();
         }
     }

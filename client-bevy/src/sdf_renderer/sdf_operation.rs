@@ -1,4 +1,6 @@
-use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, Res, ResMut, StageLabel, SystemStage, Transform, With}};
+use std::collections::HashMap;
+
+use bevy::{math::{Mat4, Vec3, Vec4, Vec4Swizzles}, prelude::{Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Plugin, Query, Res, ResMut, StageLabel, SystemStage, Transform, With, Handle, Assets}, reflect::TypeUuid, render2::render_asset::RenderAsset};
 
 use crevice::std140::AsStd140;
 
@@ -13,7 +15,6 @@ pub struct SDFOperationPlugin;
 impl Plugin for SDFOperationPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app
-        .init_resource::<SortedSDFObjects>()
         .add_stage_after(
             CoreStage::Update,
             SDFStages::MarkDirty,
@@ -30,10 +31,10 @@ impl Plugin for SDFOperationPlugin {
             SystemStage::parallel(),
         )
         .add_system_to_stage(CoreStage::PreUpdate, clean_dirty_object)
-        .add_system_to_stage(SDFStages::MarkDirty, mark_dirty_object)
-        .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds)
+        // .add_system_to_stage(SDFStages::MarkDirty, mark_dirty_object)
+        .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds);
         // .add_system_to_stage(SDFStages::GenerateGpu, sort_sdf_objects)
-        .add_system_to_stage(SDFStages::GenerateGpu, construct_sdf_object_tree);
+        // .add_system_to_stage(SDFStages::GenerateGpu, construct_sdf_object_tree);
     }
 }
 
@@ -42,7 +43,7 @@ pub struct BrushSettings {
     pub num_brushes: i32,
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Copy, Component)]
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
@@ -61,7 +62,7 @@ impl SDFShape {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, )]
 pub enum SDFOperation {
     Union,
     Subtraction,
@@ -96,24 +97,18 @@ pub struct GpuSDFNode {
     pub center: Vec3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum SDFNodeData {
     Empty,
     Primitive(SDFShape),
-    Operation(SDFOperation, f32, Entity, Entity),
-    Transform(Entity),
+    Operation(SDFOperation, f32, usize, usize),
+    Transform(usize, Transform),
 }
 
 impl Default for SDFNodeData {
     fn default() -> Self {
         Self::Empty
     }
-}
-
-#[derive(Debug, Component)]
-pub struct SDFNode {
-    pub data: SDFNodeData,
-    pub object: Entity,
 }
 
 #[derive(Debug, Default, Clone, Copy, Component)]
@@ -130,6 +125,61 @@ pub struct SDFObject {
 
 pub struct SDFObjectDirty;
 
+#[uuid = "8ecbaccb-e565-4143-ad92-e9a4243bc51e"]
+#[derive(Debug, Clone, TypeUuid)]
+pub struct SDFObjectAsset {
+    pub nodes: Vec<(SDFNodeData, Vec3, f32)>,
+    pub root: usize,
+    pub bounds: (Vec3, f32),
+}
+
+impl SDFObjectAsset {
+    pub fn new(nodes: Vec<SDFNodeData>) -> Self {
+        let mut bound_tree = HashMap::<usize, (SDFNodeData, Vec3, f32)>::new();
+        let bounds = generate_node_bounds(0, &nodes, &mut bound_tree);
+        Self {
+            nodes: { 0..nodes.len()}.into_iter().map(|a| *bound_tree.get(&a).unwrap_or(&(SDFNodeData::default(), Vec3::ZERO, 0.))).collect(),
+            root: 0,
+            bounds,
+        }
+    }
+
+    pub fn cube() -> Self{
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.))])
+    }
+
+    pub fn sphere() -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.))])
+    }
+
+    pub fn test_object(operation: SDFOperation, blend: f32) -> Self {
+        Self::new(vec![SDFNodeData::Operation(operation, blend, 1, 2), SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2)), SDFNodeData::Transform(3, Transform::from_translation(Vec3::new(2., 0., 0.))), SDFNodeData::Primitive(SDFShape::Sphere(2.))])
+    }
+}
+
+impl RenderAsset for SDFObjectAsset {
+    type ExtractedAsset = Self;
+
+    type PreparedAsset = SDFObjectTree;
+
+    type Param = ();
+
+    fn extract_asset(&self) -> Self::ExtractedAsset {
+        self.clone()
+    }
+
+    fn prepare_asset(
+        extracted_asset: Self::ExtractedAsset,
+        param: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
+    ) -> Result<Self::PreparedAsset, bevy::render2::render_asset::PrepareAssetError<Self::ExtractedAsset>> {
+        let mut tree : Vec<GpuSDFNode> = Vec::new();
+        generate_gpu_node(&mut tree, extracted_asset.root, &extracted_asset);
+        Ok(Self::PreparedAsset {
+            tree,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Component)]
 pub struct SDFObjectTree {
     pub tree: Vec<GpuSDFNode>,
@@ -140,11 +190,6 @@ pub struct SDFRootTransform {
     pub matrix: Mat4,
     pub translation: Vec3,
     pub scale: Vec3,
-}
-
-#[derive(Default, Clone)]
-pub struct SortedSDFObjects {
-    pub objects: Vec<Entity>,
 }
 
 pub const UNION_OP: i32 = 1;
@@ -161,8 +206,7 @@ pub fn extract_gpu_node_trees(
         &GlobalTransform,
         &SDFObjectTree,
         &SDFGlobalNodeBounds
-    )>,
-    ordered: Res<SortedSDFObjects>
+    )>
 ) {
     for (entity, transform, tree, bounds) in query.iter() {
         let mut ecommands = commands
@@ -175,7 +219,6 @@ pub fn extract_gpu_node_trees(
             .insert(tree.clone())
             .insert(*bounds);
     }
-    commands.insert_resource(ordered.clone());
 }
 
 pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
@@ -185,117 +228,86 @@ pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFOb
 }
 
 fn generate_node_bounds(
-    mut commands: &mut Commands,
-    entity: &Entity,
-    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>,
-    parent_location: Vec3,
-    parent_scale: f32,
-) -> SDFGlobalNodeBounds {
-    if let Ok((entity, sdfnode, transform)) = node_query.get(entity.to_owned()) {
-        let bounds = match &sdfnode.data {
-            SDFNodeData::Empty => SDFGlobalNodeBounds::default(),
+    node_id: usize,
+    nodes: &Vec<SDFNodeData>,
+    bound_nodes: &mut HashMap<usize, (SDFNodeData, Vec3, f32)>
+) -> (Vec3, f32) {
+    if let Some(node) = nodes.get(node_id) {
+        let (center, radius) = match node {
+            SDFNodeData::Empty => (Vec3::ZERO, 0.),
             SDFNodeData::Primitive(primitive) => match primitive {
-                SDFShape::Sphere(radius) => SDFGlobalNodeBounds {
-                    center: -parent_location,
-                    radius: radius * parent_scale,
-                },
-                SDFShape::Box(width, height, depth) => SDFGlobalNodeBounds {
-                    center: -parent_location,
-                    radius: Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned())
-                        .length()
-                        * parent_scale,
-                },
-            },
-            SDFNodeData::Operation(operation, blending, a, b) => {
-                let child_a = generate_node_bounds(
-                    &mut commands,
-                    a,
-                    node_query,
-                    parent_location,
-                    parent_scale,
-                );
-                let child_b = generate_node_bounds(
-                    &mut commands,
-                    b,
-                    node_query,
-                    parent_location,
-                    parent_scale,
-                );
-                let min_bounds_a = child_a.center - child_a.radius;
-                let max_bounds_a = child_a.center + child_a.radius;
-                let min_bounds_b = child_b.center - child_b.radius;
-                let max_bounds_b = child_b.center + child_b.radius;
+                SDFShape::Sphere(radius) => (Vec3::ZERO, *radius),
+                SDFShape::Box(width, height, depth) => 
+                (Vec3::ZERO, Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned())
+                .length())
+            }
+            SDFNodeData::Operation(op, blend, child_a, child_b) => {
+                let (center_a, radius_a) = generate_node_bounds(*child_a, nodes, bound_nodes);
+                let (center_b, radius_b) = generate_node_bounds(*child_b, nodes, bound_nodes);
 
-                let (min_bounds, max_bounds) = match operation {
-                    SDFOperation::Union => (
-                        min_bounds_a.min(min_bounds_b),
-                        max_bounds_a.max(max_bounds_b),
-                    ),
+                let min_bounds_a = center_a - radius_a;
+                let max_bounds_a = center_a + radius_a;
+                let min_bounds_b = center_b - radius_b;
+                let max_bounds_b = center_b + radius_b;
+
+                let (min, max) = match op {
+                    SDFOperation::Union => (min_bounds_a.min(min_bounds_b), max_bounds_a.max(max_bounds_b)),
                     SDFOperation::Subtraction => (min_bounds_a, max_bounds_a),
-                    SDFOperation::Intersection => (
-                        min_bounds_a.max(min_bounds_b),
-                        max_bounds_a.min(max_bounds_b),
-                    ),
+                    SDFOperation::Intersection => (min_bounds_a.max(min_bounds_b), max_bounds_a.min(max_bounds_b)),
                 };
-
-                let center = (max_bounds + min_bounds) / 2.0;
-                let extents = (max_bounds - center) + blending.to_owned();
-                let radius = extents.max_element();
-                SDFGlobalNodeBounds { center, radius }
-            }
-            SDFNodeData::Transform(child) => {
-                let (mut translation, mut scale) = match transform {
-                    Some(transform) => (transform.translation, transform.scale.max_element()),
-                    None => (Vec3::ZERO, 1.),
-                };
-                translation += parent_location;
-                scale *= parent_scale;
-
-                generate_node_bounds(&mut commands, child, node_query, translation, scale)
-            }
+                let center = (max + min) / 2.;
+                let extents = (max - center) + *blend;
+                (center, extents.length())
+            },
+            SDFNodeData::Transform(child, transform) => {
+                let (center, radius) = generate_node_bounds(*child, nodes, bound_nodes);
+                let center = center - transform.translation;
+                let radius = radius * transform.scale.max_element();
+                (center, radius)
+            },
         };
 
-        commands.entity(entity).insert(bounds);
-        bounds
+        bound_nodes.insert(node_id, (*node, *&center, *&radius));
+        (center, radius)
     } else {
-        SDFGlobalNodeBounds::default()
+        (Vec3::ZERO, 0.)
     }
 }
 
 fn construct_node_tree_bounds(
     mut commands: Commands,
     object_query: Query<
-        (Entity, &SDFObject, &GlobalTransform),
+        (Entity, &Handle<SDFObjectAsset>, &GlobalTransform),
         Or<(Changed<SDFObjectDirty>, Changed<Transform>)>,
     >,
-    node_query: Query<(Entity, &SDFNode, Option<&Transform>)>,
+    objects: Res<Assets<SDFObjectAsset>>,
 ) {
     for (entity, object, transform) in object_query.iter() {
-        let tree_bounds = generate_node_bounds(
-            &mut commands,
-            &object.root,
-            &node_query,
-            transform.translation,
-            transform.scale.max_element(),
-        );
-        commands.entity(entity).insert(tree_bounds);
+        let asset = objects.get(object);
+        if let Some(object) = asset {
+            let bounds = object.bounds;
+            let global_bounds = SDFGlobalNodeBounds {
+                radius: bounds.1 * transform.scale.max_element(),
+                center: bounds.0 + transform.translation,
+            };
+            commands.entity(entity).insert(global_bounds);
+        }
     }
 }
 
 fn generate_gpu_node(
     tree: &mut Vec<GpuSDFNode>,
-    entity: &Entity,
-    node_query: &Query<(Entity, &SDFNode, &SDFGlobalNodeBounds, Option<&Transform>)>,
+    node: usize,
+    node_query: &SDFObjectAsset,
 ) -> (i32, Option<GpuSDFNode>) {
-    if let Ok((_entity, sdfnode, bounds, transform)) = node_query.get(entity.to_owned()) {
+    if let Some((sdfnode, center, radius)) = node_query.nodes.get(node) {
         let new_id = tree.len();
         tree.push(GpuSDFNode::default());
         let mut new_node = GpuSDFNode {
-            center: bounds.center,
-            radius: bounds.radius,
+            center: *center,
+            radius: *radius,
             ..Default::default()
         };
-        let sdfnode = &sdfnode.data;
 
         if let SDFNodeData::Primitive(primitive) = sdfnode {
             match primitive {
@@ -316,17 +328,15 @@ fn generate_gpu_node(
                 SDFOperation::Intersection => INTERSECTION_OP,
             };
             new_node.params.x_axis.x = blending.to_owned();
-            let (child_a_id, _child_a) = generate_gpu_node(tree, child_a, node_query);
-            let (child_b_id, _child_b) = generate_gpu_node(tree, child_b, node_query);
+            let (child_a_id, _child_a) = generate_gpu_node(tree, *child_a, node_query);
+            let (child_b_id, _child_b) = generate_gpu_node(tree, *child_b, node_query);
             new_node.child_a = child_a_id - (new_id as i32);
             new_node.child_b = child_b_id - (new_id as i32);
-        } else if let SDFNodeData::Transform(child) = sdfnode {
-            if let Some(transform) = transform {
-                new_node.node_type = TRANSFORM_WARP;
-                new_node.params = transform.compute_matrix();
-                let (child_id, _child) = generate_gpu_node(tree, child, node_query);
-                new_node.child_a = child_id - (new_id as i32);
-            }
+        } else if let SDFNodeData::Transform(child, transform) = sdfnode {
+            new_node.node_type = TRANSFORM_WARP;
+            new_node.params = transform.compute_matrix();
+            let (child_id, _child) = generate_gpu_node(tree, *child, node_query);
+            new_node.child_a = child_id - (new_id as i32);
         }
 
         tree[new_id] = new_node.clone();
@@ -338,62 +348,10 @@ fn generate_gpu_node(
     }
 }
 
-pub fn construct_sdf_object_tree(
-    mut commands: Commands,
-    object_query: Query<(Entity, &SDFObject), Or<(Changed<SDFObjectDirty>, Changed<Transform>)>>,
-    node_query: Query<(Entity, &SDFNode, &SDFGlobalNodeBounds, Option<&Transform>)>,
-) {
-    for (entity, object) in object_query.iter() {
-        let mut tree = Vec::<GpuSDFNode>::new();
-        generate_gpu_node(&mut tree, &object.root, &node_query);
-        commands.entity(entity).insert(SDFObjectTree { tree }).insert(SDFObjectDirty);
-    }
-}
-
-pub fn mark_dirty_object(mut commands: Commands, query: Query<&SDFNode, Changed<SDFNode>>) {
-    for node in query.iter() {
-        commands.entity(node.object).insert(SDFObjectDirty);
-    }
-}
 
 fn clean_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
     for (entity, _) in query.iter() {
         commands.entity(entity).remove::<SDFObjectDirty>();
-    }
-}
-
-// fn sort_sdf_objects(objects: Query<Entity, With<SDFObject>>, mut sorted_objects: ResMut<SortedSDFObjects>) {
-//     let mut objects = objects.iter().collect::<Vec<_>>();
-//     sorted_objects.objects = objects;
-// }
-
-pub fn process_sdf_node(
-    point: &Vec3,
-    entity: &Entity,
-    node_query: &Query<(Entity, &SDFNode, Option<&Transform>)>,
-) -> f32 {
-    if let Ok((_entity, sdfnode, transform)) = node_query.get(*entity) {
-        let sdfnode = &sdfnode.data;
-        match sdfnode {
-            SDFNodeData::Empty => 9999999.,
-            SDFNodeData::Primitive(primitive) => primitive.process(*point),
-            SDFNodeData::Operation(op, smoothness, a, b) => {
-                let a = process_sdf_node(point, a, node_query);
-                let b = process_sdf_node(point, b, node_query);
-                op.process(a, b, *smoothness)
-            }
-            SDFNodeData::Transform(entity) => {
-                if let Some(transform) = transform {
-                    let point =
-                        transform.compute_matrix() * Vec4::new(point.x, point.y, point.z, 1.);
-                    process_sdf_node(&point.xyz(), entity, node_query)
-                } else {
-                    process_sdf_node(point, entity, node_query)
-                }
-            }
-        }
-    } else {
-        99999999999.
     }
 }
 
@@ -402,7 +360,6 @@ mod tests {
     use super::*;
     use bevy::{
         math::Vec4Swizzles,
-        prelude::{ParallelSystemDescriptorCoercion, Stage, SystemStage, World},
     };
 
     fn assert_eq_f32(a: f32, b: f32) -> bool {
@@ -411,67 +368,21 @@ mod tests {
 
     #[test]
     fn generate_object_tree() {
-        let mut world = World::default();
-        let mut bounds_stage = SystemStage::parallel();
-        let mut gpu_stage = SystemStage::parallel();
-        bounds_stage.add_system(construct_node_tree_bounds.label("sdf_bounds"));
-        gpu_stage.add_system(construct_sdf_object_tree.after("sdf_bounds"));
-
-        let object = world.spawn().id();
-        let sphere = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
-            })
-            .id();
-        let sphere_transform = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Transform(sphere),
-            })
-            .insert(Transform::from_translation(Vec3::X))
-            .id();
-        let cube = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
-            })
-            .id();
-        let union = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
-            })
-            .id();
-
-        world
-            .get_entity_mut(object)
-            .unwrap()
-            .insert(GlobalTransform::default())
-            .insert(SDFObject { root: union })
-            .insert(SDFObjectDirty);
-
-        bounds_stage.run(&mut world);
-        gpu_stage.run(&mut world);
-
-        let tree = world.get::<SDFObjectTree>(object);
-        assert!(tree.is_some());
-        if let Some(tree) = tree {
+        let mut object = SDFObjectAsset::new(vec![SDFNodeData::Operation(SDFOperation::Union, 0., 1, 3), SDFNodeData::Transform(2, Transform::from_translation(Vec3::X)), SDFNodeData::Primitive(SDFShape::Sphere(1.)),SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5))]);
+        let gpu_object = SDFObjectAsset::prepare_asset(object, &mut ());
+        
+        assert!(gpu_object.is_ok());
+        if let Ok(tree) = gpu_object {
+            println!("GPU OBJECT: {:?}", tree);
             let tree = &tree.tree;
             assert!(!tree.is_empty());
             let root = &tree[0];
             assert_eq!(root.node_type, UNION_OP);
             assert!(assert_eq_f32(root.params.x_axis.x, 0.));
             assert_eq!(root.center, Vec3::new(-0.5669873, 0., 0.));
-            assert!(assert_eq_f32(root.radius, 1.4330127));
+            assert!(assert_eq_f32(root.radius, 2.013337));
             let left_child = &tree[root.child_a as usize];
-            let transform_matrix = world
-                .get::<Transform>(sphere_transform)
-                .unwrap()
+            let transform_matrix = Transform::from_translation(Vec3::X)
                 .compute_matrix();
             assert_eq!(left_child.params, transform_matrix);
             assert_eq!(left_child.center, -Vec3::X);
@@ -488,157 +399,7 @@ mod tests {
             let sphere = &tree[(root.child_a + left_child.child_a) as usize];
             assert_eq!(sphere.node_type, SPHERE_PRIM);
             assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
-            assert_eq!(sphere.center, -Vec3::X);
-            assert!(assert_eq_f32(sphere.radius, 1.));
-        }
-    }
-
-    #[test]
-    fn tree_not_generated_if_object_not_dirty() {
-        let mut world = World::default();
-        let mut bounds_stage = SystemStage::parallel();
-        let mut gpu_stage = SystemStage::parallel();
-        bounds_stage.add_system(construct_node_tree_bounds.label("sdf_bounds"));
-        gpu_stage.add_system(construct_sdf_object_tree.after("sdf_bounds"));
-
-        let object = world.spawn().id();
-        let sphere = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
-            })
-            .id();
-        let sphere_transform = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Transform(sphere),
-            })
-            .insert(Transform::from_translation(Vec3::X))
-            .id();
-        let cube = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
-            })
-            .id();
-        let union = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
-            })
-            .id();
-
-        world
-            .get_entity_mut(object)
-            .unwrap()
-            .insert(GlobalTransform::default())
-            .insert(SDFObject { root: union });
-
-        bounds_stage.run(&mut world);
-        gpu_stage.run(&mut world);
-
-        let tree = world.get::<SDFObjectTree>(object);
-        assert!(tree.is_none());
-    }
-
-    #[test]
-    fn adding_sdf_node_dirties_object_and_generates_tree() {
-        let mut world = World::default();
-        let mut update_stage = SystemStage::parallel();
-        let mut bounds_stage = SystemStage::parallel();
-        let mut gpu_stage = SystemStage::parallel();
-        update_stage.add_system(mark_dirty_object);
-        bounds_stage.add_system(construct_node_tree_bounds.label("sdf_bounds"));
-        gpu_stage.add_system(construct_sdf_object_tree.after("sdf_bounds"));
-
-        let object = world.spawn().id();
-
-        world
-            .get_entity_mut(object)
-            .unwrap()
-            .insert(GlobalTransform::default())
-            .insert(SDFObject { root: object });
-
-        update_stage.run(&mut world);
-        bounds_stage.run(&mut world);
-        gpu_stage.run(&mut world);
-
-        let tree = world.get::<SDFObjectTree>(object);
-        assert!(tree.is_none());
-
-        let sphere = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Sphere(1.)),
-            })
-            .id();
-        let sphere_transform = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Transform(sphere),
-            })
-            .insert(Transform::from_translation(Vec3::X))
-            .id();
-        let cube = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
-            })
-            .id();
-        let union = world
-            .spawn()
-            .insert(SDFNode {
-                object,
-                data: SDFNodeData::Operation(SDFOperation::Union, 0., sphere_transform, cube),
-            })
-            .id();
-        world
-            .get_entity_mut(object)
-            .unwrap()
-            .insert(SDFObject { root: union });
-
-        update_stage.run(&mut world);
-        bounds_stage.run(&mut world);
-        gpu_stage.run(&mut world);
-
-        let tree = world.get::<SDFObjectTree>(object);
-        assert!(tree.is_some());
-        if let Some(tree) = tree {
-            let tree = &tree.tree;
-            assert!(!tree.is_empty());
-            let root = &tree[0];
-            assert_eq!(root.node_type, UNION_OP);
-            assert!(assert_eq_f32(root.params.x_axis.x, 0.));
-            assert_eq!(root.center, Vec3::new(-0.5669873, 0., 0.));
-            assert!(assert_eq_f32(root.radius, 1.4330127));
-            let left_child = &tree[root.child_a as usize];
-            let transform_matrix = world
-                .get::<Transform>(sphere_transform)
-                .unwrap()
-                .compute_matrix();
-            assert_eq!(left_child.params, transform_matrix);
-            assert_eq!(left_child.center, -Vec3::X);
-            assert!(assert_eq_f32(left_child.radius, 1.));
-            let right_child = &tree[root.child_b as usize];
-            assert_eq!(right_child.node_type, BOX_PRIM);
-            let right_child_extents = right_child.params.x_axis;
-            assert_eq!(right_child_extents.xyz(), Vec3::new(0.5, 0.5, 0.5));
-            assert_eq!(right_child.center, Vec3::ZERO);
-            assert!(assert_eq_f32(
-                right_child.radius,
-                (3. * 0.5 * 0.5_f32).sqrt()
-            ));
-            let sphere = &tree[(root.child_a + left_child.child_a) as usize];
-            assert_eq!(sphere.node_type, SPHERE_PRIM);
-            assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
-            assert_eq!(sphere.center, -Vec3::X);
+            assert_eq!(sphere.center, Vec3::ZERO);
             assert!(assert_eq_f32(sphere.radius, 1.));
         }
     }
