@@ -25,7 +25,7 @@ jobs:
             os: windows-latest
           - name: macos-intel
             target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-11
     
     runs-on: ${{matrix.build.os}}
 
@@ -64,7 +64,7 @@ jobs:
             os: windows-latest
           - name: macos-intel
             target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-11
     
     runs-on: ${{matrix.build.os}}
 
