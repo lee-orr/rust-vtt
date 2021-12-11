@@ -58,42 +58,11 @@ pub enum SDFShape {
     Box(f32, f32, f32),
 }
 
-impl SDFShape {
-    fn process(&self, point: Vec3) -> f32 {
-        match self {
-            Self::Sphere(radius) => point.length() - radius,
-            Self::Box(width, height, depth) => {
-                let quadrant = point.abs() - Vec3::new(*width, *height, *depth);
-                quadrant.max(Vec3::ZERO).length()
-                    + quadrant.x.max(quadrant.y.max(quadrant.z)).min(0.0)
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum SDFOperation {
     Union,
     Subtraction,
     Intersection,
-}
-
-impl SDFOperation {
-    fn process(&self, a: f32, b: f32, smoothness: f32) -> f32 {
-        if smoothness >= 0. {
-            match self {
-                SDFOperation::Union => a.min(b),
-                SDFOperation::Subtraction => a.max(-b),
-                SDFOperation::Intersection => a.max(b),
-            }
-        } else {
-            match self {
-                SDFOperation::Union => todo!(),
-                SDFOperation::Subtraction => todo!(),
-                SDFOperation::Intersection => todo!(),
-            }
-        }
-    }
 }
 
 #[derive(Debug, AsStd140, Default, Clone)]
@@ -134,8 +103,8 @@ pub struct SDFObject {
 
 pub struct SDFObjectDirty;
 
-#[uuid = "8ecbaccb-e565-4143-ad92-e9a4243bc51e"]
 #[derive(Debug, Clone, TypeUuid)]
+#[uuid = "8ecbaccb-e565-4143-ad92-e9a4243bc51e"]
 pub struct SDFObjectAsset {
     pub nodes: Vec<(SDFNodeData, Vec3, f32)>,
     pub root: usize,
@@ -251,7 +220,7 @@ pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFOb
 
 fn generate_node_bounds(
     node_id: usize,
-    nodes: &Vec<SDFNodeData>,
+    nodes: &[SDFNodeData],
     bound_nodes: &mut HashMap<usize, (SDFNodeData, Vec3, f32)>,
 ) -> (Vec3, f32) {
     if let Some(node) = nodes.get(node_id) {

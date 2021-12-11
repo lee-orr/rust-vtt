@@ -287,7 +287,7 @@ fn extract_sdf_origin(
 }
 
 fn prepare_rebuild(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
-    let exists = !query.iter().collect::<Vec<_>>().is_empty();
+    let exists = query.iter().next().is_some();
     if exists {
         commands.insert_resource(ReBakeSDFResource { rebake: true });
     }
