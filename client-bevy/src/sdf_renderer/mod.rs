@@ -3,10 +3,19 @@ pub mod sdf_operation;
 
 use crevice::std140::AsStd140;
 
-use bevy::{core_pipeline::{
+use bevy::{
+    core_pipeline::{
         draw_3d_graph::{self, node},
         Opaque3d,
-    }, ecs::system::lifetimeless::{Read, SQuery, SRes}, math::{Mat4, Vec2}, prelude::{Assets, Commands, Component, Entity, FromWorld, HandleUntyped, Plugin, Query, QueryState, Res, ResMut, With, World}, reflect::TypeUuid, render2::{
+    },
+    ecs::system::lifetimeless::{Read, SQuery, SRes},
+    math::{Mat4, Vec2},
+    prelude::{
+        Assets, Commands, Component, Entity, FromWorld, Handle, HandleUntyped, Plugin, Query,
+        QueryState, Res, ResMut, With, World,
+    },
+    reflect::TypeUuid,
+    render2::{
         camera::PerspectiveProjection,
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
@@ -29,7 +38,8 @@ use bevy::{core_pipeline::{
         texture::{BevyDefault, CachedTexture, TextureCache},
         view::{ExtractedView, ViewUniformOffset, ViewUniforms},
         RenderApp, RenderStage,
-    }};
+    },
+};
 
 use wgpu::{
     util::BufferInitDescriptor, BindingResource, BufferUsages, Color, Extent3d, FilterMode, LoadOp,
@@ -38,9 +48,18 @@ use wgpu::{
     VertexFormat, VertexStepMode,
 };
 
-use crate::sdf_renderer::{sdf_baker::{SDFBakePassNode, SDFBakerPlugin}, sdf_operation::{BrushSettings, SDFOperationPlugin, SDFRootTransform, Std140GpuSDFNode, extract_dirty_object, extract_gpu_node_trees}};
+use crate::sdf_renderer::{
+    sdf_baker::{SDFBakePassNode, SDFBakerPlugin},
+    sdf_operation::{
+        extract_dirty_object, extract_gpu_node_trees, BrushSettings, SDFOperationPlugin,
+        SDFRootTransform, Std140GpuSDFNode,
+    },
+};
 
-use self::{sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures}, sdf_operation::{GpuSDFNode, SDFObjectTree, SortedSDFObjects, TRANSFORM_WARP}};
+use self::{
+    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures},
+    sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP},
+};
 
 pub struct SdfPlugin;
 
@@ -113,6 +132,9 @@ impl Plugin for SdfPlugin {
             draw_3d_graph
                 .add_node_edge(SDFBakePassNode::NAME, DepthPrePassNode::NAME)
                 .unwrap();
+            // draw_3d_graph
+            //     .add_node_edge(SDFBakePassNode::NAME, node::MAIN_PASS)
+            //     .unwrap();
         }
     }
 }
@@ -567,11 +589,12 @@ fn prepare_view_extensions(
 
 fn prepare_brush_uniforms(
     mut brush_uniforms: ResMut<BrushUniforms>,
-    objects: Query<(&SDFObjectTree, &SDFRootTransform, Entity)>,
+    objects: Query<(&Handle<SDFObjectAsset>, &SDFRootTransform, Entity)>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
-   //sorted: Res<SortedSDFObjects>,
+    //sorted: Res<SortedSDFObjects>,
     _views: Query<(Entity, &ExtractedView)>,
+    sdf_objects: Res<RenderAssets<SDFObjectAsset>>,
 ) {
     // let objects = sorted.objects.iter().map(|entity| objects.get(*entity).unwrap()).collect::<Vec<_>>();
 
@@ -582,27 +605,33 @@ fn prepare_brush_uniforms(
     let mut index_so_far = object_count;
     let mut brush_vec: Vec<GpuSDFNode> = Vec::new();
     for (tree, transform, _) in &objects {
-        let num_nodes = tree.tree.len();
-        if num_nodes > 0 {
-            let root = &tree.tree[0];
-            let child = (index_so_far - brush_vec.len()) as i32;
-            let transform = GpuSDFNode {
-                node_type: TRANSFORM_WARP,
-                child_a: child,
-                center: root.center - transform.translation,
-                radius: root.radius * transform.scale.max_element(),
-                params: transform.matrix,
-                ..Default::default()
-            };
-            brush_vec.push(transform);
-            index_so_far += num_nodes;
+        if let Some(tree) = sdf_objects.get(tree) {
+            let num_nodes = tree.tree.len();
+            if num_nodes > 0 {
+                let root = &tree.tree[0];
+                let child = (index_so_far - brush_vec.len()) as i32;
+                let transform = GpuSDFNode {
+                    node_type: TRANSFORM_WARP,
+                    child_a: child,
+                    center: root.center - transform.translation,
+                    radius: root.radius * transform.scale.max_element(),
+                    params: transform.matrix,
+                    ..Default::default()
+                };
+                brush_vec.push(transform);
+                index_so_far += num_nodes;
+            } else {
+                brush_vec.push(GpuSDFNode::default());
+            }
         } else {
             brush_vec.push(GpuSDFNode::default());
         }
     }
     for (tree, _, _) in &objects {
-        for node in &tree.tree {
-            brush_vec.push(node.clone());
+        if let Some(tree) = sdf_objects.get(tree) {
+            for node in &tree.tree {
+                brush_vec.push(node.clone());
+            }
         }
     }
 

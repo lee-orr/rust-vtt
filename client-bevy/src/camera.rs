@@ -1,4 +1,12 @@
-use bevy::{input::Input, math::prelude::*, prelude::{BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, Time, Transform, With}, render2::camera::PerspectiveCameraBundle};
+use bevy::{
+    input::Input,
+    math::prelude::*,
+    prelude::{
+        BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, Time,
+        Transform, With,
+    },
+    render2::camera::PerspectiveCameraBundle,
+};
 
 use crate::sdf_renderer::sdf_baker::SDFBakeOrigin;
 

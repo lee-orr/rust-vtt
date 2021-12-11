@@ -11,7 +11,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - run: sudo apt-get update; sudo apt-get install -y pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev wget xvfb
+      - name: Setup Swiftshader
+        run: |
+          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader.zip;
+          unzip swiftshader.zip;
+          curr="$(pwd)/libvk_swiftshader.so";
+          sed -i "s|PATH_TO_CHANGE|$curr|" vk_swiftshader_icd.json;
       - run: rustup default beta
       - name: Run tests
         run: cargo test --verbose
