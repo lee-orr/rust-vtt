@@ -4,7 +4,7 @@ use bevy::{prelude::{Plugin, Component, Commands, Entity, Query, Res, ResMut, Fr
 use crevice::std140::AsStd140;
 use wgpu::{util::BufferInitDescriptor, BufferUsages, BindGroupEntry, BindGroupDescriptor, BindGroupLayoutEntry, BindingType, BufferBindingType, ShaderStages, BindGroupLayoutDescriptor};
 
-use super::{sdf_operation::SDFGlobalNodeBounds, sdf_baker::{SDFBakerSettings, SDFBakedLayerOrigins, SDFBakerPipelineDefinitions}};
+use super::{sdf_operation::SDFGlobalNodeBounds, sdf_baker::{SDFBakerSettings, SDFBakerPipelineDefinitions}, sdf_origin::SDFOrigin};
 
 pub struct SDFObjectZonePlugin;
 
@@ -105,8 +105,7 @@ fn prepare_zones(
     query: Query<(Entity, &SDFGlobalNodeBounds)>,
     render_device: Res<RenderDevice>,
     settings: Res<ZoneSettings>,
-    origin: Res<SDFBakedLayerOrigins>,
-    sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
+    origin: Res<SDFOrigin>,
 ) {
     let mut zones = SDFZones::default();
     let mut objects = query.iter().collect::<Vec<_>>();

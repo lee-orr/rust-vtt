@@ -8,7 +8,7 @@ use bevy::{
     render2::camera::PerspectiveCameraBundle,
 };
 
-use crate::sdf_renderer::sdf_baker::SDFBakeOrigin;
+use crate::sdf_renderer::sdf_origin::SDFOriginComponent;
 
 pub struct CameraPlugin;
 
@@ -34,7 +34,7 @@ fn setup(mut commands: Commands) {
                 .looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         })
-        .insert(SDFBakeOrigin)
+        .insert(SDFOriginComponent)
         .insert(CameraRadius { radius: 2.0 })
         .insert(CameraHeight { height: 2.0 })
         .id();

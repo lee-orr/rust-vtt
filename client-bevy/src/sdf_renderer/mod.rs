@@ -1,6 +1,7 @@
 pub mod sdf_baker;
 pub mod sdf_operation;
 pub mod sdf_object_zones;
+pub mod sdf_origin;
 
 use crevice::std140::AsStd140;
 
@@ -54,12 +55,12 @@ use crate::sdf_renderer::{
     sdf_operation::{
         extract_dirty_object, extract_gpu_node_trees, SDFObjectCount, SDFOperationPlugin,
         SDFRootTransform, Std140GpuSDFNode,
-    }, sdf_object_zones::SDFObjectZonePlugin,
+    }, sdf_object_zones::SDFObjectZonePlugin, sdf_origin::SDFOriginPlugin,
 };
 
 use self::{
-    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures, SDFBakerPipelineDefinitions},
-    sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP}, sdf_object_zones::{SDFZones, ZoneSettings},
+    sdf_baker::{BrushBindingGroupResource, SDFBakerSettings, SDFTextures},
+    sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP}, sdf_object_zones::{SDFZones, ZoneSettings}, sdf_origin::SDFOrigin,
 };
 
 pub struct SdfPlugin;
@@ -95,6 +96,7 @@ impl Plugin for SdfPlugin {
         println!("Mesh: {:?}", mesh);
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
         app.add_plugin(SDFOperationPlugin);
+        app.add_plugin(SDFOriginPlugin);
         app.add_plugin(SDFObjectZonePlugin);
         app.add_plugin(SDFBakerPlugin);
         let render_app = app
@@ -676,7 +678,7 @@ pub fn queue_baked_textures(
     render_device: Res<RenderDevice>,
     sdf_pipeline: Res<SDFPipeline>,
     bake_settings: Res<SDFBakerSettings>,
-    origins: Res<SDFBakedLayerOrigins>,
+    origins: Res<SDFOrigin>,
     textures: Res<SDFTextures>,
     mut baked_binding: ResMut<BakedSDFBindingGroupResource>,
 ) {

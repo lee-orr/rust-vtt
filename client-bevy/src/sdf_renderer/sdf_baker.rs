@@ -26,7 +26,7 @@ use wgpu::{
 
 use crate::sdf_renderer::sdf_object_zones::SDFZones;
 
-use super::{sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform}, sdf_object_zones::ZoneSettings};
+use super::{sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform}, sdf_object_zones::ZoneSettings, sdf_origin::{SDFOriginComponent, SDFOrigin}};
 
 pub struct SDFBakerPlugin;
 
@@ -45,14 +45,11 @@ impl Plugin for SDFBakerPlugin {
             .insert_resource(settings)
             .init_resource::<SDFBakerPipelineDefinitions>()
             .init_resource::<SDFTextures>()
-            .init_resource::<SDFBakedLayerOrigins>()
             .init_resource::<BakingGroupResource>()
             .init_resource::<ReBakeSDFResource>()
             .init_resource::<LastNumObjects>()
             .add_system_to_stage(RenderStage::Cleanup, reset_bake)
-            .add_system_to_stage(RenderStage::Extract, extract_sdf_origin)
             .add_system_to_stage(RenderStage::Prepare, prepare_rebuild)
-            .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin)
             .add_system_to_stage(RenderStage::Prepare, setup_textures)
             .add_system_to_stage(RenderStage::Queue, queue_baking_group)
             .add_system_to_stage(RenderStage::Queue, bake_sdf_texture);
@@ -184,19 +181,6 @@ pub struct SDFBakerSettings {
     pub layer_multiplier: u32,
 }
 
-#[derive(Clone, Debug, Copy, AsStd140)]
-pub struct SDFBakedLayerOrigins {
-    pub origin: Vec3,
-}
-
-impl Default for SDFBakedLayerOrigins {
-    fn default() -> Self {
-        Self {
-            origin: Vec3::new(9999999., 9999999., 9999999.),
-        }
-    }
-}
-
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
@@ -209,27 +193,11 @@ impl Default for SDFBakerSettings {
 }
 
 #[derive(Component)]
-pub struct SDFBakeOrigin;
-
-#[derive(Component)]
 pub struct ReBakeSDF;
 
 #[derive(Default)]
 pub struct ReBakeSDFResource {
     pub rebake: bool,
-}
-
-fn extract_sdf_origin(
-    mut commands: Commands,
-    query: Query<(Entity, &GlobalTransform), With<SDFBakeOrigin>>,
-    _settings: Res<SDFBakerSettings>,
-) {
-    for (entity, transform) in query.iter() {
-        commands
-            .get_or_spawn(entity)
-            .insert(*transform)
-            .insert(SDFBakeOrigin);
-    }
 }
 
 fn prepare_rebuild(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
@@ -247,29 +215,6 @@ struct LastNumObjects {
     num_objects: u32,
 }
 
-
-
-fn prepare_sdf_origin(
-    mut commands: Commands,
-    query: Query<(Entity, &GlobalTransform), With<SDFBakeOrigin>>,
-    settings: Res<SDFBakerSettings>,
-    mut origin: ResMut<SDFBakedLayerOrigins>,
-) {
-    let origin_transform = query.get_single();
-    let transform = match origin_transform {
-        Ok((_, transform)) => transform.translation,
-        Err(_) => Vec3::ZERO,
-    };
-    let dist = (origin.origin - transform).abs();
-    let bounds = settings.max_size / 3.;
-    if dist.x > bounds.x || dist.y > bounds.y || dist.z > bounds.z {
-        origin.origin = (transform * settings.max_size / settings.layer_size).floor()
-            * settings.layer_size
-            / settings.max_size;
-        println!("Move origin");
-        commands.insert_resource(ReBakeSDFResource { rebake: true });
-    }
-}
 
 fn reset_bake(mut rebake: ResMut<ReBakeSDFResource>) {
     rebake.rebake = false
@@ -343,7 +288,7 @@ fn bake_sdf_texture(
 pub fn queue_baking_group(
     mut commands: Commands,
     bake_settings: Res<SDFBakerSettings>,
-    origins: Res<SDFBakedLayerOrigins>,
+    origins: Res<SDFOrigin>,
     textures: Res<SDFTextures>,
     render_device: Res<RenderDevice>,
     sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
