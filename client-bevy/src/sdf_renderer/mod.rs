@@ -57,7 +57,7 @@ use crate::sdf_renderer::{
 };
 
 use self::{
-    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures},
+    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures, SDFBakerPipelineDefinitions, SDFZones},
     sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP},
 };
 
@@ -69,9 +69,9 @@ impl Plugin for SdfPlugin {
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
-            include_str!("shaders/general/baked_render_bindings.wgsl"),
+            include_str!("shaders/general/zone_object_baked_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/baked_sdf_reader.wgsl"),
+            include_str!("shaders/general/zone_object_baked_sdf_reader.wgsl"),
             include_str!("shaders/general/sdf_raymarch_use_secondary_hits.wgsl"),
             include_str!("shaders/fragment/full_fragment_secondary_hits.wgsl")
         ));
@@ -79,9 +79,9 @@ impl Plugin for SdfPlugin {
         let shader = Shader::from_wgsl(format!(
             "{}{}{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
-            include_str!("shaders/general/baked_render_bindings.wgsl"),
+            include_str!("shaders/general/zone_object_baked_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/baked_sdf_reader.wgsl"),
+            include_str!("shaders/general/zone_object_baked_sdf_reader.wgsl"),
             include_str!("shaders/general/sdf_raymarch_find_secondary_hits.wgsl"),
             include_str!("shaders/fragment/depth_fragment_second_hit.wgsl")
         ));
@@ -159,6 +159,7 @@ impl FromWorld for SDFPipeline {
         let world = world.cell();
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
         let render_device = world.get_resource::<RenderDevice>().unwrap();
+        let bake_pipeline_definitions = world.get_resource::<SDFBakerPipelineDefinitions>().unwrap();
         let view_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("SDF Pipeline View Bind Group Layout"),
             entries: &[
@@ -341,6 +342,7 @@ impl FromWorld for SDFPipeline {
             layout: Some(vec![
                 view_layout.clone(),
                 baked_layout.clone(),
+                bake_pipeline_definitions.zone_layout.clone(),
                 depth_layout.clone(),
             ]),
             vertex: VertexState {
@@ -403,7 +405,7 @@ impl FromWorld for SDFPipeline {
         let prepass_shader = SDF_PREPASS_SHADER_HANDLE.typed::<Shader>();
         let prepass_descriptor = RenderPipelineDescriptor {
             label: Some("SDF Prepass Pipeline".into()),
-            layout: Some(vec![view_layout.clone(), baked_layout.clone()]),
+            layout: Some(vec![view_layout.clone(), baked_layout.clone(), bake_pipeline_definitions.zone_layout.clone()]),
             vertex: VertexState {
                 shader: prepass_shader.clone(),
                 shader_defs: Vec::new(),
@@ -476,16 +478,24 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         )>,
         SRes<RenderAssets<Mesh>>,
         SQuery<Read<BakedSDFBinding>>,
+        SQuery<
+            Read<SDFZones>,
+        >,
     );
 
     fn render<'w>(
         view: bevy::prelude::Entity,
         _item: &Opaque3d,
-        (query, meshes, bindings): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
+        (query, meshes, bindings, zone_query): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         if let Some(bindings) = bindings.iter().next() {
             pass.set_bind_group(1, &bindings.binding, &[0, 0]);
+        }
+        if let Some(zones) = zone_query.iter().next() {
+            if let Some(zone_group) = &zones.zone_group {
+                pass.set_bind_group(2, zone_group, &[0,0,0]);
+            }
         }
         if let Ok((view_uniform, view_extension_uniform, view_binding, depth_pass)) =
             query.get(view)
@@ -495,7 +505,7 @@ impl RenderCommand<Opaque3d> for DrawSDF {
                 &view_binding.binding,
                 &[view_uniform.offset, view_extension_uniform.offset],
             );
-            pass.set_bind_group(2, &depth_pass.bind_group, &[]);
+            pass.set_bind_group(3, &depth_pass.bind_group, &[]);
             let mesh = meshes
                 .into_inner()
                 .get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>())
@@ -932,6 +942,12 @@ impl Node for DepthPrePassNode {
         let meshes = world
             .get_resource::<RenderAssets<Mesh>>()
             .expect("Mesh Assets");
+        let zone_binding = world
+        .get_resource::<SDFZones>()
+        .expect("Zones should exist")
+        .zone_group
+        .clone()
+        .unwrap();
         let (view_binding, depth_pass, view_offset, extension_offset) = self
             .view_query
             .get_manual(world, view_entity)
@@ -965,6 +981,7 @@ impl Node for DepthPrePassNode {
                 &view_binding.binding,
                 &[view_offset.offset, extension_offset.offset],
             );
+            pass.set_bind_group(2, &zone_binding, &[0,0,0]);
             pass.set_bind_group(1, &brush_binding, &[0, 0]);
             pass.set_pipeline(pipeline_cache.get(pipeline.prepass).unwrap());
             let mesh = meshes.get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();

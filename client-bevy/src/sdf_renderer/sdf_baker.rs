@@ -67,9 +67,9 @@ impl Plugin for SDFBakerPlugin {
 }
 
 pub struct SDFBakerPipelineDefinitions {
-    zone_layout: BindGroupLayout,
-    texture_layout: BindGroupLayout,
-    compute: ComputePipeline,
+    pub zone_layout: BindGroupLayout,
+    pub texture_layout: BindGroupLayout,
+    pub compute: ComputePipeline,
 }
 
 impl FromWorld for SDFBakerPipelineDefinitions {
@@ -149,7 +149,7 @@ impl FromWorld for SDFBakerPipelineDefinitions {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::COMPUTE,
+                    visibility: ShaderStages::COMPUTE | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: true,
@@ -161,7 +161,7 @@ impl FromWorld for SDFBakerPipelineDefinitions {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: ShaderStages::COMPUTE,
+                    visibility: ShaderStages::COMPUTE | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: true,
@@ -173,7 +173,7 @@ impl FromWorld for SDFBakerPipelineDefinitions {
                 },
                 BindGroupLayoutEntry {
                     binding: 2,
-                    visibility: ShaderStages::COMPUTE,
+                    visibility: ShaderStages::COMPUTE | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: true,
@@ -249,7 +249,7 @@ impl Default for SDFBakedLayerOrigins {
 impl Default for SDFBakerSettings {
     fn default() -> Self {
         Self {
-            max_size: Vec3::new(100., 50., 100.),
+            max_size: Vec3::new(100., 100., 100.),
             layer_size: Vec3::new(128., 64., 128.),
             num_layers: 5,
             layer_multiplier: 2,
@@ -268,9 +268,9 @@ pub struct ReBakeSDFResource {
     pub rebake: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Component, Clone)]
 pub struct SDFZones {
-    zone_group: Option<BindGroup>,
+    pub zone_group: Option<BindGroup>,
 }
 
 fn extract_sdf_origin(
@@ -315,10 +315,10 @@ fn prepare_zones(
     render_device: Res<RenderDevice>,
     settings: Res<SDFBakerSettings>,
     origin: Res<SDFBakedLayerOrigins>,
-    mut zones: ResMut<SDFZones>,
     sdf_pipeline: Res<SDFBakerPipelineDefinitions>,
     mut last_num_objects: ResMut<LastNumObjects>,
 ) {
+    let mut zones = SDFZones::default();
     let mut objects = query.iter().collect::<Vec<_>>();
 
     if last_num_objects.num_objects != objects.len() as u32 {
@@ -341,7 +341,7 @@ fn prepare_zones(
     let effective_radius = zone_radius;
 
     for (obj, (_, bounds)) in objects.iter().enumerate() {
-        let zone_bound_radius = bounds.radius * 2. + effective_radius;
+        let zone_bound_radius = bounds.radius + effective_radius;
         let min_zone_bound = bounds.center - zone_bound_radius;
         let max_zone_bound = bounds.center + zone_bound_radius;
         let min_zone_bound = ((min_zone_bound - bounds_min) / zone_size).floor();
@@ -387,11 +387,11 @@ fn prepare_zones(
                 let min = offset * zone_size + bounds_min;
                 let max = min + zone_size;
                 let (first_object, final_object) = match zone_objects_vec {
-                    Some(vec) => {
+                    Some(vec) => {;
                         let a = zone_objects.len() as i32;
                         zone_objects.append(vec);
                         let b = zone_objects.len() as i32;
-                        //println!("Zone: {} {} {} {}", min, max, a, b);
+                        println!("Zone: {} {} {}, {} {}", x, y, z, a, b);
                         (a, b)
                     }
                     None => (0, 0),
@@ -475,6 +475,8 @@ fn prepare_zones(
         ],
     });
     zones.zone_group = Some(bind_group);
+    commands.spawn().insert(zones.clone());
+    commands.insert_resource(zones);
 }
 
 fn prepare_sdf_origin(
