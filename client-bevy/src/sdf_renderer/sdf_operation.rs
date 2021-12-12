@@ -42,14 +42,12 @@ impl Plugin for SDFOperationPlugin {
             .add_system_to_stage(CoreStage::PreUpdate, clean_dirty_object)
             .add_system_to_stage(SDFStages::MarkDirty, set_dirty_object)
             .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds);
-        // .add_system_to_stage(SDFStages::GenerateGpu, sort_sdf_objects)
-        // .add_system_to_stage(SDFStages::GenerateGpu, construct_sdf_object_tree);
     }
 }
 
-#[derive(Default, Clone, AsStd140)]
-pub struct BrushSettings {
-    pub num_brushes: i32,
+#[derive(Default, Clone, Copy, AsStd140)]
+pub struct SDFObjectCount {
+    pub num_objects: i32,
 }
 
 #[derive(Debug, Clone, Copy, Component)]

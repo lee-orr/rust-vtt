@@ -7,7 +7,7 @@ var<uniform> view_extension: ViewExtension;
 [[group(1), binding(0)]]
 var<storage, read> brushes: Brushes;
 [[group(1), binding(1)]]
-var<uniform> brush_settings: BrushSettings;
+var<uniform> brush_settings: SDFObjectCount;
 [[group(2), binding(0)]]
 var t_depth: texture_depth_2d;
 [[group(2), binding(1)]]

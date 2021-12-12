@@ -1,5 +1,6 @@
 pub mod sdf_baker;
 pub mod sdf_operation;
+pub mod sdf_object_zones;
 
 use crevice::std140::AsStd140;
 
@@ -51,14 +52,14 @@ use wgpu::{
 use crate::sdf_renderer::{
     sdf_baker::{SDFBakePassNode, SDFBakerPlugin},
     sdf_operation::{
-        extract_dirty_object, extract_gpu_node_trees, BrushSettings, SDFOperationPlugin,
+        extract_dirty_object, extract_gpu_node_trees, SDFObjectCount, SDFOperationPlugin,
         SDFRootTransform, Std140GpuSDFNode,
-    },
+    }, sdf_object_zones::SDFObjectZonePlugin,
 };
 
 use self::{
-    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures, SDFBakerPipelineDefinitions, SDFZones},
-    sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP},
+    sdf_baker::{BrushBindingGroupResource, SDFBakedLayerOrigins, SDFBakerSettings, SDFTextures, SDFBakerPipelineDefinitions},
+    sdf_operation::{GpuSDFNode, SDFObjectAsset, TRANSFORM_WARP}, sdf_object_zones::{SDFZones, ZoneSettings},
 };
 
 pub struct SdfPlugin;
@@ -94,6 +95,7 @@ impl Plugin for SdfPlugin {
         println!("Mesh: {:?}", mesh);
         meshes.set_untracked(SDF_CUBE_MESH_HANDLE, mesh);
         app.add_plugin(SDFOperationPlugin);
+        app.add_plugin(SDFObjectZonePlugin);
         app.add_plugin(SDFBakerPlugin);
         let render_app = app
             .sub_app(RenderApp)
@@ -157,9 +159,11 @@ pub const SDF_CUBE_MESH_HANDLE: HandleUntyped =
 impl FromWorld for SDFPipeline {
     fn from_world(world: &mut bevy::prelude::World) -> Self {
         let world = world.cell();
+
+        let zone_settings = world.get_resource::<ZoneSettings>().unwrap();
+        let zone_layout = zone_settings.layout.clone();
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
         let render_device = world.get_resource::<RenderDevice>().unwrap();
-        let bake_pipeline_definitions = world.get_resource::<SDFBakerPipelineDefinitions>().unwrap();
         let view_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("SDF Pipeline View Bind Group Layout"),
             entries: &[
@@ -342,7 +346,7 @@ impl FromWorld for SDFPipeline {
             layout: Some(vec![
                 view_layout.clone(),
                 baked_layout.clone(),
-                bake_pipeline_definitions.zone_layout.clone(),
+                zone_layout.clone(),
                 depth_layout.clone(),
             ]),
             vertex: VertexState {
@@ -405,7 +409,7 @@ impl FromWorld for SDFPipeline {
         let prepass_shader = SDF_PREPASS_SHADER_HANDLE.typed::<Shader>();
         let prepass_descriptor = RenderPipelineDescriptor {
             label: Some("SDF Prepass Pipeline".into()),
-            layout: Some(vec![view_layout.clone(), baked_layout.clone(), bake_pipeline_definitions.zone_layout.clone()]),
+            layout: Some(vec![view_layout.clone(), baked_layout.clone(), zone_layout.clone()]),
             vertex: VertexState {
                 shader: prepass_shader.clone(),
                 shader_defs: Vec::new(),
@@ -547,7 +551,7 @@ pub struct ViewExtensionUniformOffset {
 #[derive(Default, Component)]
 pub struct BrushUniforms {
     pub brushes: Option<Buffer>,
-    pub settings: DynamicUniformVec<BrushSettings>,
+    pub settings: DynamicUniformVec<SDFObjectCount>,
 }
 
 #[derive(Component)]
@@ -651,8 +655,8 @@ fn prepare_brush_uniforms(
         brushes.push(GpuSDFNode::default().as_std140());
     }
     brush_uniforms.settings.clear();
-    brush_uniforms.settings.push(BrushSettings {
-        num_brushes: object_count as i32,
+    brush_uniforms.settings.push(SDFObjectCount {
+        num_objects: object_count as i32,
     });
     brush_uniforms
         .settings

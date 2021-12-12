@@ -58,7 +58,7 @@ struct Brushes {
 };
 
 [[block]]
-struct BrushSettings {
+struct SDFObjectCount {
     num_objects: i32;
 };
 
@@ -102,3 +102,15 @@ fn max_component(point: vec3<f32>) -> f32 {
 fn min_component(point: vec3<f32>) -> f32 {
     return min(point.x, max(point.y, point.z));
 }
+
+struct BakedNode {
+    node_type: i32; //0 - empty, 1 - full, 2 - contains block with children, 3 - contains block no children
+    content: vec4<f32>; // either: the color & opacity (if it doesn't contain a surface) or (block_uvw.xyz, child_index) if it does
+    parent: i32; // if (-1) it is a root, if < -1 it has been cleared
+};
+
+[[block]]
+struct Nodes {
+    last_written: atomic<i32>;
+    nodes: array<BakedNode>;
+};

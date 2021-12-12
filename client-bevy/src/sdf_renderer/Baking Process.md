@@ -23,6 +23,6 @@ Fragment
 - March ray through zones
 - When in a zone with objects, check points presence in oct-trees and determine marching increments (min)
 - If hit
-    - for now, return color + normal & derpth
+    - for now, return color + normal & depth
     - for later, march to lights & determine color for the pixel & depth
 - If miss, move on to next zone or mark as infinite depth & transparent.
