@@ -1,4 +1,8 @@
-use bevy::{prelude::{Plugin, Component, Commands, Query, Entity, GlobalTransform, With, ResMut}, math::Vec3, render2::{RenderApp, RenderStage}};
+use bevy::{
+    math::Vec3,
+    prelude::{Commands, Component, Entity, GlobalTransform, Plugin, Query, ResMut, With},
+    render2::{RenderApp, RenderStage},
+};
 use crevice::std140::AsStd140;
 
 pub struct SDFOriginPlugin;
@@ -8,7 +12,7 @@ impl Plugin for SDFOriginPlugin {
         app.sub_app(RenderApp)
             .init_resource::<SDFOrigin>()
             .add_system_to_stage(RenderStage::Extract, extract_sdf_origin)
-            .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin); 
+            .add_system_to_stage(RenderStage::Prepare, prepare_sdf_origin);
     }
 }
 
@@ -31,7 +35,6 @@ pub struct SDFOriginComponent;
 fn extract_sdf_origin(
     mut commands: Commands,
     query: Query<(Entity, &GlobalTransform), With<SDFOriginComponent>>,
-    
 ) {
     for (entity, transform) in query.iter() {
         commands

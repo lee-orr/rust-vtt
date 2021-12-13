@@ -1,9 +1,8 @@
-use core::num;
 use std::collections::HashMap;
 
 use bevy::{
     math::Vec3,
-    prelude::{Commands, Component, Entity, FromWorld, Plugin, Query, Res, ResMut},
+    prelude::{Commands, Component, Entity, FromWorld, Plugin, Query, Res},
     render2::{
         render_resource::{BindGroup, BindGroupLayout},
         renderer::RenderDevice,
@@ -16,11 +15,7 @@ use wgpu::{
     BindGroupLayoutEntry, BindingType, BufferBindingType, BufferUsages, ShaderStages,
 };
 
-use super::{
-    sdf_baker::{SDFBakerPipelineDefinitions, SDFBakerSettings},
-    sdf_operation::SDFGlobalNodeBounds,
-    sdf_origin::SDFOrigin,
-};
+use super::{sdf_operation::SDFGlobalNodeBounds, sdf_origin::SDFOrigin};
 
 pub struct SDFObjectZonePlugin;
 
@@ -116,7 +111,7 @@ pub struct SDFZoneDefinitions {
 }
 
 fn process_object_zones(
-    objects: &Vec<(Entity, &SDFGlobalNodeBounds)>,
+    objects: &[(Entity, &SDFGlobalNodeBounds)],
     size: f32,
     zones_per_dimension: i32,
     origin: &SDFOrigin,
@@ -230,8 +225,8 @@ fn prepare_zones(
     let (zone_objects, active_zones, num_zones, zone_radius, zone_size, bounds_min) =
         process_object_zones(
             &objects,
-            *&settings.size,
-            *&settings.zones_per_dimension,
+            settings.size,
+            settings.zones_per_dimension,
             &origin,
         );
 
@@ -350,10 +345,7 @@ mod tests {
                     radius: 0.2,
                 },
             ),
-            (
-                Entity::new(1),
-                &second_pos,
-            ),
+            (Entity::new(1), &second_pos),
         ];
         let result = process_object_zones(&objects, 10., 3, &SDFOrigin { origin: Vec3::ZERO });
         assert_eq!(result.0.len(), 2);
@@ -379,7 +371,14 @@ mod tests {
                 radius: 0.2,
             },
         )];
-        let result = process_object_zones(&objects, 10., 3, &SDFOrigin { origin: Vec3::new(0., -4., 0.)});
+        let result = process_object_zones(
+            &objects,
+            10.,
+            3,
+            &SDFOrigin {
+                origin: Vec3::new(0., -4., 0.),
+            },
+        );
         assert_eq!(result.0.len(), 1);
         assert_eq!(result.2, 27);
         assert_eq!(result.1.len(), result.2);

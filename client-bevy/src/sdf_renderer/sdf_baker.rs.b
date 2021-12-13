@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+
 
 use bevy::{
     core_pipeline::draw_3d_graph,
     math::Vec3,
     prelude::{
-        Commands, Component, Entity, FromWorld, GlobalTransform, Plugin, Query, Res, ResMut, With,
+        Commands, Component, Entity, FromWorld, Plugin, Query, Res, ResMut,
         World,
     },
     render2::{
@@ -26,7 +26,11 @@ use wgpu::{
 
 use crate::sdf_renderer::sdf_object_zones::SDFZones;
 
-use super::{sdf_operation::{SDFGlobalNodeBounds, SDFObjectDirty, SDFObjectTree, SDFRootTransform}, sdf_object_zones::ZoneSettings, sdf_origin::{SDFOriginComponent, SDFOrigin}};
+use super::{
+    sdf_object_zones::ZoneSettings,
+    sdf_operation::{SDFObjectDirty, SDFObjectTree, SDFRootTransform},
+    sdf_origin::{SDFOrigin},
+};
 
 pub struct SDFBakerPlugin;
 
@@ -207,14 +211,10 @@ fn prepare_rebuild(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty
     }
 }
 
-
-
-
 #[derive(Default)]
 struct LastNumObjects {
     num_objects: u32,
 }
-
 
 fn reset_bake(mut rebake: ResMut<ReBakeSDFResource>) {
     rebake.rebake = false
