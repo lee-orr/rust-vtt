@@ -59,9 +59,9 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
+    let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.5);
+    let sdf_object = sdf_objects.add(sdf_object);
     if UNOPTIMIZED_OBJECTS {
-        let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.5);
-        let sdf_object = sdf_objects.add(sdf_object);
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
                 commands
@@ -76,8 +76,6 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
             }
         }
     } else {
-        let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.5);
-        let sdf_object = sdf_objects.add(sdf_object);
         commands
             .spawn()
             .insert(Transform::default())

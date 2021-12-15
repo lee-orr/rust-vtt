@@ -101,7 +101,7 @@ struct ZoneBoundSettings {
     zone_origin: Vec3,
     zones_per_dimension: i32,
     world_center: Vec3,
-    world_bounds: Vec3
+    world_bounds: Vec3,
 }
 
 #[derive(Clone, Debug, Copy, AsStd140, Default)]
@@ -267,7 +267,7 @@ fn prepare_zones(
             zone_origin: bounds_min,
             zones_per_dimension: settings.zones_per_dimension as i32,
             world_bounds: (settings.size / 2.) * Vec3::ONE,
-            world_center: origin.origin
+            world_center: origin.origin,
         })
         .as_std140()]),
         usage: BufferUsages::UNIFORM,
