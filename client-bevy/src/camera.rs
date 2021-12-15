@@ -5,7 +5,7 @@ use bevy::{
         BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, Time,
         Transform, With,
     },
-    render2::camera::PerspectiveCameraBundle,
+    render::camera::{PerspectiveCameraBundle, PerspectiveProjection},
 };
 
 use crate::sdf_renderer::sdf_origin::SDFOriginComponent;
@@ -30,13 +30,13 @@ fn setup(mut commands: Commands) {
 
     let camera = commands
         .spawn_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 2.0))
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 15.0))
                 .looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         })
         .insert(SDFOriginComponent)
-        .insert(CameraRadius { radius: 2.0 })
-        .insert(CameraHeight { height: 2.0 })
+        .insert(CameraRadius { radius: 15.0 })
+        .insert(CameraHeight { height: 15.0 })
         .id();
 
     commands.entity(parent).push_children(&[camera]);

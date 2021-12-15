@@ -5,16 +5,11 @@ struct FragmentOut {
 
 [[stage(fragment)]]
 fn fs_main(in: VertexOutput) -> FragmentOut {
-    var out : FragmentOut;
-    // let dist = in.max_distance/MAX_DISTANCE;
-    // let height = clamp(in.world_position.y / 3. + 0.5, 0., 1.);
-    // out.color = vec4<f32>(height * dist, 0.,height * (1. - dist), 1.);
-   // out.depth = 1.;
-    
+    var out : FragmentOut;    
     var stack : array<NodeStackItem, MAX_BRUSH_DEPTH>;
     let stack_pointer : ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>> = &stack;
-    let hit = march(view.world_position, normalize(in.world_position - view.world_position), in.pixel_size, MAX_DISTANCE,stack_pointer);
-    //return vec4<f32>(hit.distance / MAX_DISTANCE, hit.jumps / f32(brush_settings.num_objects), f32(hit.iterations)/ f32(MAX_MARCHING_STEPS), 1.);
+    let ray = normalize(in.world_position - view.world_position);
+    let hit = march(view.world_position + ray * view_extension.near, ray, in.pixel_size, MAX_DISTANCE,stack_pointer);
     if (hit.hit) {
         let norm = calculate_normal(hit.point, stack_pointer);
         let color = sceneColor(hit.point);

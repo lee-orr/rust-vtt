@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::{
     math::Vec3,
     prelude::{Commands, Component, Entity, FromWorld, Plugin, Query, Res},
-    render2::{
+    render::{
         render_resource::{BindGroup, BindGroupLayout},
         renderer::RenderDevice,
         RenderApp, RenderStage,
@@ -22,15 +22,14 @@ pub struct SDFObjectZonePlugin;
 impl Plugin for SDFObjectZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.sub_app(RenderApp)
-            .init_resource::<SDFZones>()
             .init_resource::<ZoneSettings>()
             .add_system_to_stage(RenderStage::Prepare, prepare_zones);
     }
 }
 
-#[derive(Default, Component, Clone)]
+#[derive(Component, Clone)]
 pub struct SDFZones {
-    pub zone_group: Option<BindGroup>,
+    pub zone_group: BindGroup,
 }
 
 pub struct ZoneSettings {
@@ -94,7 +93,7 @@ impl FromWorld for ZoneSettings {
 }
 
 #[derive(AsStd140)]
-struct NumZones {
+struct ZoneBoundSettings {
     num_zones: i32,
     zone_radius: f32,
     zone_size: Vec3,
@@ -123,10 +122,9 @@ fn process_object_zones(
     let zone_half_size = zone_size / 2.;
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (size / 2.);
-    // let effective_radius = zone_radius;
 
     for (obj, (_, bounds)) in objects.iter().enumerate() {
-        let zone_bound_radius = bounds.radius; // + effective_radius;
+        let zone_bound_radius = bounds.radius;
         let min_zone_bound = bounds.center - zone_bound_radius;
         let max_zone_bound = bounds.center + zone_bound_radius;
         let min_zone_bound = ((min_zone_bound - bounds_min) / zone_size).floor();
@@ -217,7 +215,6 @@ fn prepare_zones(
     settings: Res<ZoneSettings>,
     origin: Res<SDFOrigin>,
 ) {
-    let mut zones = SDFZones::default();
     let mut objects = query.iter().collect::<Vec<_>>();
 
     objects.sort_by(|a, b| a.0.cmp(&b.0));
@@ -256,7 +253,7 @@ fn prepare_zones(
 
     let num_zones = render_device.create_buffer_with_data(&BufferInitDescriptor {
         label: Some("Num Zones"),
-        contents: bytemuck::cast_slice(&[(NumZones {
+        contents: bytemuck::cast_slice(&[(ZoneBoundSettings {
             num_zones: num_zones as i32,
             zone_radius,
             zone_size,
@@ -285,9 +282,11 @@ fn prepare_zones(
             },
         ],
     });
-    zones.zone_group = Some(bind_group);
-    commands.spawn().insert(zones.clone());
-    commands.insert_resource(zones);
+
+    let zones = SDFZones {
+        zone_group: bind_group,
+    };
+    commands.spawn().insert(zones);
 }
 
 #[cfg(test)]

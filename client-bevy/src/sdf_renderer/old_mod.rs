@@ -17,7 +17,7 @@ use bevy::{
         QueryState, Res, ResMut, With, World,
     },
     reflect::TypeUuid,
-    render2::{
+    render::{
         camera::PerspectiveProjection,
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
@@ -493,7 +493,7 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         view: bevy::prelude::Entity,
         _item: &Opaque3d,
         (query, meshes, bindings, zone_query): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
-        pass: &mut bevy::render2::render_phase::TrackedRenderPass<'w>,
+        pass: &mut bevy::render::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         if let Some(bindings) = bindings.iter().next() {
             pass.set_bind_group(1, &bindings.binding, &[0, 0]);
@@ -928,10 +928,10 @@ impl Node for DepthPrePassNode {
 
     fn run(
         &self,
-        graph: &mut bevy::render2::render_graph::RenderGraphContext,
-        render_context: &mut bevy::render2::renderer::RenderContext,
+        graph: &mut bevy::render::render_graph::RenderGraphContext,
+        render_context: &mut bevy::render::renderer::RenderContext,
         world: &World,
-    ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
+    ) -> Result<(), bevy::render::render_graph::NodeRunError> {
         let view_entity = graph
             .get_input_entity(Self::IN_VIEW)
             .expect("Should find attached entity");

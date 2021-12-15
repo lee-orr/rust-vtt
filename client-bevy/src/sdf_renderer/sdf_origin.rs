@@ -1,7 +1,7 @@
 use bevy::{
     math::Vec3,
     prelude::{Commands, Component, Entity, GlobalTransform, Plugin, Query, ResMut, With},
-    render2::{RenderApp, RenderStage},
+    render::{RenderApp, RenderStage},
 };
 use crevice::std140::AsStd140;
 

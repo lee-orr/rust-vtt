@@ -7,7 +7,10 @@ use bevy::{
         Or, Plugin, Query, Res, StageLabel, SystemStage, Transform,
     },
     reflect::TypeUuid,
-    render2::render_asset::{RenderAsset, RenderAssetPlugin},
+    render::{
+        render_asset::{RenderAsset, RenderAssetPlugin},
+        RenderApp, RenderStage,
+    },
 };
 
 use crevice::std140::AsStd140;
@@ -42,6 +45,8 @@ impl Plugin for SDFOperationPlugin {
             .add_system_to_stage(CoreStage::PreUpdate, clean_dirty_object)
             .add_system_to_stage(SDFStages::MarkDirty, set_dirty_object)
             .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds);
+        app.sub_app(RenderApp)
+            .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees);
     }
 }
 
@@ -161,7 +166,7 @@ impl RenderAsset for SDFObjectAsset {
         _param: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
     ) -> Result<
         Self::PreparedAsset,
-        bevy::render2::render_asset::PrepareAssetError<Self::ExtractedAsset>,
+        bevy::render::render_asset::PrepareAssetError<Self::ExtractedAsset>,
     > {
         let mut tree: Vec<GpuSDFNode> = Vec::new();
         generate_gpu_node(&mut tree, extracted_asset.root, &extracted_asset);
@@ -197,7 +202,9 @@ pub fn extract_gpu_node_trees(
         &SDFGlobalNodeBounds,
     )>,
 ) {
+    let mut count: i32 = 0;
     for (entity, transform, tree, bounds) in query.iter() {
+        count += 1;
         let mut ecommands = commands.get_or_spawn(entity);
         ecommands
             .insert(SDFRootTransform {
@@ -208,6 +215,7 @@ pub fn extract_gpu_node_trees(
             .insert(tree.clone())
             .insert(*bounds);
     }
+    commands.insert_resource(SDFObjectCount { num_objects: count });
 }
 
 pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {

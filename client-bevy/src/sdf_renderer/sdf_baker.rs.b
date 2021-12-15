@@ -7,7 +7,7 @@ use bevy::{
         Commands, Component, Entity, FromWorld, Plugin, Query, Res, ResMut,
         World,
     },
-    render2::{
+    render::{
         render_graph::{Node, RenderGraph},
         render_resource::{BindGroup, BindGroupLayout, ComputePipeline, Sampler, TextureView},
         renderer::{RenderDevice, RenderQueue},
@@ -358,10 +358,10 @@ pub struct BrushBindingGroupResource {
 impl Node for SDFBakePassNode {
     fn run(
         &self,
-        _graph: &mut bevy::render2::render_graph::RenderGraphContext,
-        render_context: &mut bevy::render2::renderer::RenderContext,
+        _graph: &mut bevy::render::render_graph::RenderGraphContext,
+        render_context: &mut bevy::render::renderer::RenderContext,
         world: &World,
-    ) -> Result<(), bevy::render2::render_graph::NodeRunError> {
+    ) -> Result<(), bevy::render::render_graph::NodeRunError> {
         let rebake = world.get_resource::<ReBakeSDFResource>();
         if rebake.is_none() || !rebake.unwrap().rebake {
             return Ok(());

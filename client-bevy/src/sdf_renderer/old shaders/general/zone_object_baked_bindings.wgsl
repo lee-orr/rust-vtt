@@ -25,4 +25,4 @@ var<storage, read> zones: Zones;
 [[group(2), binding(1)]]
 var<storage, read> zone_objects: ZoneObjects;
 [[group(2), binding(2)]]
-var<uniform> num_zones: NumZones;
+var<uniform> num_zones: ZoneSettings;

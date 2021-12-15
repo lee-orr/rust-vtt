@@ -1,15 +1,14 @@
 
-
 [[group(0), binding(0)]]
-var<storage, read> brushes: Brushes;
+var<uniform> view: View;
 [[group(0), binding(1)]]
-var<uniform> brush_settings: SDFObjectCount;
+var<uniform> view_extension: ViewExtension;
+
 [[group(1), binding(0)]]
-var baked_map: texture_storage_3d<r8unorm, write>;
+var<storage, read> brushes: Brushes;
 [[group(1), binding(1)]]
-var<uniform> bake_settings: SDFBakerSettings;
-[[group(1), binding(2)]]
-var<uniform> baker_origins: SDFBakedLayerOrigins;
+var<uniform> num_objects: SDFObjectCount;
+
 [[group(2), binding(0)]]
 var<storage, read> zones: Zones;
 [[group(2), binding(1)]]

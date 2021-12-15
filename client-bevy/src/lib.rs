@@ -5,7 +5,7 @@ pub mod sdf_renderer;
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
-    PipelinedDefaultPlugins,
+    DefaultPlugins,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
@@ -22,7 +22,7 @@ pub fn run() {
 
     let mut app = App::new();
     app.insert_resource(Msaa { samples: 4 })
-        .add_plugins(PipelinedDefaultPlugins)
+        .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
         .add_plugin(SdfPlugin)
@@ -41,8 +41,8 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 10;
-const UNOPTIMIZED_OBJECTS: bool = false;
+const NUM_BRUSHES: i32 = 1;
+const UNOPTIMIZED_OBJECTS: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
@@ -60,7 +60,7 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
     if UNOPTIMIZED_OBJECTS {
-        let sdf_object = SDFObjectAsset::cube();
+        let sdf_object = SDFObjectAsset::sphere();
         let sdf_object = sdf_objects.add(sdf_object);
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
@@ -76,7 +76,7 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
             }
         }
     } else {
-        let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.5);
+        let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.);
         let sdf_object = sdf_objects.add(sdf_object);
         commands
             .spawn()

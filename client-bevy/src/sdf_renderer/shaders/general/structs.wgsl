@@ -12,6 +12,8 @@ struct ViewExtension {
     proj_inverted: mat4x4<f32>;
     cone_scaler: f32;
     pixel_size: f32;
+    near: f32;
+    far: f32;
 };
 
 [[block]]
