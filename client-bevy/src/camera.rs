@@ -5,7 +5,7 @@ use bevy::{
         BuildChildren, Commands, Component, GlobalTransform, KeyCode, Plugin, Query, Res, Time,
         Transform, With,
     },
-    render::camera::{PerspectiveCameraBundle, PerspectiveProjection},
+    render::camera::PerspectiveCameraBundle,
 };
 
 use crate::sdf_renderer::sdf_origin::SDFOriginComponent;

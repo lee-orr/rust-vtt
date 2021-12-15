@@ -185,15 +185,14 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
     return last_result;
 }
 
-fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
+fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
     let zone_size :vec3<f32> = num_zones.zone_size;
     let relative_pos = point - num_zones.zone_origin;
     let zone_id = relative_pos / zone_size;
     let zones_per_dimension = f32(num_zones.zones_per_dimension);
     if (zone_id.x >= zones_per_dimension || zone_id.y >= zones_per_dimension || zone_id.z >= zones_per_dimension || zone_id.x < 0. || zone_id.y < 0. || zone_id.z < 0.) {
-        let bounds = num_zones.zone_size * zones_per_dimension / 2.;
-        let adjusted_point = point - (num_zones.zone_origin + bounds);
-        return boxSDF(adjusted_point, bounds) + current_epsilon;
+        let adjusted_point = point - num_zones.world_center;
+        return boxSDF(adjusted_point, num_zones.world_bounds) + current_epsilon;
     }
     let zone_index = i32(floor(zone_id.x)) * num_zones.zones_per_dimension * num_zones.zones_per_dimension
         + i32(floor(zone_id.y)) * num_zones.zones_per_dimension + i32(floor(zone_id.z));
@@ -202,9 +201,30 @@ fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, arr
     let final_object : i32 = zone.final_object;
     let first_object : i32 = zone.first_object;
     if (first_object == final_object) {
-        let bounds = zone_size / 2.;
-        let adjusted_point = relative_pos - zone.min + bounds;
-        return boxSDF(adjusted_point, bounds) + current_epsilon;
+        if (length(ray) > 0.) {
+            var t1 : f32 = (zone.min.x - point.x) / ray.x;
+            var t2 : f32 = (zone.max.x - point.x) / ray.x;
+
+            var tmin : f32 = min(t1, t2);
+            var tmax : f32 = max(t1, t2);
+
+            t1 = (zone.min.y - point.y) / ray.y;
+            t2 = (zone.max.y - point.y) / ray.y;
+
+            tmin = max(tmin, min(t1, t2));
+            tmax = min(tmax, max(t1, t2));
+
+            t1 = (zone.min.z- point.z) / ray.z;
+            t2 = (zone.max.z - point.z) / ray.z;
+
+            tmin = max(tmin, min(t1, t2));
+            tmax = min(tmax, max(t1, t2));
+            
+            return tmax + current_epsilon;
+        } else {
+            let adjusted_point = point - zone.center;
+            return max(current_epsilon * 20., -boxSDF(adjusted_point, num_zones.zone_half_size)) + current_epsilon;
+        }
     }
     var dist : f32 = num_zones.zone_radius;
     for (var i : i32 = first_object; i < final_object; i = i + 1) {
@@ -224,8 +244,8 @@ fn objectSceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, a
     return dist;
 }
 
-fn sceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
-    return objectSceneSDF(point, current_epsilon, stack);
+fn sceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
+    return zoneSceneSDF(point, current_epsilon, ray, stack);
 }
 
 fn sceneColor(point: vec3<f32>) -> vec3<f32> {
@@ -233,10 +253,11 @@ fn sceneColor(point: vec3<f32>) -> vec3<f32> {
 }
 
 fn calculate_normal(point: vec3<f32>, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>)-> vec3<f32> {
+    let ray = vec3<f32>(0., 0., 0.);
     var normal = vec3<f32>(
-        sceneSDF(point + NORM_EPSILON_X, NORM_EPSILON, stack) - sceneSDF(point - NORM_EPSILON_X, NORM_EPSILON, stack),
-        sceneSDF(point + NORM_EPSILON_Y, NORM_EPSILON, stack) - sceneSDF(point - NORM_EPSILON_Y, NORM_EPSILON, stack),
-        sceneSDF(point + NORM_EPSILON_Z, NORM_EPSILON, stack) - sceneSDF(point - NORM_EPSILON_Z, NORM_EPSILON, stack),
+        sceneSDF(point + NORM_EPSILON_X, NORM_EPSILON, ray, stack) - sceneSDF(point - NORM_EPSILON_X, NORM_EPSILON, ray,stack),
+        sceneSDF(point + NORM_EPSILON_Y, NORM_EPSILON, ray,stack) - sceneSDF(point - NORM_EPSILON_Y, NORM_EPSILON, ray,stack),
+        sceneSDF(point + NORM_EPSILON_Z, NORM_EPSILON, ray,stack) - sceneSDF(point - NORM_EPSILON_Z, NORM_EPSILON, ray,stack),
     );
     return normalize(normal);
 }

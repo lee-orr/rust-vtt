@@ -12,8 +12,8 @@ use bevy::{
             SetItemPipeline,
         },
         render_resource::{
-            CachedPipelineId, FragmentState, RenderPipelineCache,
-            RenderPipelineDescriptor, Shader, VertexBufferLayout, VertexState,
+            CachedPipelineId, FragmentState, RenderPipelineCache, RenderPipelineDescriptor, Shader,
+            VertexBufferLayout, VertexState,
         },
         texture::BevyDefault,
         view::{ExtractedView, ViewUniformOffset},
@@ -21,10 +21,10 @@ use bevy::{
     },
 };
 use wgpu::{
-    BlendComponent, BlendFactor, BlendOperation, BlendState,
-    ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Face,
-    FrontFace, MultisampleState, PolygonMode, PrimitiveState, PrimitiveTopology,
-    StencilState, TextureFormat, VertexAttribute, VertexFormat, VertexStepMode,
+    BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites,
+    CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, MultisampleState,
+    PolygonMode, PrimitiveState, PrimitiveTopology, StencilState, TextureFormat, VertexAttribute,
+    VertexFormat, VertexStepMode,
 };
 
 use super::{
@@ -91,8 +91,7 @@ impl FromWorld for SDFPipelineDefinitions {
 
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
 
-        let (vertex_array_stride, vertex_attributes) = 
-        (
+        let (vertex_array_stride, vertex_attributes) = (
             32,
             vec![
                 // Position (GOTCHA! Vertex_Position isn't first in the buffer due to how Mesh sorts attributes (alphabetically))
@@ -118,11 +117,7 @@ impl FromWorld for SDFPipelineDefinitions {
 
         let descriptor = RenderPipelineDescriptor {
             label: Some("SDF Raw Render Pipeline".into()),
-            layout: Some(vec![
-                view_layout,
-                brush_layout,
-                zone_layout,
-            ]),
+            layout: Some(vec![view_layout, brush_layout, zone_layout]),
             vertex: VertexState {
                 shader: shader.clone(),
                 shader_defs: Vec::new(),

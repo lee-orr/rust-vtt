@@ -56,6 +56,7 @@ struct GpuSDFNode {
 struct Zone {
     min: vec3<f32>;
     max: vec3<f32>;
+    center: vec3<f32>;
     first_object: i32;
     final_object: i32;
 };
@@ -85,8 +86,11 @@ struct ZoneSettings {
     num_zones: i32;
     zone_radius: f32;
     zone_size: vec3<f32>;
+    zone_half_size: vec3<f32>;
     zone_origin: vec3<f32>;
     zones_per_dimension: i32;
+    world_center: vec3<f32>;
+    world_bounds: vec3<f32>;
 };
 
 struct Vertex {

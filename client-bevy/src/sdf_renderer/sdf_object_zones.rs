@@ -97,14 +97,18 @@ struct ZoneBoundSettings {
     num_zones: i32,
     zone_radius: f32,
     zone_size: Vec3,
+    zone_half_size: Vec3,
     zone_origin: Vec3,
     zones_per_dimension: i32,
+    world_center: Vec3,
+    world_bounds: Vec3
 }
 
 #[derive(Clone, Debug, Copy, AsStd140, Default)]
 pub struct SDFZoneDefinitions {
     pub min: Vec3,
     pub max: Vec3,
+    pub center: Vec3,
     pub first_object: i32,
     pub final_object: i32,
 }
@@ -122,6 +126,7 @@ fn process_object_zones(
     let zone_half_size = zone_size / 2.;
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (size / 2.);
+    println!("Origin {} bounds min {}", origin.origin, bounds_min);
 
     for (obj, (_, bounds)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius;
@@ -181,6 +186,7 @@ fn process_object_zones(
                 let zone = SDFZoneDefinitions {
                     min,
                     max,
+                    center: min + zone_half_size,
                     first_object,
                     final_object,
                 };
@@ -257,8 +263,11 @@ fn prepare_zones(
             num_zones: num_zones as i32,
             zone_radius,
             zone_size,
+            zone_half_size: zone_size / 2.,
             zone_origin: bounds_min,
             zones_per_dimension: settings.zones_per_dimension as i32,
+            world_bounds: (settings.size / 2.) * Vec3::ONE,
+            world_center: origin.origin
         })
         .as_std140()]),
         usage: BufferUsages::UNIFORM,

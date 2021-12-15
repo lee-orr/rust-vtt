@@ -23,7 +23,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
         let distance_to_start = length(offset);
         let hit_epsilon = global_hit_epsilon * (view_extension.cone_scaler * distance_to_start);
         last_epsilon = hit_epsilon;
-        let dist = sceneSDF(point, hit_epsilon * 10., stack);
+        let dist = sceneSDF(point, hit_epsilon * 10., ray, stack);
         closest = min(view_extension.far, dist);
         if (dist < hit_epsilon) {
             out.distance = dist;
