@@ -117,7 +117,6 @@ fn prepare_brush_uniforms(
             }
         }
     }
-    println!("Brushes {:?}", &brush_vec);
 
     let mut brushes: Vec<Std140GpuSDFNode> = brush_vec.iter().map(|val| val.as_std140()).collect();
 

@@ -4,7 +4,7 @@ use bevy::{
         camera::PerspectiveProjection,
         render_resource::{BindGroup, BindGroupLayout, DynamicUniformVec},
         renderer::{RenderDevice, RenderQueue},
-        view::{ExtractedView, ViewUniforms},
+        view::{ExtractedView, ViewUniforms, ViewUniform},
         RenderApp, RenderStage,
     },
 };
@@ -42,7 +42,7 @@ impl FromWorld for SDFViewLayout {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: true,
-                        min_binding_size: BufferSize::new(144),
+                        min_binding_size: BufferSize::new(ViewUniform::std140_size_static() as u64),
                     },
                     count: None,
                 },
@@ -52,7 +52,7 @@ impl FromWorld for SDFViewLayout {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: true,
-                        min_binding_size: BufferSize::new(144),
+                        min_binding_size: BufferSize::new(ViewExtension::std140_size_static() as u64),
                     },
                     count: None,
                 },

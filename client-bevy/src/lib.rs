@@ -29,6 +29,7 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
+        //.add_system(setup_pbr_objects)
         //.add_system(animate)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -41,7 +42,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 1;
+const NUM_BRUSHES: i32 = 10;
 const UNOPTIMIZED_OBJECTS: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
@@ -60,7 +61,7 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
     if UNOPTIMIZED_OBJECTS {
-        let sdf_object = SDFObjectAsset::sphere();
+        let sdf_object = SDFObjectAsset::cube();
         let sdf_object = sdf_objects.add(sdf_object);
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
