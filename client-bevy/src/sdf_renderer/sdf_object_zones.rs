@@ -87,7 +87,7 @@ impl FromWorld for ZoneSettings {
         Self {
             layout,
             size: 300.,
-            zones_per_dimension: 20,
+            zones_per_dimension: 30,
         }
     }
 }
@@ -126,7 +126,6 @@ fn process_object_zones(
     let zone_half_size = zone_size / 2.;
     let zone_radius = zone_half_size.length();
     let bounds_min = origin.origin - (size / 2.);
-    println!("Origin {} bounds min {}", origin.origin, bounds_min);
 
     for (obj, (_, bounds)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius;
