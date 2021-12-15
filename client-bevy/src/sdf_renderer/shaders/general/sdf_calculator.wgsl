@@ -220,7 +220,7 @@ fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: p
             tmin = max(tmin, min(t1, t2));
             tmax = min(tmax, max(t1, t2));
             
-            return tmax + current_epsilon;
+            return max(tmax, current_epsilon) + current_epsilon;
         } else {
             let adjusted_point = point - zone.center;
             return max(current_epsilon * 20., -boxSDF(adjusted_point, num_zones.zone_half_size)) + current_epsilon;

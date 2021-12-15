@@ -86,8 +86,8 @@ impl FromWorld for ZoneSettings {
 
         Self {
             layout,
-            size: 100.,
-            zones_per_dimension: 10,
+            size: 300.,
+            zones_per_dimension: 20,
         }
     }
 }
