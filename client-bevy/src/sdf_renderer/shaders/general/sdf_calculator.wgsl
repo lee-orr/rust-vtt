@@ -80,7 +80,31 @@ fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f
     return out;
 }
 
-fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
+fn bounding_sphere_intersection(origin: vec3<f32>, ray: vec3<f32>, radius: f32) -> f32 {
+    if (length(ray) == 0.) {
+        return sphereSDF(origin, radius);
+    } else {
+        let a = dot(ray, ray);
+        let b = 2. * dot(origin, ray);
+        let c = dot(origin, origin,) - radius * radius;
+        let d = b * b - 4. * a * c;
+        if (d < 0.) {
+            return 999999999.;
+        }
+        let num = -b - sqrt(d);
+        if (num > 0.) {
+            return num / (2. * a);
+        }
+
+        let num2 = -b + sqrt(d);
+        if (num2 > 0.) {
+            return num2 / (2. * a);
+        }
+        return 9999999.;
+    }
+}
+
+fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f32>, stack_ptr: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
     var index : i32 = 0;
     var last_result : f32 = 99999999999.9;
     var num_jumps: f32 = 0.0;
@@ -95,21 +119,14 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, stack_ptr: p
         var child_index = index + 1;
         var current_frame = stack[index];
         var node = current_frame.node;
-        // if (current_frame.process_bounds) {
-        //     // var d = length(point - node.center);
-        //     // let radius_extension = current_frame.current_epsilon;
-        //     // let threshold = node.radius + radius_extension;
-        //     // if (d > threshold) {
-        //     //     last_result = d - threshold + radius_extension / 2.;
-        //     //     index = index - 1;
-        //     //     continue;
-        //     // }
-        //     var d = point - node.center;
-        //     let threshold = node.radius + current_frame.current_epsilon;
-        //     last_result = sphereSDF(d, node.radius);
-        //     index = index - 1;
-        //     continue;
-        // }
+        if (current_frame.process_bounds) {
+            var d = bounding_sphere_intersection(current_frame.point - node.center, ray, node.radius);
+            if (d > current_frame.current_epsilon) {
+                last_result = d + current_frame.current_epsilon / 2.;
+                index = index - 1;
+                continue;
+            }
+        }
         if (node.node_type == SPHERE_PRIM) {
             last_result = sphereSDF(current_frame.point, node.params[0].x);
         } elseif (node.node_type == BOX_PRIM) {
@@ -200,36 +217,37 @@ fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: p
     
     let final_object : i32 = zone.final_object;
     let first_object : i32 = zone.first_object;
-    if (first_object == final_object) {
-        if (length(ray) > 0.) {
-            var t1 : f32 = (zone.min.x - point.x) / ray.x;
-            var t2 : f32 = (zone.max.x - point.x) / ray.x;
-
-            var tmin : f32 = min(t1, t2);
-            var tmax : f32 = max(t1, t2);
-
-            t1 = (zone.min.y - point.y) / ray.y;
-            t2 = (zone.max.y - point.y) / ray.y;
-
-            tmin = max(tmin, min(t1, t2));
-            tmax = min(tmax, max(t1, t2));
-
-            t1 = (zone.min.z- point.z) / ray.z;
-            t2 = (zone.max.z - point.z) / ray.z;
-
-            tmin = max(tmin, min(t1, t2));
-            tmax = min(tmax, max(t1, t2));
-            
-            return max(tmax, current_epsilon) + current_epsilon;
-        } else {
-            let adjusted_point = point - zone.center;
-            return max(current_epsilon * 20., -boxSDF(adjusted_point, num_zones.zone_half_size)) + current_epsilon;
-        }
-    }
     var dist : f32 = num_zones.zone_radius;
+    if (length(ray) > 0.) {
+        var t1 : f32 = (zone.min.x - point.x) / ray.x;
+        var t2 : f32 = (zone.max.x - point.x) / ray.x;
+
+        var tmin : f32 = min(t1, t2);
+        var tmax : f32 = max(t1, t2);
+
+        t1 = (zone.min.y - point.y) / ray.y;
+        t2 = (zone.max.y - point.y) / ray.y;
+
+        tmin = max(tmin, min(t1, t2));
+        tmax = min(tmax, max(t1, t2));
+
+        t1 = (zone.min.z- point.z) / ray.z;
+        t2 = (zone.max.z - point.z) / ray.z;
+
+        tmin = max(tmin, min(t1, t2));
+        tmax = min(tmax, max(t1, t2));
+        
+        dist = min(max(tmax, current_epsilon) + current_epsilon, dist);
+    } else {
+        let adjusted_point = point - zone.center;
+        dist = min(max(current_epsilon * 20., -boxSDF(adjusted_point, num_zones.zone_half_size)) + current_epsilon, dist);
+    }
+    if (first_object == final_object) {
+        return dist;
+    }
     for (var i : i32 = first_object; i < final_object; i = i + 1) {
         let object_id = zone_objects.zone_objects[i];
-        var brush_dist = processNode(point, object_id, num_zones.zone_radius, stack);
+        var brush_dist = processNode(point, object_id, num_zones.zone_radius, ray, stack);
         dist = min(dist, brush_dist);
     }
     return dist;
@@ -238,7 +256,7 @@ fn zoneSceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: p
 fn objectSceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
     var dist : f32 = 99999.;
     for (var i : i32 = 0; i < num_objects.num_objects; i = i + 1) {
-        var brush_dist = processNode(point, i, current_epsilon, stack);
+        var brush_dist = processNode(point, i, current_epsilon, vec3<f32>(0., 0., 0.), stack);
         dist = min(dist, brush_dist);
     }
     return dist;
