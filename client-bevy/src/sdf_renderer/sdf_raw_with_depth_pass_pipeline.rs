@@ -50,7 +50,7 @@ impl Plugin for SDFRawWithDepthPassPipelinePlugin {
             include_str!("shaders/general/structs.wgsl"),
             include_str!("shaders/general/raw_sdf_depth_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/sdf_calculator_object_list.wgsl"),
             include_str!("shaders/general/sdf_raymarch.wgsl"),
             include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_read_depth.wgsl"),
         ));
@@ -60,7 +60,7 @@ impl Plugin for SDFRawWithDepthPassPipelinePlugin {
             include_str!("shaders/general/structs.wgsl"),
             include_str!("shaders/general/raw_sdf_bindings.wgsl"),
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/sdf_calculator.wgsl"),
+            include_str!("shaders/general/sdf_calculator_object_list.wgsl"),
             include_str!("shaders/general/sdf_raymarch.wgsl"),
             include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_write_depth.wgsl"),
         ));

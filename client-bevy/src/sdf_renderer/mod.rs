@@ -29,7 +29,5 @@ impl Plugin for SdfPlugin {
         app.add_plugin(SDFBrushBindingPlugin);
         app.add_plugin(SDFObjectZonePlugin);
         app.add_plugin(SDFRawRenderPipelinePlugin);
-        // app.add_plugin(SDFDepthBindingPlugin);
-        // app.add_plugin(SDFRawWithDepthPassPipelinePlugin);
     }
 }
