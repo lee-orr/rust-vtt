@@ -43,7 +43,7 @@ fn ui(egui_context: ResMut<EguiContext>) {
 
 const NUM_BRUSHES: i32 = 10;
 const UNOPTIMIZED_OBJECTS: bool = true;
-const TEST_OP: SDFOperation = SDFOperation::Union;
+const TEST_OP: SDFOperation = SDFOperation::Subtraction;
 
 fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
     for (_, mut transform) in query.iter_mut() {
@@ -59,7 +59,7 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
-    let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.3);
+    let sdf_object = SDFObjectAsset::cone(Vec3::new(0., 1., 0.)); //test_object(TEST_OP, 0.2);
     let sdf_object = sdf_objects.add(sdf_object);
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {

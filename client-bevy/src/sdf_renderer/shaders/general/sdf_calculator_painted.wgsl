@@ -13,6 +13,8 @@ let PAINT_OP: i32 = 7;
 let TRANSFORM_WARP: i32 = 4;
 let SPHERE_PRIM: i32 = 5;
 let BOX_PRIM: i32 = 6;
+let TORUS_PRIM: i32 = 8;
+let CONE_PRIM: i32 = 9;
 
 fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
     return length(point) - radius;
@@ -21,6 +23,23 @@ fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
 fn boxSDF(point: vec3<f32>, bounds: vec3<f32>) -> f32 {
     let quadrant = abs(point) - bounds;
     return length(max(quadrant,vec3<f32>(0.0, 0.0, 0.0))) + min(max(quadrant.x,max(quadrant.y,quadrant.z)),0.0);
+}
+
+fn torusSDF(point: vec3<f32>, radii: vec2<f32>) -> f32 {
+    let q = vec2<f32>(length(point.xz) - radii.x, point.y);
+    return length(q) - radii.y;
+}
+
+fn coneSDF(p: vec3<f32>, c: vec2<f32>, h: f32) -> f32 {
+    let q = h*vec2<f32>(c.x/c.y,-1.0);
+
+    let w = vec2<f32>( length(p.xz), p.y );
+    let a = w - q*clamp( dot(w,q)/dot(q,q), 0.0, 1.0 );
+    let b = w - q*vec2<f32>( clamp( w.x/q.x, 0.0, 1.0 ), 1.0 );
+    let k = sign( q.y );
+    let d = min(dot( a, a ),dot(b, b));
+    let s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
+    return sqrt(d)*sign(s);
 }
 
 fn unionSDF(a: f32, b: f32) -> vec2<f32> {
@@ -165,6 +184,10 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
             last_result = sphereSDF(current_frame.point, node.params[0].x);
         } elseif (node.node_type == BOX_PRIM) {
             last_result = boxSDF(current_frame.point, node.params[0].xyz);
+        } elseif (node.node_type == TORUS_PRIM) {
+            last_result = torusSDF(current_frame.point, node.params[0].xy);
+        } elseif (node.node_type == CONE_PRIM) {
+            last_result = coneSDF(current_frame.point, node.params[0].xy, node.params[0].z);
         } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
@@ -269,7 +292,11 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
             last_result = vec4<f32>(sphereSDF(current_frame.point, node.params[0].x), node.color);
         } elseif (node.node_type == BOX_PRIM) {
             last_result =vec4<f32>( boxSDF(current_frame.point, node.params[0].xyz), node.color);
-        } elseif (node.node_type == TRANSFORM_WARP) {
+        } elseif (node.node_type == TORUS_PRIM) {
+            last_result = vec4<f32>( torusSDF(current_frame.point, node.params[0].xy), node.color);
+        } elseif (node.node_type == CONE_PRIM) {
+            last_result = vec4<f32>( coneSDF(current_frame.point, node.params[0].xy, node.params[0].z), node.color);
+        }  elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_frame.current_epsilon, false, current_frame.blend);
