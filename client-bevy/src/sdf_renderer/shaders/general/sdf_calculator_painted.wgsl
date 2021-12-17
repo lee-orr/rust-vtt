@@ -15,6 +15,9 @@ let SPHERE_PRIM: i32 = 5;
 let BOX_PRIM: i32 = 6;
 let TORUS_PRIM: i32 = 8;
 let CONE_PRIM: i32 = 9;
+let LINE_PRIM: i32 = 10;
+let CYLINDER_PRIM: i32 = 11;
+let ELLIPSOID_PRIM: i32 = 12;
 
 fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
     return length(point) - radius;
@@ -40,6 +43,25 @@ fn coneSDF(p: vec3<f32>, c: vec2<f32>, h: f32) -> f32 {
     let d = min(dot( a, a ),dot(b, b));
     let s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
     return sqrt(d)*sign(s);
+}
+
+fn lineSDF(point: vec3<f32>, a: vec3<f32>, b: vec3<f32>, radius: f32) -> f32 {
+    let p1 = point - a;
+    let ba = b - a;
+    let h = clamp(dot(p1, ba) / dot(ba, ba), 0., 1.);
+    return length(p1 - ba * h) - radius;
+}
+
+fn cylinderSDF(point: vec3<f32>, height: f32, radius: f32) -> f32 {
+    let d = abs(vec2<f32>(length(point.xz), point.y)) - vec2<f32>(height, radius);
+    
+    return min(max(d.x, d.y), 0.) + length(max(d, vec2<f32>(0., 0.)));
+}
+
+fn ellipsoidSDF(point: vec3<f32>, radii: vec3<f32>) -> f32 {
+    let k0 = length(point / radii);
+    let k1 = length(point / (radii * radii));
+    return k0 * (k0 - 1.) / k1;
 }
 
 fn unionSDF(a: f32, b: f32) -> vec2<f32> {
@@ -188,6 +210,12 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
             last_result = torusSDF(current_frame.point, node.params[0].xy);
         } elseif (node.node_type == CONE_PRIM) {
             last_result = coneSDF(current_frame.point, node.params[0].xy, node.params[0].z);
+        } elseif (node.node_type == LINE_PRIM) {
+            last_result = lineSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[0].w);
+        } elseif (node.node_type == CYLINDER_PRIM) {
+            last_result = cylinderSDF(current_frame.point, node.params[0].y, node.params[0].x);
+        } elseif (node.node_type == ELLIPSOID_PRIM) {
+            last_result = ellipsoidSDF(current_frame.point, node.params[0].xyz);
         } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
@@ -296,7 +324,13 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
             last_result = vec4<f32>( torusSDF(current_frame.point, node.params[0].xy), node.color);
         } elseif (node.node_type == CONE_PRIM) {
             last_result = vec4<f32>( coneSDF(current_frame.point, node.params[0].xy, node.params[0].z), node.color);
-        }  elseif (node.node_type == TRANSFORM_WARP) {
+        } elseif (node.node_type == LINE_PRIM) {
+            last_result =  vec4<f32>( lineSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[0].w), node.color);
+        } elseif (node.node_type == CYLINDER_PRIM) {
+            last_result = vec4<f32>( cylinderSDF(current_frame.point, node.params[0].x, node.params[0].y), node.color);
+        } elseif (node.node_type == ELLIPSOID_PRIM) {
+            last_result = vec4<f32>( ellipsoidSDF(current_frame.point, node.params[0].xyz), node.color);
+        } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_frame.current_epsilon, false, current_frame.blend);

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::{
-    math::{Mat4, Vec3, Vec4},
+    math::{Mat4, Vec3, Vec4, Vec2},
     prelude::{
         AddAsset, Assets, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Handle,
         Or, Plugin, Query, Res, StageLabel, SystemStage, Transform,
@@ -61,9 +61,9 @@ pub enum SDFShape {
     Box(f32, f32, f32),
     Torus(f32, f32),
     Cone(f32, f32, f32),
-    // Capsule(f32, f32),
-    // Cylinder(f32, f32),
-    // Ellipsoid(Vec3)
+    Line(Vec3, Vec3, f32),
+    Cylinder(f32, f32),
+    Ellipsoid(f32, f32, f32)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -212,6 +212,9 @@ pub const SPHERE_PRIM: i32 = 5;
 pub const BOX_PRIM: i32 = 6;
 pub const TORUS_PRIM: i32 = 8;
 pub const CONE_PRIM: i32 = 9;
+pub const LINE_PRIM: i32 = 10;
+pub const CYLINDER_PRIM: i32 = 11;
+pub const ELLIPSOID_PRIM: i32 = 12;
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
@@ -260,6 +263,16 @@ fn generate_node_bounds(
                 ),
                 SDFShape::Torus(inner, outer) => (Vec3::ZERO, *outer),
                 SDFShape::Cone(width,depth, height) => (Vec3::ZERO, width.max(depth.max(*height))),
+                SDFShape::Line(a, b, radius) => {
+                    let center = (*a + *b) / 2.;
+                    let radius = (*b - center).length() + radius;
+                    (center, radius)
+                },
+                SDFShape::Cylinder(height, radius) => (Vec3::ZERO, Vec2::new(*height, *radius).length()),
+                SDFShape::Ellipsoid(width, height, depth) => (
+                    Vec3::ZERO,
+                    Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length(),
+                ),
             },
             SDFNodeData::Operation(op, blend, child_a, child_b) => {
                 let (center_a, radius_a) = generate_node_bounds(*child_a, nodes, bound_nodes);
@@ -342,7 +355,7 @@ fn generate_gpu_node(
                 SDFShape::Sphere(radius) => {
                     new_node.node_type = SPHERE_PRIM;
                     new_node.params.x_axis.x = radius.to_owned();
-                }
+                },
                 SDFShape::Box(width, height, depth) => {
                     new_node.node_type = BOX_PRIM;
                     new_node.params.x_axis =
@@ -356,6 +369,20 @@ fn generate_gpu_node(
                     new_node.node_type = CONE_PRIM;
                     new_node.params.x_axis = Vec4::new(*width, *depth, *height, 0.);
                 },
+                SDFShape::Line(a, b, radius) => {
+                    new_node.node_type = LINE_PRIM;
+                    new_node.params.x_axis = Vec4::new(a.x, a.y, a.z, *radius);
+                    new_node.params.y_axis = Vec4::new(b.x, b.y, b.z, 0.);
+                },
+                SDFShape::Cylinder(height, radius) => {
+                    new_node.node_type = CYLINDER_PRIM;
+                    new_node.params.x_axis = Vec4::new(*height, *radius, 0., 0.);
+                },
+                SDFShape::Ellipsoid(width, height, depth) => {
+                    new_node.node_type = ELLIPSOID_PRIM;
+                    new_node.params.x_axis =
+                        Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
+                }
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
             new_node.node_type = match operation {
