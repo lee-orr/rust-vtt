@@ -18,6 +18,7 @@ let CONE_PRIM: i32 = 9;
 let LINE_PRIM: i32 = 10;
 let CYLINDER_PRIM: i32 = 11;
 let ELLIPSOID_PRIM: i32 = 12;
+let CURVE_PRIM: i32 = 13;
 
 fn sphereSDF(point: vec3<f32>, radius: f32) -> f32 {
     return length(point) - radius;
@@ -62,6 +63,54 @@ fn ellipsoidSDF(point: vec3<f32>, radii: vec3<f32>) -> f32 {
     let k0 = length(point / radii);
     let k1 = length(point / (radii * radii));
     return k0 * (k0 - 1.) / k1;
+}
+
+fn curveSDF(point: vec3<f32>, p1: vec3<f32>, p2: vec3<f32>, ctrl: vec3<f32>, radius: f32) -> f32 {
+    let a = p2 - p1;
+    let b = p1 - 2. * p2 + ctrl;
+    let c = a * 2.;
+    let d = a - point;
+
+    let kk = 1./dot(b, b);
+    let kx = kk * dot(a, b);
+    let ky = kk * (2. * dot(a, a) + dot(d, b)) / 3.;
+    let kz = kk * dot(d, a);
+
+    var res: vec2<f32>;
+
+    let p = ky - kx * kx;
+    let pcube = p * p * p;
+    let q = kx * (2. * kx * kx - 3. * ky) + kz;
+    var h : f32 = q * q + 4. * pcube;
+
+    if (h > 0.) {
+        h = sqrt(h);
+        let x = (vec2<f32>(h, -h) - q) / 2.;
+        let uv = sign(x) * pow(abs(x), vec2<f32>(1./3.));
+        let t = clamp(uv.x + uv.y - kx, 0., 1.);
+        let l = d+(c+b*t)*t;
+        res = vec2<f32>(dot(l, l),t);
+    } else {
+        let z = sqrt(-p);
+        let v = acos( q/(p*z*2.0) ) / 3.0;
+        let m = cos(v);
+        let n = sin(v)*1.732050808;
+        let t = clamp( vec3<f32>(m+m,-n-m,n-m)*z-kx, vec3<f32>(0.0, 0., 0.), vec3<f32>(1.0, 1., 1.));
+        
+        // 3 roots, but only need two
+        let m = d+(c+b*t.x)*t.x;
+        var dis : f32 = dot(m,m);
+        res = vec2<f32>(dis,t.x);
+        let l = d+(c+b*t.y)*t.y;
+        dis = dot(l, l);
+        if( dis <res.x ) {
+            res = vec2<f32>(dis,t.y );
+        }
+    }
+
+    res.x = sqrt(res.x) - radius;
+    return res.x;
+    //return 99999.;
 }
 
 fn unionSDF(a: f32, b: f32) -> vec2<f32> {
@@ -216,6 +265,8 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
             last_result = cylinderSDF(current_frame.point, node.params[0].y, node.params[0].x);
         } elseif (node.node_type == ELLIPSOID_PRIM) {
             last_result = ellipsoidSDF(current_frame.point, node.params[0].xyz);
+        } elseif (node.node_type == CURVE_PRIM) {
+            last_result = curveSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[2].xyz, node.params[0].w);
         } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
@@ -330,6 +381,8 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
             last_result = vec4<f32>( cylinderSDF(current_frame.point, node.params[0].x, node.params[0].y), node.color);
         } elseif (node.node_type == ELLIPSOID_PRIM) {
             last_result = vec4<f32>( ellipsoidSDF(current_frame.point, node.params[0].xyz), node.color);
+        } elseif (node.node_type == CURVE_PRIM) {
+            last_result = vec4<f32>( curveSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[2].xyz, node.params[0].w), node.color);
         } elseif (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
