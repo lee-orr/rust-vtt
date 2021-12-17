@@ -59,9 +59,8 @@ pub struct SDFObjectCount {
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
-    // Torus(f32, f32),
-    // Cone(f32, f32, f32),
-    // Plane(Vec3, f32),
+    Torus(f32, f32),
+    Cone(f32, f32, f32),
     // Capsule(f32, f32),
     // Cylinder(f32, f32),
     // Ellipsoid(Vec3)
@@ -148,6 +147,14 @@ impl SDFObjectAsset {
         Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.), color)])
     }
 
+    pub fn torus(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Torus(0.5, 1.), color)])
+    }
+
+    pub fn cone(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Cone(0.2, 0.5, 1.), color)])
+    }
+
     pub fn test_object(operation: SDFOperation, blend: f32) -> Self {
         Self::new(vec![
             SDFNodeData::Operation(operation, blend, 1, 2),
@@ -203,6 +210,8 @@ pub const TRANSFORM_WARP: i32 = 4;
 
 pub const SPHERE_PRIM: i32 = 5;
 pub const BOX_PRIM: i32 = 6;
+pub const TORUS_PRIM: i32 = 8;
+pub const CONE_PRIM: i32 = 9;
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
@@ -249,6 +258,8 @@ fn generate_node_bounds(
                     Vec3::ZERO,
                     Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length(),
                 ),
+                SDFShape::Torus(inner, outer) => (Vec3::ZERO, *outer),
+                SDFShape::Cone(width,depth, height) => (Vec3::ZERO, width.max(depth.max(*height))),
             },
             SDFNodeData::Operation(op, blend, child_a, child_b) => {
                 let (center_a, radius_a) = generate_node_bounds(*child_a, nodes, bound_nodes);
@@ -326,18 +337,25 @@ fn generate_gpu_node(
         };
 
         if let SDFNodeData::Primitive(primitive, color) = sdfnode {
+            new_node.color = *color;
             match primitive {
                 SDFShape::Sphere(radius) => {
                     new_node.node_type = SPHERE_PRIM;
                     new_node.params.x_axis.x = radius.to_owned();
-                    new_node.color = *color;
                 }
                 SDFShape::Box(width, height, depth) => {
                     new_node.node_type = BOX_PRIM;
                     new_node.params.x_axis =
                         Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
-                    new_node.color = *color;
                 }
+                SDFShape::Torus(inner, outer) => {
+                    new_node.node_type = TORUS_PRIM;
+                    new_node.params.x_axis = Vec4::new(*outer, *inner, 0., 0.);
+                },
+                SDFShape::Cone(width,depth, height) => {
+                    new_node.node_type = CONE_PRIM;
+                    new_node.params.x_axis = Vec4::new(*width, *depth, *height, 0.);
+                },
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
             new_node.node_type = match operation {
