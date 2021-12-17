@@ -76,12 +76,13 @@ pub struct GpuSDFNode {
     pub params: Mat4,
     pub radius: f32,
     pub center: Vec3,
+    pub color: Vec3,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum SDFNodeData {
     Empty,
-    Primitive(SDFShape),
+    Primitive(SDFShape, Vec3),
     Operation(SDFOperation, f32, usize, usize),
     Transform(usize, Transform),
 }
@@ -132,20 +133,20 @@ impl SDFObjectAsset {
         }
     }
 
-    pub fn cube() -> Self {
-        Self::new(vec![SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.))])
+    pub fn cube(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.), color)])
     }
 
-    pub fn sphere() -> Self {
-        Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.))])
+    pub fn sphere(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.), color)])
     }
 
     pub fn test_object(operation: SDFOperation, blend: f32) -> Self {
         Self::new(vec![
             SDFNodeData::Operation(operation, blend, 1, 2),
-            SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2)),
+            SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2), Vec3::new(0., 0., 1.)),
             SDFNodeData::Transform(3, Transform::from_translation(Vec3::new(2., 0., 0.))),
-            SDFNodeData::Primitive(SDFShape::Sphere(2.)),
+            SDFNodeData::Primitive(SDFShape::Sphere(2.), Vec3::new(1., 0., 0.)),
         ])
     }
 }
@@ -232,7 +233,7 @@ fn generate_node_bounds(
     if let Some(node) = nodes.get(node_id) {
         let (center, radius) = match node {
             SDFNodeData::Empty => (Vec3::ZERO, 0.),
-            SDFNodeData::Primitive(primitive) => match primitive {
+            SDFNodeData::Primitive(primitive, _) => match primitive {
                 SDFShape::Sphere(radius) => (Vec3::ZERO, *radius),
                 SDFShape::Box(width, height, depth) => (
                     Vec3::ZERO,
@@ -313,16 +314,18 @@ fn generate_gpu_node(
             ..Default::default()
         };
 
-        if let SDFNodeData::Primitive(primitive) = sdfnode {
+        if let SDFNodeData::Primitive(primitive, color) = sdfnode {
             match primitive {
                 SDFShape::Sphere(radius) => {
                     new_node.node_type = SPHERE_PRIM;
                     new_node.params.x_axis.x = radius.to_owned();
+                    new_node.color = *color;
                 }
                 SDFShape::Box(width, height, depth) => {
                     new_node.node_type = BOX_PRIM;
                     new_node.params.x_axis =
                         Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
+                    new_node.color = *color;
                 }
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
@@ -385,8 +388,8 @@ mod tests {
         let object = SDFObjectAsset::new(vec![
             SDFNodeData::Operation(SDFOperation::Union, 0., 1, 3),
             SDFNodeData::Transform(2, Transform::from_translation(Vec3::X)),
-            SDFNodeData::Primitive(SDFShape::Sphere(1.)),
-            SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
+            SDFNodeData::Primitive(SDFShape::Sphere(1.), Vec3::new(1., 0., 0.)),
+            SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5), Vec3::new(1., 0., 0.)),
         ]);
         let gpu_object = SDFObjectAsset::prepare_asset(object, &mut ());
 
@@ -419,6 +422,7 @@ mod tests {
             assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
             assert_eq!(sphere.center, Vec3::ZERO);
             assert!(assert_eq_f32(sphere.radius, 1.));
+            assert_eq!(sphere.color, Vec3::new(1., 0., 0.));
         }
     }
 }

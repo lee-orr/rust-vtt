@@ -35,15 +35,6 @@ struct SDFBakedLayerOrigins {
     origin: vec3<f32>;
 };
 
-struct SDFBrush {
-    shape: i32;
-    operation: i32;
-    blending: f32;
-    transform: mat4x4<f32>;
-    param1: vec4<f32>;
-    param2: vec4<f32>;
-};
-
 struct GpuSDFNode {
     node_type: i32;
     child_a: i32;
@@ -51,6 +42,7 @@ struct GpuSDFNode {
     params: mat4x4<f32>;
     radius: f32;
     center: vec3<f32>;
+    color: vec3<f32>;
 };
 
 struct Zone {
