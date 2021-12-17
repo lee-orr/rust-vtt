@@ -59,6 +59,12 @@ pub struct SDFObjectCount {
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
+    // Torus(f32, f32),
+    // Cone(f32, f32, f32),
+    // Plane(Vec3, f32),
+    // Capsule(f32, f32),
+    // Cylinder(f32, f32),
+    // Ellipsoid(Vec3)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -66,6 +72,7 @@ pub enum SDFOperation {
     Union,
     Subtraction,
     Intersection,
+    Paint,
 }
 
 #[derive(Debug, AsStd140, Default, Clone)]
@@ -190,7 +197,10 @@ pub struct SDFRootTransform {
 pub const UNION_OP: i32 = 1;
 pub const INTERSECTION_OP: i32 = 2;
 pub const SUBTRACTION_OP: i32 = 3;
+pub const PAINT_OP: i32 = 7;
+
 pub const TRANSFORM_WARP: i32 = 4;
+
 pub const SPHERE_PRIM: i32 = 5;
 pub const BOX_PRIM: i32 = 6;
 
@@ -259,6 +269,7 @@ fn generate_node_bounds(
                         min_bounds_a.max(min_bounds_b),
                         max_bounds_a.min(max_bounds_b),
                     ),
+                    SDFOperation::Paint => (min_bounds_a, max_bounds_a),
                 };
                 let center = (max + min) / 2.;
                 let extents = (max - center) + *blend;
@@ -333,6 +344,7 @@ fn generate_gpu_node(
                 SDFOperation::Union => UNION_OP,
                 SDFOperation::Subtraction => SUBTRACTION_OP,
                 SDFOperation::Intersection => INTERSECTION_OP,
+                &SDFOperation::Paint => PAINT_OP,
             };
             new_node.params.x_axis.x = blending.to_owned();
             let (child_a_id, _child_a) = generate_gpu_node(tree, *child_a, node_query);

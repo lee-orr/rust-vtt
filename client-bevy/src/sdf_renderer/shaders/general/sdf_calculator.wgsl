@@ -9,6 +9,7 @@ let NORM_EPSILON_Z = vec3<f32>(0.0, 0.0, NORM_EPSILON);
 let UNION_OP: i32 = 1;
 let INTERSECTION_OP: i32 = 2;
 let SUBTRACTION_OP: i32 = 3;
+let PAINT_OP: i32 = 3;
 let TRANSFORM_WARP: i32 = 4;
 let SPHERE_PRIM: i32 = 5;
 let BOX_PRIM: i32 = 6;
