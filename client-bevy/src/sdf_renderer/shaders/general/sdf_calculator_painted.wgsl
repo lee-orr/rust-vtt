@@ -200,27 +200,27 @@ fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f
 
 fn bounding_sphere_intersection(origin: vec3<f32>, ray: vec3<f32>, radius: f32, blend: f32) -> f32 {
     let radius = radius + blend;
-    if (length(ray) == 0.) {
+    // if (length(ray) == 0.) {
         return sphereSDF(origin, radius);
-    } else {
-        let a = dot(ray, ray);
-        let b = 2. * dot(origin, ray);
-        let c = dot(origin, origin,) - radius * radius;
-        let d = b * b - 4. * a * c;
-        if (d < 0.) {
-            return 999999999.;
-        }
-        let num = -b - sqrt(d);
-        if (num > 0.) {
-            return num / (2. * a);
-        }
+    // } else {
+    //     let a = dot(ray, ray);
+    //     let b = 2. * dot(origin, ray);
+    //     let c = dot(origin, origin,) - radius * radius;
+    //     let d = b * b - 4. * a * c;
+    //     if (d < 0.) {
+    //         return 999999999.;
+    //     }
+    //     let num = -b - sqrt(d);
+    //     if (num > 0.) {
+    //         return num / (2. * a);
+    //     }
 
-        let num2 = -b + sqrt(d);
-        if (num2 > 0.) {
-            return num2 / (2. * a);
-        }
-        return 9999999.;
-    }
+    //     let num2 = -b + sqrt(d);
+    //     if (num2 > 0.) {
+    //         return num2 / (2. * a);
+    //     }
+    //     return 9999999.;
+    // }
 }
 
 fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f32>, stack_ptr: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {

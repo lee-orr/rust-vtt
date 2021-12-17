@@ -61,7 +61,7 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
-    let sdf_object = SDFObjectAsset::new(vec![SDFNodeData::Primitive(SDFShape::Ellipsoid(1., 0.3, 0.5), Vec3::X)]); //test_object(TEST_OP, 0.2);
+    let sdf_object = SDFObjectAsset::new(vec![SDFNodeData::Primitive(SDFShape::Bezier(Vec3::X, -Vec3::X, Vec3::Y, 0.1), Vec3::X)]); //test_object(TEST_OP, 0.2);
     let sdf_object = sdf_objects.add(sdf_object);
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {

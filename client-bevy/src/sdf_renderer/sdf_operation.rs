@@ -63,7 +63,8 @@ pub enum SDFShape {
     Cone(f32, f32, f32),
     Line(Vec3, Vec3, f32),
     Cylinder(f32, f32),
-    Ellipsoid(f32, f32, f32)
+    Ellipsoid(f32, f32, f32),
+    Bezier(Vec3, Vec3, Vec3, f32)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -215,6 +216,7 @@ pub const CONE_PRIM: i32 = 9;
 pub const LINE_PRIM: i32 = 10;
 pub const CYLINDER_PRIM: i32 = 11;
 pub const ELLIPSOID_PRIM: i32 = 12;
+pub const CURVE_PRIM: i32 = 13;
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
@@ -273,6 +275,11 @@ fn generate_node_bounds(
                     Vec3::ZERO,
                     Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length(),
                 ),
+                SDFShape::Bezier(a, b, c, radius) => {
+                    let max_len = a.length().max(b.length().max(c.length()));
+                    let radius = max_len + radius;
+                    (Vec3::ZERO,radius)
+                },
             },
             SDFNodeData::Operation(op, blend, child_a, child_b) => {
                 let (center_a, radius_a) = generate_node_bounds(*child_a, nodes, bound_nodes);
@@ -383,6 +390,12 @@ fn generate_gpu_node(
                     new_node.params.x_axis =
                         Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
                 }
+                SDFShape::Bezier(a, b, c, radius) => {
+                    new_node.node_type = CURVE_PRIM;
+                    new_node.params.x_axis = Vec4::new(a.x, a.y, a.z, *radius);
+                    new_node.params.y_axis = Vec4::new(b.x, b.y, b.z, 0.);
+                    new_node.params.y_axis = Vec4::new(c.x, c.y, c.z, 0.);
+                },
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
             new_node.node_type = match operation {
