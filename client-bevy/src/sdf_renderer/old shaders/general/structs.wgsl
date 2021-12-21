@@ -1,12 +1,12 @@
 // Vertex shader
-[[block]]
+
 struct View {
     view_proj: mat4x4<f32>;
     projection: mat4x4<f32>;
     world_position: vec3<f32>;
 };
 
-[[block]]
+
 struct ViewExtension {
     view_proj_inverted: mat4x4<f32>;
     proj_inverted: mat4x4<f32>;
@@ -14,7 +14,7 @@ struct ViewExtension {
     pixel_size: f32;
 };
 
-[[block]]
+
 struct SDFBakerSettings {
     max_size: vec3<f32>;
     layer_size: vec3<f32>;
@@ -22,7 +22,7 @@ struct SDFBakerSettings {
     layer_multiplier: u32;
 };
 
-[[block]]
+
 struct SDFBakedLayerOrigins {
     origin: vec3<f32>;
 };
@@ -52,27 +52,27 @@ struct Zone {
     final_object: i32;
 };
 
-[[block]]
+
 struct Brushes {
     brushes: array<GpuSDFNode>;
 };
 
-[[block]]
+
 struct SDFObjectCount {
     num_objects: i32;
 };
 
-[[block]]
+
 struct Zones {
     zones: array<Zone>;
 };
 
-[[block]]
+
 struct ZoneObjects {
     zone_objects: array<i32>;
 };
 
-[[block]]
+
 struct ZoneSettings {
     num_zones: i32;
     zone_radius: f32;
@@ -109,7 +109,7 @@ struct BakedNode {
     parent: i32; // if (-1) it is a root, if < -1 it has been cleared
 };
 
-[[block]]
+
 struct Nodes {
     last_written: atomic<i32>;
     nodes: array<BakedNode>;

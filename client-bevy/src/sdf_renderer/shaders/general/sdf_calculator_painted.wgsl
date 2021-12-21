@@ -253,33 +253,33 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
         }
         if (node.node_type == SPHERE_PRIM) {
             last_result = sphereSDF(current_frame.point, node.params[0].x);
-        } elseif (node.node_type == BOX_PRIM) {
+        } else if (node.node_type == BOX_PRIM) {
             last_result = boxSDF(current_frame.point, node.params[0].xyz);
-        } elseif (node.node_type == TORUS_PRIM) {
+        } else if (node.node_type == TORUS_PRIM) {
             last_result = torusSDF(current_frame.point, node.params[0].xy);
-        } elseif (node.node_type == CONE_PRIM) {
+        } else if (node.node_type == CONE_PRIM) {
             last_result = coneSDF(current_frame.point, node.params[0].xy, node.params[0].z);
-        } elseif (node.node_type == LINE_PRIM) {
+        } else if (node.node_type == LINE_PRIM) {
             last_result = lineSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[0].w);
-        } elseif (node.node_type == CYLINDER_PRIM) {
+        } else if (node.node_type == CYLINDER_PRIM) {
             last_result = cylinderSDF(current_frame.point, node.params[0].y, node.params[0].x);
-        } elseif (node.node_type == ELLIPSOID_PRIM) {
+        } else if (node.node_type == ELLIPSOID_PRIM) {
             last_result = ellipsoidSDF(current_frame.point, node.params[0].xyz);
-        } elseif (node.node_type == CURVE_PRIM) {
+        } else if (node.node_type == CURVE_PRIM) {
             last_result = curveSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[2].xyz, node.params[0].w);
-        } elseif (node.node_type == TRANSFORM_WARP) {
+        } else if (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_frame.current_epsilon, false, current_frame.blend);
                 enter_child = true;
                 stack[index].processed_a = true;
             }
-        } elseif (node.node_type == UNION_OP) {
+        } else if (node.node_type == UNION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a.x = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -292,12 +292,12 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
                     last_result = unionSDF(current_frame.child_a.x, current_frame.child_b.x).x;
                  }
             }
-        } elseif (node.node_type == INTERSECTION_OP) {
+        } else if (node.node_type == INTERSECTION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a.x = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -310,12 +310,12 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
                     last_result = intersectionSDF(current_frame.child_a.x, current_frame.child_b.x).x;
                  }
             }
-        }elseif (node.node_type == SUBTRACTION_OP) {
+        }else if (node.node_type == SUBTRACTION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a.x = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -328,7 +328,7 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
                     last_result = subtractionSDF(current_frame.child_b.x, current_frame.child_a.x).x;
                  }
             }
-        } elseif (node.node_type == PAINT_OP) {
+        } else if (node.node_type == PAINT_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid, current_frame.point, current_frame.current_epsilon, false, current_frame.blend);
                 enter_child = true;
@@ -369,33 +369,33 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
         }
         if (node.node_type == SPHERE_PRIM) {
             last_result = vec4<f32>(sphereSDF(current_frame.point, node.params[0].x), node.color);
-        } elseif (node.node_type == BOX_PRIM) {
+        } else if (node.node_type == BOX_PRIM) {
             last_result =vec4<f32>( boxSDF(current_frame.point, node.params[0].xyz), node.color);
-        } elseif (node.node_type == TORUS_PRIM) {
+        } else if (node.node_type == TORUS_PRIM) {
             last_result = vec4<f32>( torusSDF(current_frame.point, node.params[0].xy), node.color);
-        } elseif (node.node_type == CONE_PRIM) {
+        } else if (node.node_type == CONE_PRIM) {
             last_result = vec4<f32>( coneSDF(current_frame.point, node.params[0].xy, node.params[0].z), node.color);
-        } elseif (node.node_type == LINE_PRIM) {
+        } else if (node.node_type == LINE_PRIM) {
             last_result =  vec4<f32>( lineSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[0].w), node.color);
-        } elseif (node.node_type == CYLINDER_PRIM) {
+        } else if (node.node_type == CYLINDER_PRIM) {
             last_result = vec4<f32>( cylinderSDF(current_frame.point, node.params[0].x, node.params[0].y), node.color);
-        } elseif (node.node_type == ELLIPSOID_PRIM) {
+        } else if (node.node_type == ELLIPSOID_PRIM) {
             last_result = vec4<f32>( ellipsoidSDF(current_frame.point, node.params[0].xyz), node.color);
-        } elseif (node.node_type == CURVE_PRIM) {
+        } else if (node.node_type == CURVE_PRIM) {
             last_result = vec4<f32>( curveSDF(current_frame.point, node.params[0].xyz, node.params[1].xyz, node.params[2].xyz, node.params[0].w), node.color);
-        } elseif (node.node_type == TRANSFORM_WARP) {
+        } else if (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_frame.current_epsilon, false, current_frame.blend);
                 enter_child = true;
                 stack[index].processed_a = true;
             }
-        } elseif (node.node_type == UNION_OP) {
+        } else if (node.node_type == UNION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -410,12 +410,12 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
                     last_result = vec4<f32>(result.x, current_frame.child_a.yzw * result.y + current_frame.child_b.yzw * (1. - result.y));
                  }
             }
-        } elseif (node.node_type == INTERSECTION_OP) {
+        } else if (node.node_type == INTERSECTION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -430,12 +430,12 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
                     last_result = vec4<f32>(result.x, current_frame.child_a.yzw * result.y + current_frame.child_b.yzw * (1. - result.y));
                  }
             }
-        }elseif (node.node_type == SUBTRACTION_OP) {
+        }else if (node.node_type == SUBTRACTION_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
@@ -450,12 +450,12 @@ fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: ve
                     last_result = vec4<f32>(result.x, current_frame.child_a.yzw * result.y + current_frame.child_b.yzw * (1. - result.y));
                  }
             }
-        } elseif (node.node_type == PAINT_OP) {
+        } else if (node.node_type == PAINT_OP) {
             if (!current_frame.processed_a) {
                 stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;
                 stack[index].processed_a = true;
-            } elseif (!current_frame.processed_b) {
+            } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
                 stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
                 enter_child = true;

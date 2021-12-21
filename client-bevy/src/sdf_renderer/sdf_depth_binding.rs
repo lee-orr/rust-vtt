@@ -10,7 +10,7 @@ use bevy::{
 use crevice::std140::AsStd140;
 use wgpu::{
     util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BufferBindingType, BufferSize, BufferUsages, ShaderStages, TextureUsages, TextureFormat, TextureDescriptor, Extent3d, SamplerDescriptor, FilterMode, BindingResource,
+    BindGroupLayoutEntry, BindingType, BufferBindingType, BufferSize, BufferUsages, ShaderStages, TextureUsages, TextureFormat, TextureDescriptor, Extent3d, SamplerDescriptor, FilterMode, BindingResource, SamplerBindingType,
 };
 
 use super::sdf_operation::{
@@ -50,10 +50,7 @@ impl FromWorld for SDFDepthBindingLayout {
                 BindGroupLayoutEntry {
                     binding: 1,
                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler {
-                        filtering: false,
-                        comparison: false,
-                    },
+                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                     count: None,
                 },
             ],

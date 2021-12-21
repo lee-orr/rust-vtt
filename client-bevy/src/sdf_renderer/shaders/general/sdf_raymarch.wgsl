@@ -45,7 +45,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
             out.final_epsilon = last_epsilon;
             out.jumps = closest;
             return out;
-       } elseif ( distance_to_start > max_depth) {
+       } else if ( distance_to_start > max_depth) {
             out.distance = depth;
             out.hit = false;
             out.iterations = i;

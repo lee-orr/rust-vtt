@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = [
+    "bevy/bevy_pbr",
     "bevy/png",
     "bevy/bevy_render",
     "bevy/bevy_winit",

@@ -165,10 +165,10 @@ impl FromWorld for SDFPipelineDefinitions {
                 front_face: FrontFace::Ccw,
                 cull_mode: Some(Face::Back),
                 polygon_mode: PolygonMode::Fill,
-                clamp_depth: false,
                 conservative: false,
                 topology: PrimitiveTopology::TriangleList,
                 strip_index_format: None,
+                unclipped_depth: false,
             },
             depth_stencil: Some(DepthStencilState {
                 format: TextureFormat::Depth32Float,
@@ -226,10 +226,10 @@ impl FromWorld for SDFPipelineDefinitions {
                 front_face: FrontFace::Ccw,
                 cull_mode: Some(Face::Back),
                 polygon_mode: PolygonMode::Fill,
-                clamp_depth: false,
                 conservative: false,
                 topology: PrimitiveTopology::TriangleList,
                 strip_index_format: None,
+                unclipped_depth: false,
             },
             depth_stencil: Some(DepthStencilState {
                 format: TextureFormat::Depth32Float,
