@@ -68,11 +68,19 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
     let sdf_object = sdf_objects.add(sdf_object);
     commands
         .spawn()
-        .insert(Transform::from_translation(Vec3::new(0., 3., 0.)))
+        .insert(Transform::from_translation(Vec3::new(0., 4., 0.)))
         .insert(GlobalTransform::default())
         .insert(SDFPointLight {
-            distance: 5.,
+            distance: 30.,
             color: Color::Rgba { red: 1., green: 1., blue: 1., alpha: 10.},
+        });
+    commands
+        .spawn()
+        .insert(Transform::from_translation(Vec3::new(-6., 4., 0.)))
+        .insert(GlobalTransform::default())
+        .insert(SDFPointLight {
+            distance: 30.,
+            color: Color::Rgba { red: 0.5, green: 1., blue: 0.5, alpha: 5.},
         });
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {
