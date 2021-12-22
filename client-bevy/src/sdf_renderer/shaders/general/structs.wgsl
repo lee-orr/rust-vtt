@@ -118,3 +118,16 @@ struct Nodes {
     last_written: atomic<i32>;
     nodes: array<BakedNode>;
 };
+
+struct Light {
+    color: vec4<f32>;
+    params: mat4x4<f32>;
+};
+
+struct Lights {
+    lights: array<Light>;
+};
+
+struct LightSettings {
+    num_lights: i32;
+};

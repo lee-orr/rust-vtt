@@ -4,7 +4,7 @@ struct MarchHit {
     hit: bool;
     iterations: i32;
     final_epsilon: f32;
-    jumps: f32;
+    closest: f32;
 };
 
 let MAX_MARCHING_STEPS = 100;
@@ -43,14 +43,14 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
             out.hit = true;
             out.iterations = i;
             out.final_epsilon = last_epsilon;
-            out.jumps = closest;
+            out.closest = closest;
             return out;
        } else if ( distance_to_start > max_depth) {
             out.distance = depth;
             out.hit = false;
             out.iterations = i;
             out.final_epsilon = last_epsilon;
-            out.jumps = closest;
+            out.closest = closest;
             return out;
         }
         
@@ -60,6 +60,6 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
     out.distance = depth;
     out.hit = false;
     out.iterations = MAX_MARCHING_STEPS;
-    out.jumps = closest;
+    out.closest = closest;
     return out;
 }

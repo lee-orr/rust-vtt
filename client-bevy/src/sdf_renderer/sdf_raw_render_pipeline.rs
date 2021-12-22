@@ -30,7 +30,7 @@ use wgpu::{
 use super::{
     sdf_brush_binding::{BrushBindingGroup, SDFBrushBindingLayout},
     sdf_object_zones::{SDFZones, ZoneSettings},
-    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset},
+    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset}, sdf_lights::{SDFLightBindingLayout, LightBindingGroup},
 };
 
 pub struct SDFRawRenderPipelinePlugin;
@@ -52,7 +52,7 @@ impl Plugin for SDFRawRenderPipelinePlugin {
             include_str!("shaders/vertex/vertex_full_screen.wgsl"),
             include_str!("shaders/general/sdf_calculator_painted.wgsl"),
             include_str!("shaders/general/sdf_raymarch.wgsl"),
-            include_str!("shaders/fragment/fragment_raymarch_calculate_sdf.wgsl"),
+            include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_lights.wgsl"),
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
 
@@ -88,6 +88,11 @@ impl FromWorld for SDFPipelineDefinitions {
             .unwrap()
             .layout
             .clone();
+        let light_layout = world
+            .get_resource::<SDFLightBindingLayout>()
+            .unwrap()
+            .layout
+            .clone();
 
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
 
@@ -117,7 +122,7 @@ impl FromWorld for SDFPipelineDefinitions {
 
         let descriptor = RenderPipelineDescriptor {
             label: Some("SDF Raw Render Pipeline".into()),
-            layout: Some(vec![view_layout, brush_layout, zone_layout]),
+            layout: Some(vec![view_layout, brush_layout, zone_layout, light_layout]),
             vertex: VertexState {
                 shader: shader.clone(),
                 shader_defs: Vec::new(),
@@ -192,12 +197,13 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         SQuery<Read<SDFViewBinding>>,
         SQuery<Read<BrushBindingGroup>>,
         SQuery<Read<SDFZones>>,
+        SQuery<Read<LightBindingGroup>>,
     );
 
     fn render<'w>(
         view: bevy::prelude::Entity,
         _item: &Opaque3d,
-        (view_offsets, meshes, view_binding, brush_binding, zone_binding): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
+        (view_offsets, meshes, view_binding, brush_binding, zone_binding, light_binding): bevy::ecs::system::SystemParamItem<'w, '_, Self::Param>,
         pass: &mut bevy::render::render_phase::TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         if let Some(bindings) = brush_binding.iter().next() {
@@ -205,6 +211,9 @@ impl RenderCommand<Opaque3d> for DrawSDF {
         }
         if let Some(zones) = zone_binding.iter().next() {
             pass.set_bind_group(2, &zones.zone_group, &[0, 0, 0]);
+        }
+        if let Some(lights) = light_binding.iter().next() {
+            pass.set_bind_group(3, &lights.binding, &[0, 0]);
         }
 
         if let Ok((view_uniform, view_extension_uniform)) = view_offsets.get(view) {

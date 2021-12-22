@@ -15,3 +15,8 @@ var<storage, read> zones: Zones;
 var<storage, read> zone_objects: ZoneObjects;
 [[group(2), binding(2)]]
 var<uniform> num_zones: ZoneSettings;
+
+[[group(3), binding(0)]]
+var<storage, read> lights: Lights;
+[[group(3), binding(1)]]
+var<uniform> light_settings: LightSettings;

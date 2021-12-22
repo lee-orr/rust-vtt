@@ -15,7 +15,10 @@ use sdf_renderer::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::sdf_renderer::sdf_operation::{SDFNodeData, SDFShape};
+use crate::sdf_renderer::{
+    sdf_lights::SDFPointLight,
+    sdf_operation::{SDFNodeData, SDFShape},
+};
 
 #[wasm_bindgen]
 pub fn run() {
@@ -43,9 +46,9 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 10;
+const NUM_BRUSHES: i32 = 2;
 const UNOPTIMIZED_OBJECTS: bool = true;
-const TEST_OP: SDFOperation = SDFOperation::Subtraction;
+const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
     for (_, mut transform) in query.iter_mut() {
@@ -61,8 +64,16 @@ fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Re
 
 fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>) {
     println!("Setting Up Brushes");
-    let sdf_object = SDFObjectAsset::new(vec![SDFNodeData::Primitive(SDFShape::Bezier(Vec3::X, -Vec3::X, Vec3::Y, 0.1), Vec3::X)]); //test_object(TEST_OP, 0.2);
+    let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.2);
     let sdf_object = sdf_objects.add(sdf_object);
+    commands
+        .spawn()
+        .insert(Transform::from_translation(Vec3::new(0., 3., 0.)))
+        .insert(GlobalTransform::default())
+        .insert(SDFPointLight {
+            distance: 5.,
+            color: Color::Rgba { red: 1., green: 1., blue: 1., alpha: 10.},
+        });
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {

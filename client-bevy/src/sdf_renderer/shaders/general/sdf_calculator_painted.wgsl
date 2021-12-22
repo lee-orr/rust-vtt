@@ -226,11 +226,11 @@ fn bounding_sphere_intersection(origin: vec3<f32>, ray: vec3<f32>, radius: f32, 
 fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f32>, stack_ptr: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
     var index : i32 = 0;
     var last_result : f32 = 99999999999.9;
-    var num_jumps: f32 = 0.0;
+    var num_closest: f32 = 0.0;
     var stack = *stack_ptr;
     stack[0] = setup_node(nodeid, 0, point, current_epsilon, true, 0.);
     loop {
-       num_jumps = f32(nodeid);
+       num_closest = f32(nodeid);
        if (index == -1 || index >= MAX_BRUSH_DEPTH) {
            break;
        }
@@ -347,11 +347,11 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
 fn processNodeColor(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f32>, stack_ptr: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> vec4<f32> {
     var index : i32 = 0;
     var last_result : vec4<f32> = vec4<f32>(99999999999.9, 0., 0., 0.);
-    var num_jumps: f32 = 0.0;
+    var num_closest: f32 = 0.0;
     var stack = *stack_ptr;
     stack[0] = setup_node(nodeid, 0, point, current_epsilon, true, 0.);
     loop {
-       num_jumps = f32(nodeid);
+       num_closest = f32(nodeid);
        if (index == -1 || index >= MAX_BRUSH_DEPTH) {
            break;
        }
