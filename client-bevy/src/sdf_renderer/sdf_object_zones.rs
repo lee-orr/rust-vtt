@@ -129,8 +129,8 @@ fn process_object_zones(
 
     for (obj, (_, bounds)) in objects.iter().enumerate() {
         let zone_bound_radius = bounds.radius;
-        let min_zone_bound = bounds.center - zone_bound_radius;
-        let max_zone_bound = bounds.center + zone_bound_radius;
+        let min_zone_bound = -bounds.center - zone_bound_radius;
+        let max_zone_bound = -bounds.center + zone_bound_radius;
         let min_zone_bound = ((min_zone_bound - bounds_min) / zone_size).floor();
         let max_zone_bound = ((max_zone_bound - bounds_min) / zone_size).ceil();
         for x in (min_zone_bound.x as i32)..(max_zone_bound.x as i32) {

@@ -98,7 +98,7 @@ fn prepare_brush_uniforms(
                     child_a: child,
                     center: root.center - transform.translation,
                     radius: root.radius * transform.scale.max_element(),
-                    params: transform.matrix,
+                    params: transform.matrix.inverse(),
                     ..Default::default()
                 };
                 brush_vec.push(transform);
