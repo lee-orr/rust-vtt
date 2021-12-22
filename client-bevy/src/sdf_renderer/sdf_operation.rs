@@ -422,7 +422,7 @@ fn generate_gpu_node(
             new_node.child_b = child_b_id - (new_id as i32);
         } else if let SDFNodeData::Transform(child, transform) = sdfnode {
             new_node.node_type = TRANSFORM_WARP;
-            new_node.params = transform.compute_matrix();
+            new_node.params = transform.compute_matrix().inverse();
             let (child_id, _child) = generate_gpu_node(tree, *child, node_query);
             new_node.child_a = child_id - (new_id as i32);
         }

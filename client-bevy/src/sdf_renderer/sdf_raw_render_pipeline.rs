@@ -1,6 +1,6 @@
 use bevy::{
     core_pipeline::Opaque3d,
-    ecs::system::lifetimeless::{Read, SQuery, SRes},
+    ecs::{system::lifetimeless::{Read, SQuery, SRes}, world::WorldBorrow},
     math::Vec2,
     prelude::*,
     reflect::TypeUuid,
@@ -56,8 +56,10 @@ impl Plugin for SDFRawRenderPipelinePlugin {
             include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_lights.wgsl"),
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
+        let msaa = if let Some(msaa) = app.world.get_resource::<Msaa>() { msaa.clone() } else { Msaa::default() };
 
         app.sub_app(RenderApp)
+            .insert_resource(msaa)
             .init_resource::<SDFPipelineDefinitions>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Queue, queue_sdf);
@@ -94,6 +96,8 @@ impl FromWorld for SDFPipelineDefinitions {
             .unwrap()
             .layout
             .clone();
+        let msaa = if let Some(msaa) = world.get_resource::<Msaa>() { msaa.clone() } else { Msaa::default() };
+        println!("MSAA: {}", msaa.samples);
 
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
 
@@ -155,7 +159,7 @@ impl FromWorld for SDFPipelineDefinitions {
                 },
             }),
             multisample: MultisampleState {
-                count: 4,
+                count: msaa.samples,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
