@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{BindGroup, BindGroupLayout, TextureView},
-        renderer::{RenderDevice},
+        renderer::RenderDevice,
         texture::{CachedTexture, TextureCache},
         view::ExtractedView,
         RenderApp, RenderStage,
@@ -10,12 +10,10 @@ use bevy::{
 };
 
 use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Extent3d, FilterMode, SamplerBindingType, SamplerDescriptor, ShaderStages,
-    TextureDescriptor, TextureFormat, TextureUsages,
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+    BindingResource, BindingType, Extent3d, FilterMode, SamplerBindingType, SamplerDescriptor,
+    ShaderStages, TextureDescriptor, TextureFormat, TextureUsages,
 };
-
-
 
 pub struct SDFDepthBindingPlugin;
 

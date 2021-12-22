@@ -27,9 +27,9 @@ use bevy::{
 use wgpu::{
     BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites,
     CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, LoadOp, MultisampleState,
-    Operations, PolygonMode, PrimitiveState, PrimitiveTopology,
-    RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
-    VertexAttribute, VertexFormat, VertexStepMode,
+    Operations, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPassDepthStencilAttachment,
+    RenderPassDescriptor, StencilState, TextureFormat, VertexAttribute, VertexFormat,
+    VertexStepMode,
 };
 
 use super::{

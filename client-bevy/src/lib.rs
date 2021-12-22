@@ -15,9 +15,7 @@ use sdf_renderer::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::sdf_renderer::{
-    sdf_lights::SDFPointLight,
-};
+use crate::sdf_renderer::sdf_lights::SDFPointLight;
 
 #[wasm_bindgen]
 pub fn run() {

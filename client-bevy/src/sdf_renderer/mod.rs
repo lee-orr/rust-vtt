@@ -16,9 +16,8 @@ use crate::sdf_renderer::{
 };
 
 use self::{
-    sdf_brush_binding::SDFBrushBindingPlugin,
-    sdf_lights::SDFLightPlugin, sdf_raw_render_pipeline::SDFRawRenderPipelinePlugin,
-    sdf_view_binding::SDFViewBindingPlugin,
+    sdf_brush_binding::SDFBrushBindingPlugin, sdf_lights::SDFLightPlugin,
+    sdf_raw_render_pipeline::SDFRawRenderPipelinePlugin, sdf_view_binding::SDFViewBindingPlugin,
 };
 
 pub struct SdfPlugin;

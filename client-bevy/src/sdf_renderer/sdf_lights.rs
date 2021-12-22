@@ -14,8 +14,6 @@ use wgpu::{
     BindGroupLayoutEntry, BindingType, BufferBindingType, BufferSize, BufferUsages, ShaderStages,
 };
 
-
-
 pub struct SDFLightPlugin;
 
 impl Plugin for SDFLightPlugin {
