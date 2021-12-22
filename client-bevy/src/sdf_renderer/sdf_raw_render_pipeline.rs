@@ -1,6 +1,6 @@
 use bevy::{
     core_pipeline::Opaque3d,
-    ecs::{system::lifetimeless::{Read, SQuery, SRes}, world::WorldBorrow},
+    ecs::system::lifetimeless::{Read, SQuery, SRes},
     math::Vec2,
     prelude::*,
     reflect::TypeUuid,
@@ -23,8 +23,8 @@ use bevy::{
 use wgpu::{
     BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites,
     CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, MultisampleState,
-    PolygonMode, PrimitiveState, PrimitiveTopology, StencilState, TextureFormat, VertexAttribute,
-    VertexFormat, VertexStepMode, StencilFaceState,
+    PolygonMode, PrimitiveState, PrimitiveTopology, StencilFaceState, StencilState, TextureFormat,
+    VertexAttribute, VertexFormat, VertexStepMode,
 };
 
 use super::{
@@ -56,7 +56,11 @@ impl Plugin for SDFRawRenderPipelinePlugin {
             include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_lights.wgsl"),
         ));
         shaders.set_untracked(SDF_SHADER_HANDLE, shader);
-        let msaa = if let Some(msaa) = app.world.get_resource::<Msaa>() { msaa.clone() } else { Msaa::default() };
+        let msaa = if let Some(msaa) = app.world.get_resource::<Msaa>() {
+            msaa.clone()
+        } else {
+            Msaa::default()
+        };
 
         app.sub_app(RenderApp)
             .insert_resource(msaa)
@@ -96,7 +100,11 @@ impl FromWorld for SDFPipelineDefinitions {
             .unwrap()
             .layout
             .clone();
-        let msaa = if let Some(msaa) = world.get_resource::<Msaa>() { msaa.clone() } else { Msaa::default() };
+        let msaa = if let Some(msaa) = world.get_resource::<Msaa>() {
+            msaa.clone()
+        } else {
+            Msaa::default()
+        };
         println!("MSAA: {}", msaa.samples);
 
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();

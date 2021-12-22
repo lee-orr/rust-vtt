@@ -4,9 +4,10 @@ pub mod sdf_renderer;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    pbr::wireframe::WireframePlugin,
     prelude::*,
-    DefaultPlugins, pbr::wireframe::{Wireframe, WireframePlugin},
     render::{options::WgpuOptions, render_resource::WgpuFeatures},
+    DefaultPlugins,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use communications::CommunicationsPlugin;
@@ -16,7 +17,10 @@ use sdf_renderer::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::sdf_renderer::{sdf_lights::SDFPointLight, sdf_operation::{SDFNodeData, SDFShape}};
+use crate::sdf_renderer::{
+    sdf_lights::SDFPointLight,
+    sdf_operation::{SDFNodeData, SDFShape},
+};
 
 #[wasm_bindgen]
 pub fn run() {
@@ -24,8 +28,7 @@ pub fn run() {
     console_error_panic_hook::set_once();
 
     let mut app = App::new();
-    app
-        .insert_resource(Msaa { samples: 1 })
+    app.insert_resource(Msaa { samples: 1 })
         .insert_resource(WgpuOptions {
             features: WgpuFeatures::POLYGON_MODE_LINE,
             ..Default::default()
@@ -55,23 +58,23 @@ const UNOPTIMIZED_OBJECTS: bool = false;
 const TEST_SCENE: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
-fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
-    for (_, mut transform) in query.iter_mut() {
-        transform.translation += Vec3::X
-            * time.delta().as_secs_f32()
-            * (if time.seconds_since_startup() as i32 % 2 == 0 {
-                0.5
-            } else {
-                -0.5
-            });
-    }
-}
+// fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
+//     for (_, mut transform) in query.iter_mut() {
+//         transform.translation += Vec3::X
+//             * time.delta().as_secs_f32()
+//             * (if time.seconds_since_startup() as i32 % 2 == 0 {
+//                 0.5
+//             } else {
+//                 -0.5
+//             });
+//     }
+// }
 
 fn setup(
     mut commands: Commands,
     mut sdf_objects: ResMut<Assets<SDFObjectAsset>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    _meshes: ResMut<Assets<Mesh>>,
+    _materials: ResMut<Assets<StandardMaterial>>,
 ) {
     println!("Setting Up Brushes");
     let sdf_object = SDFObjectAsset::test_object(TEST_OP, 0.2);
@@ -119,18 +122,18 @@ fn setup(
     } else if TEST_SCENE {
         //Light
         commands
-        .spawn()
-        .insert(Transform::from_translation(Vec3::new(0., 10., 0.)))
-        .insert(GlobalTransform::default())
-        .insert(SDFPointLight {
-            distance: 30.,
-            color: Color::Rgba {
-                red: 1.,
-                green: 1.,
-                blue: 1.,
-                alpha: 20.,
-            },
-        });
+            .spawn()
+            .insert(Transform::from_translation(Vec3::new(0., 10., 0.)))
+            .insert(GlobalTransform::default())
+            .insert(SDFPointLight {
+                distance: 30.,
+                color: Color::Rgba {
+                    red: 1.,
+                    green: 1.,
+                    blue: 1.,
+                    alpha: 20.,
+                },
+            });
 
         // Ground
         let ground = SDFObjectAsset::new(vec![
@@ -139,31 +142,39 @@ fn setup(
             SDFNodeData::Transform(3, Transform::from_translation(Vec3::new(0., -5., 0.))),
             SDFNodeData::Primitive(SDFShape::Box(20., 5., 30.), Vec3::new(0.2, 0.5, 0.1)),
             SDFNodeData::Primitive(SDFShape::Sphere(2.), Vec3::new(0.6, 0.4, 0.2)),
-            SDFNodeData::Primitive(SDFShape::Bezier(Vec3::new(3., 0., -5.), Vec3::new(4., 0., 1.), Vec3::new(2., 0., 4.), 1.), Vec3::new(0.8, 0.6, 0.3)),
+            SDFNodeData::Primitive(
+                SDFShape::Bezier(
+                    Vec3::new(3., 0., -5.),
+                    Vec3::new(4., 0., 1.),
+                    Vec3::new(2., 0., 4.),
+                    1.,
+                ),
+                Vec3::new(0.8, 0.6, 0.3),
+            ),
         ]);
         let ground = sdf_objects.add(ground);
         commands
             .spawn()
-            .insert(ground.clone())
+            .insert(ground)
             .insert(Transform::from_translation(Vec3::ZERO))
             .insert(GlobalTransform::default());
 
         // CastleWalls
-        let castleWalls = SDFObjectAsset::new(vec![
+        let castle_walls = SDFObjectAsset::new(vec![
             SDFNodeData::Operation(SDFOperation::Union, 0.1, 1, 2),
             SDFNodeData::Operation(SDFOperation::Union, 0.1, 3, 4),
             SDFNodeData::Operation(SDFOperation::Union, 0.1, 5, 6),
-            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0., 0.,-3.))),
-            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0.,0., 3.))),
-            SDFNodeData::Transform(8, Transform::from_translation(Vec3::new(3.,0., 0.))),
+            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0., 0., -3.))),
+            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0., 0., 3.))),
+            SDFNodeData::Transform(8, Transform::from_translation(Vec3::new(3., 0., 0.))),
             SDFNodeData::Transform(8, Transform::from_translation(Vec3::new(-3., 0., 0.))),
             SDFNodeData::Primitive(SDFShape::Box(3., 1., 0.1), Vec3::new(0.7, 0.6, 0.7)),
-            SDFNodeData::Primitive(SDFShape::Box(0.1, 1.,3.), Vec3::new(0.7, 0.6, 0.7)),
+            SDFNodeData::Primitive(SDFShape::Box(0.1, 1., 3.), Vec3::new(0.7, 0.6, 0.7)),
         ]);
-        let castleWalls = sdf_objects.add(castleWalls);
+        let castle_walls = sdf_objects.add(castle_walls);
         commands
             .spawn()
-            .insert(castleWalls.clone())
+            .insert(castle_walls)
             .insert(Transform::from_translation(Vec3::X * 6.))
             .insert(GlobalTransform::default());
     } else {
