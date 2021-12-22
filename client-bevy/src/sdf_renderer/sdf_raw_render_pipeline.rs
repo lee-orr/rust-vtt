@@ -24,7 +24,7 @@ use wgpu::{
     BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites,
     CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, MultisampleState,
     PolygonMode, PrimitiveState, PrimitiveTopology, StencilState, TextureFormat, VertexAttribute,
-    VertexFormat, VertexStepMode,
+    VertexFormat, VertexStepMode, StencilFaceState,
 };
 
 use super::{
@@ -151,7 +151,12 @@ impl FromWorld for SDFPipelineDefinitions {
                 format: TextureFormat::Depth32Float,
                 depth_write_enabled: true,
                 depth_compare: CompareFunction::Greater,
-                stencil: StencilState::default(),
+                stencil: StencilState {
+                    front: StencilFaceState::IGNORE,
+                    back: StencilFaceState::IGNORE,
+                    read_mask: 0,
+                    write_mask: 0,
+                },
                 bias: DepthBiasState {
                     constant: 0,
                     slope_scale: 0.0,

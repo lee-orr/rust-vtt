@@ -16,7 +16,7 @@ use sdf_renderer::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::sdf_renderer::sdf_lights::SDFPointLight;
+use crate::sdf_renderer::{sdf_lights::SDFPointLight, sdf_operation::{SDFNodeData, SDFShape}};
 
 #[wasm_bindgen]
 pub fn run() {
@@ -38,7 +38,7 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_startup_system(setup.system())
         .add_system(ui)
-        .add_system(animate)
+        //.add_system(animate)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
@@ -50,8 +50,9 @@ fn ui(egui_context: ResMut<EguiContext>) {
     });
 }
 
-const NUM_BRUSHES: i32 = 2;
-const UNOPTIMIZED_OBJECTS: bool = true;
+const NUM_BRUSHES: i32 = 1;
+const UNOPTIMIZED_OBJECTS: bool = false;
+const TEST_SCENE: bool = true;
 const TEST_OP: SDFOperation = SDFOperation::Union;
 
 fn animate(mut query: Query<(&Handle<SDFObjectAsset>, &mut Transform)>, time: Res<Time>) {
@@ -101,19 +102,11 @@ fn setup(
                 alpha: 5.,
             },
         });
-    let cube = meshes.add(Mesh::from(shape::UVSphere {radius: 1., sectors: 6, stacks: 6 }));
-    let material = materials.add(StandardMaterial { base_color: Color::BLUE, unlit: true, ..Default::default()});
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {
             for j in 0..NUM_BRUSHES {
                 commands
                     .spawn()
-                    .insert_bundle(PbrBundle {
-                        mesh: cube.clone(),
-                        material: material.clone(),
-                        ..Default::default()
-                    })
-                    .insert(Wireframe)
                     .insert(sdf_object.clone())
                     .insert(Transform::from_translation(Vec3::new(
                         i as f32 * 4.,
@@ -123,6 +116,56 @@ fn setup(
                     .insert(GlobalTransform::default());
             }
         }
+    } else if TEST_SCENE {
+        //Light
+        commands
+        .spawn()
+        .insert(Transform::from_translation(Vec3::new(0., 10., 0.)))
+        .insert(GlobalTransform::default())
+        .insert(SDFPointLight {
+            distance: 30.,
+            color: Color::Rgba {
+                red: 1.,
+                green: 1.,
+                blue: 1.,
+                alpha: 20.,
+            },
+        });
+
+        // Ground
+        let ground = SDFObjectAsset::new(vec![
+            SDFNodeData::Operation(SDFOperation::Paint, 0.1, 1, 5),
+            SDFNodeData::Operation(SDFOperation::Subtraction, 0.2, 2, 4),
+            SDFNodeData::Transform(3, Transform::from_translation(Vec3::new(0., -5., 0.))),
+            SDFNodeData::Primitive(SDFShape::Box(20., 5., 30.), Vec3::new(0.2, 0.5, 0.1)),
+            SDFNodeData::Primitive(SDFShape::Sphere(2.), Vec3::new(0.6, 0.4, 0.2)),
+            SDFNodeData::Primitive(SDFShape::Bezier(Vec3::new(3., 0., -5.), Vec3::new(4., 0., 1.), Vec3::new(2., 0., 4.), 1.), Vec3::new(0.8, 0.6, 0.3)),
+        ]);
+        let ground = sdf_objects.add(ground);
+        commands
+            .spawn()
+            .insert(ground.clone())
+            .insert(Transform::from_translation(Vec3::ZERO))
+            .insert(GlobalTransform::default());
+
+        // CastleWalls
+        let castleWalls = SDFObjectAsset::new(vec![
+            SDFNodeData::Operation(SDFOperation::Union, 0.1, 1, 2),
+            SDFNodeData::Operation(SDFOperation::Union, 0.1, 3, 4),
+            SDFNodeData::Operation(SDFOperation::Union, 0.1, 5, 6),
+            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0., 0.,-3.))),
+            SDFNodeData::Transform(7, Transform::from_translation(Vec3::new(0.,0., 3.))),
+            SDFNodeData::Transform(8, Transform::from_translation(Vec3::new(3.,0., 0.))),
+            SDFNodeData::Transform(8, Transform::from_translation(Vec3::new(-3., 0., 0.))),
+            SDFNodeData::Primitive(SDFShape::Box(3., 1., 0.1), Vec3::new(0.7, 0.6, 0.7)),
+            SDFNodeData::Primitive(SDFShape::Box(0.1, 1.,3.), Vec3::new(0.7, 0.6, 0.7)),
+        ]);
+        let castleWalls = sdf_objects.add(castleWalls);
+        commands
+            .spawn()
+            .insert(castleWalls.clone())
+            .insert(Transform::from_translation(Vec3::X * 6.))
+            .insert(GlobalTransform::default());
     } else {
         commands
             .spawn()
