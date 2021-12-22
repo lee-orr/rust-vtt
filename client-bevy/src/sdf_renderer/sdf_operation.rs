@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
 use bevy::{
-    math::{Mat4, Vec3, Vec4},
+    math::{Mat4, Vec2, Vec3, Vec4},
     prelude::{
         AddAsset, Assets, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Handle,
         Or, Plugin, Query, Res, StageLabel, SystemStage, Transform,
     },
     reflect::TypeUuid,
-    render2::render_asset::{RenderAsset, RenderAssetPlugin},
+    render::{
+        render_asset::{RenderAsset, RenderAssetPlugin},
+        RenderApp, RenderStage,
+    },
 };
 
 use crevice::std140::AsStd140;
@@ -42,20 +45,26 @@ impl Plugin for SDFOperationPlugin {
             .add_system_to_stage(CoreStage::PreUpdate, clean_dirty_object)
             .add_system_to_stage(SDFStages::MarkDirty, set_dirty_object)
             .add_system_to_stage(SDFStages::GenerateBounds, construct_node_tree_bounds);
-        // .add_system_to_stage(SDFStages::GenerateGpu, sort_sdf_objects)
-        // .add_system_to_stage(SDFStages::GenerateGpu, construct_sdf_object_tree);
+        app.sub_app(RenderApp)
+            .add_system_to_stage(RenderStage::Extract, extract_gpu_node_trees);
     }
 }
 
-#[derive(Default, Clone, AsStd140)]
-pub struct BrushSettings {
-    pub num_brushes: i32,
+#[derive(Default, Clone, Copy, AsStd140)]
+pub struct SDFObjectCount {
+    pub num_objects: i32,
 }
 
 #[derive(Debug, Clone, Copy, Component)]
 pub enum SDFShape {
     Sphere(f32),
     Box(f32, f32, f32),
+    Torus(f32, f32),
+    Cone(f32, f32, f32),
+    Line(Vec3, Vec3, f32),
+    Cylinder(f32, f32),
+    Ellipsoid(f32, f32, f32),
+    Bezier(Vec3, Vec3, Vec3, f32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +72,7 @@ pub enum SDFOperation {
     Union,
     Subtraction,
     Intersection,
+    Paint,
 }
 
 #[derive(Debug, AsStd140, Default, Clone)]
@@ -73,12 +83,13 @@ pub struct GpuSDFNode {
     pub params: Mat4,
     pub radius: f32,
     pub center: Vec3,
+    pub color: Vec3,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum SDFNodeData {
     Empty,
-    Primitive(SDFShape),
+    Primitive(SDFShape, Vec3),
     Operation(SDFOperation, f32, usize, usize),
     Transform(usize, Transform),
 }
@@ -129,20 +140,37 @@ impl SDFObjectAsset {
         }
     }
 
-    pub fn cube() -> Self {
-        Self::new(vec![SDFNodeData::Primitive(SDFShape::Box(1., 1., 1.))])
+    pub fn cube(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(
+            SDFShape::Box(1., 1., 1.),
+            color,
+        )])
     }
 
-    pub fn sphere() -> Self {
-        Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.))])
+    pub fn sphere(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(SDFShape::Sphere(1.), color)])
+    }
+
+    pub fn torus(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(
+            SDFShape::Torus(0.5, 1.),
+            color,
+        )])
+    }
+
+    pub fn cone(color: Vec3) -> Self {
+        Self::new(vec![SDFNodeData::Primitive(
+            SDFShape::Cone(0.2, 0.5, 1.),
+            color,
+        )])
     }
 
     pub fn test_object(operation: SDFOperation, blend: f32) -> Self {
         Self::new(vec![
             SDFNodeData::Operation(operation, blend, 1, 2),
-            SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2)),
+            SDFNodeData::Primitive(SDFShape::Box(0.2, 0.2, 0.2), Vec3::new(0., 0., 1.)),
             SDFNodeData::Transform(3, Transform::from_translation(Vec3::new(2., 0., 0.))),
-            SDFNodeData::Primitive(SDFShape::Sphere(2.)),
+            SDFNodeData::Primitive(SDFShape::Sphere(2.), Vec3::new(1., 0., 0.)),
         ])
     }
 }
@@ -163,7 +191,7 @@ impl RenderAsset for SDFObjectAsset {
         _param: &mut bevy::ecs::system::SystemParamItem<Self::Param>,
     ) -> Result<
         Self::PreparedAsset,
-        bevy::render2::render_asset::PrepareAssetError<Self::ExtractedAsset>,
+        bevy::render::render_asset::PrepareAssetError<Self::ExtractedAsset>,
     > {
         let mut tree: Vec<GpuSDFNode> = Vec::new();
         generate_gpu_node(&mut tree, extracted_asset.root, &extracted_asset);
@@ -186,9 +214,18 @@ pub struct SDFRootTransform {
 pub const UNION_OP: i32 = 1;
 pub const INTERSECTION_OP: i32 = 2;
 pub const SUBTRACTION_OP: i32 = 3;
+pub const PAINT_OP: i32 = 7;
+
 pub const TRANSFORM_WARP: i32 = 4;
+
 pub const SPHERE_PRIM: i32 = 5;
 pub const BOX_PRIM: i32 = 6;
+pub const TORUS_PRIM: i32 = 8;
+pub const CONE_PRIM: i32 = 9;
+pub const LINE_PRIM: i32 = 10;
+pub const CYLINDER_PRIM: i32 = 11;
+pub const ELLIPSOID_PRIM: i32 = 12;
+pub const CURVE_PRIM: i32 = 13;
 
 pub fn extract_gpu_node_trees(
     mut commands: Commands,
@@ -199,7 +236,9 @@ pub fn extract_gpu_node_trees(
         &SDFGlobalNodeBounds,
     )>,
 ) {
+    let mut count: i32 = 0;
     for (entity, transform, tree, bounds) in query.iter() {
+        count += 1;
         let mut ecommands = commands.get_or_spawn(entity);
         ecommands
             .insert(SDFRootTransform {
@@ -210,6 +249,7 @@ pub fn extract_gpu_node_trees(
             .insert(tree.clone())
             .insert(*bounds);
     }
+    commands.insert_resource(SDFObjectCount { num_objects: count });
 }
 
 pub fn extract_dirty_object(mut commands: Commands, query: Query<(Entity, &SDFObjectDirty)>) {
@@ -226,12 +266,31 @@ fn generate_node_bounds(
     if let Some(node) = nodes.get(node_id) {
         let (center, radius) = match node {
             SDFNodeData::Empty => (Vec3::ZERO, 0.),
-            SDFNodeData::Primitive(primitive) => match primitive {
+            SDFNodeData::Primitive(primitive, _) => match primitive {
                 SDFShape::Sphere(radius) => (Vec3::ZERO, *radius),
                 SDFShape::Box(width, height, depth) => (
                     Vec3::ZERO,
                     Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length(),
                 ),
+                SDFShape::Torus(_inner, outer) => (Vec3::ZERO, *outer),
+                SDFShape::Cone(width, depth, height) => (Vec3::ZERO, width.max(depth.max(*height))),
+                SDFShape::Line(a, b, radius) => {
+                    let center = (*a + *b) / 2.;
+                    let radius = (*b - center).length() + radius;
+                    (center, radius)
+                }
+                SDFShape::Cylinder(height, radius) => {
+                    (Vec3::ZERO, Vec2::new(*height, *radius).length())
+                }
+                SDFShape::Ellipsoid(width, height, depth) => (
+                    Vec3::ZERO,
+                    Vec3::new(width.to_owned(), height.to_owned(), depth.to_owned()).length(),
+                ),
+                SDFShape::Bezier(a, b, c, radius) => {
+                    let max_len = a.length().max(b.length().max(c.length()));
+                    let radius = max_len + radius;
+                    (Vec3::ZERO, radius)
+                }
             },
             SDFNodeData::Operation(op, blend, child_a, child_b) => {
                 let (center_a, radius_a) = generate_node_bounds(*child_a, nodes, bound_nodes);
@@ -252,6 +311,7 @@ fn generate_node_bounds(
                         min_bounds_a.max(min_bounds_b),
                         max_bounds_a.min(max_bounds_b),
                     ),
+                    SDFOperation::Paint => (min_bounds_a, max_bounds_a),
                 };
                 let center = (max + min) / 2.;
                 let extents = (max - center) + *blend;
@@ -307,7 +367,8 @@ fn generate_gpu_node(
             ..Default::default()
         };
 
-        if let SDFNodeData::Primitive(primitive) = sdfnode {
+        if let SDFNodeData::Primitive(primitive, color) = sdfnode {
+            new_node.color = *color;
             match primitive {
                 SDFShape::Sphere(radius) => {
                     new_node.node_type = SPHERE_PRIM;
@@ -318,12 +379,41 @@ fn generate_gpu_node(
                     new_node.params.x_axis =
                         Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
                 }
+                SDFShape::Torus(inner, outer) => {
+                    new_node.node_type = TORUS_PRIM;
+                    new_node.params.x_axis = Vec4::new(*outer, *inner, 0., 0.);
+                }
+                SDFShape::Cone(width, depth, height) => {
+                    new_node.node_type = CONE_PRIM;
+                    new_node.params.x_axis = Vec4::new(*width, *depth, *height, 0.);
+                }
+                SDFShape::Line(a, b, radius) => {
+                    new_node.node_type = LINE_PRIM;
+                    new_node.params.x_axis = Vec4::new(a.x, a.y, a.z, *radius);
+                    new_node.params.y_axis = Vec4::new(b.x, b.y, b.z, 0.);
+                }
+                SDFShape::Cylinder(height, radius) => {
+                    new_node.node_type = CYLINDER_PRIM;
+                    new_node.params.x_axis = Vec4::new(*height, *radius, 0., 0.);
+                }
+                SDFShape::Ellipsoid(width, height, depth) => {
+                    new_node.node_type = ELLIPSOID_PRIM;
+                    new_node.params.x_axis =
+                        Vec4::new(width.to_owned(), height.to_owned(), depth.to_owned(), 0.0);
+                }
+                SDFShape::Bezier(a, b, c, radius) => {
+                    new_node.node_type = CURVE_PRIM;
+                    new_node.params.x_axis = Vec4::new(a.x, a.y, a.z, *radius);
+                    new_node.params.y_axis = Vec4::new(b.x, b.y, b.z, 0.);
+                    new_node.params.y_axis = Vec4::new(c.x, c.y, c.z, 0.);
+                }
             }
         } else if let SDFNodeData::Operation(operation, blending, child_a, child_b) = sdfnode {
             new_node.node_type = match operation {
                 SDFOperation::Union => UNION_OP,
                 SDFOperation::Subtraction => SUBTRACTION_OP,
                 SDFOperation::Intersection => INTERSECTION_OP,
+                &SDFOperation::Paint => PAINT_OP,
             };
             new_node.params.x_axis.x = blending.to_owned();
             let (child_a_id, _child_a) = generate_gpu_node(tree, *child_a, node_query);
@@ -379,8 +469,8 @@ mod tests {
         let object = SDFObjectAsset::new(vec![
             SDFNodeData::Operation(SDFOperation::Union, 0., 1, 3),
             SDFNodeData::Transform(2, Transform::from_translation(Vec3::X)),
-            SDFNodeData::Primitive(SDFShape::Sphere(1.)),
-            SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5)),
+            SDFNodeData::Primitive(SDFShape::Sphere(1.), Vec3::new(1., 0., 0.)),
+            SDFNodeData::Primitive(SDFShape::Box(0.5, 0.5, 0.5), Vec3::new(1., 0., 0.)),
         ]);
         let gpu_object = SDFObjectAsset::prepare_asset(object, &mut ());
 
@@ -413,6 +503,7 @@ mod tests {
             assert!(assert_eq_f32(sphere.params.x_axis.x, 1.));
             assert_eq!(sphere.center, Vec3::ZERO);
             assert!(assert_eq_f32(sphere.radius, 1.));
+            assert_eq!(sphere.color, Vec3::new(1., 0., 0.));
         }
     }
 }

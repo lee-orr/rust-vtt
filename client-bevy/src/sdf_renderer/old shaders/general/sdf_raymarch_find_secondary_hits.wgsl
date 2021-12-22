@@ -41,7 +41,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
                 left_first_object = depth + last_epsilon;
                 second_hit = depth + last_epsilon;
                 depth = depth + 2. * last_epsilon;
-            } elseif (!left_first_hit) {
+            } else if (!left_first_hit) {
                 out.distance = first_hit;
                 out.distance_2 = second_hit;
                 out.hit = found_first_hit;
@@ -51,11 +51,11 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
                 out.left_first_object = left_first_object;
                 out.jumps = jumps;
                 return out;
-            } elseif (!found_second_hit) {
+            } else if (!found_second_hit) {
                 found_second_hit = true;
                 second_hit = depth - 2. * hit_epsilon;
             }
-        } elseif (found_first_hit && !left_first_hit && dist.x > 0.) {
+        } else if (found_first_hit && !left_first_hit && dist.x > 0.) {
             left_first_hit = true;
             left_first_object = depth + dist.x + last_epsilon;
         }
@@ -71,7 +71,7 @@ fn march(start: vec3<f32>, ray: vec3<f32>, pixel_size: f32, max_dist: f32, stack
             out.left_first_object = left_first_object;
             out.jumps = jumps;
             return out;
-       } elseif ( distance_to_start > max_depth) {
+       } else if ( distance_to_start > max_depth) {
             out.distance = first_hit;
             out.distance_2 = second_hit;
             out.hit = found_first_hit;

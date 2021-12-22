@@ -2,15 +2,9 @@
 
 struct View {
     view_proj: mat4x4<f32>;
-    inverse_view: mat4x4<f32>;
     projection: mat4x4<f32>;
     world_position: vec3<f32>;
-    near: f32;
-    far: f32;
-    width: f32;
-    height: f32;
 };
-
 
 
 struct ViewExtension {
@@ -18,8 +12,6 @@ struct ViewExtension {
     proj_inverted: mat4x4<f32>;
     cone_scaler: f32;
     pixel_size: f32;
-    near: f32;
-    far: f32;
 };
 
 
@@ -35,6 +27,15 @@ struct SDFBakedLayerOrigins {
     origin: vec3<f32>;
 };
 
+struct SDFBrush {
+    shape: i32;
+    operation: i32;
+    blending: f32;
+    transform: mat4x4<f32>;
+    param1: vec4<f32>;
+    param2: vec4<f32>;
+};
+
 struct GpuSDFNode {
     node_type: i32;
     child_a: i32;
@@ -42,13 +43,11 @@ struct GpuSDFNode {
     params: mat4x4<f32>;
     radius: f32;
     center: vec3<f32>;
-    color: vec3<f32>;
 };
 
 struct Zone {
     min: vec3<f32>;
     max: vec3<f32>;
-    center: vec3<f32>;
     first_object: i32;
     final_object: i32;
 };
@@ -78,11 +77,8 @@ struct ZoneSettings {
     num_zones: i32;
     zone_radius: f32;
     zone_size: vec3<f32>;
-    zone_half_size: vec3<f32>;
     zone_origin: vec3<f32>;
     zones_per_dimension: i32;
-    world_center: vec3<f32>;
-    world_bounds: vec3<f32>;
 };
 
 struct Vertex {
@@ -117,17 +113,4 @@ struct BakedNode {
 struct Nodes {
     last_written: atomic<i32>;
     nodes: array<BakedNode>;
-};
-
-struct Light {
-    color: vec4<f32>;
-    params: mat4x4<f32>;
-};
-
-struct Lights {
-    lights: array<Light>;
-};
-
-struct LightSettings {
-    num_lights: i32;
 };

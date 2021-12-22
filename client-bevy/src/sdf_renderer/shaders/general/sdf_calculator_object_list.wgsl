@@ -9,7 +9,6 @@ let NORM_EPSILON_Z = vec3<f32>(0.0, 0.0, NORM_EPSILON);
 let UNION_OP: i32 = 1;
 let INTERSECTION_OP: i32 = 2;
 let SUBTRACTION_OP: i32 = 3;
-let PAINT_OP: i32 = 3;
 let TRANSFORM_WARP: i32 = 4;
 let SPHERE_PRIM: i32 = 5;
 let BOX_PRIM: i32 = 6;
@@ -66,10 +65,9 @@ struct NodeStackItem {
     process_bounds: bool;
     point: vec3<f32>;
     current_epsilon: f32;
-    blend: f32;
 };
 
-fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f32, process_bounds: bool, blend: f32) -> NodeStackItem {
+fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f32, process_bounds: bool) -> NodeStackItem {
     var out : NodeStackItem;
     let id = node + current_node;
     out.node = brushes.brushes[id];
@@ -79,12 +77,10 @@ fn setup_node(node: i32, current_node: i32, point: vec3<f32>, current_epsilon: f
     out.point = point;
     out.process_bounds = process_bounds;
     out.current_epsilon = current_epsilon;
-    out.blend = blend;
     return out;
 }
 
-fn bounding_sphere_intersection(origin: vec3<f32>, ray: vec3<f32>, radius: f32, blend: f32) -> f32 {
-    let radius = radius + blend;
+fn bounding_sphere_intersection(origin: vec3<f32>, ray: vec3<f32>, radius: f32) -> f32 {
     if (length(ray) == 0.) {
         return sphereSDF(origin, radius);
     } else {
@@ -113,7 +109,7 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
     var last_result : f32 = 99999999999.9;
     var num_closest: f32 = 0.0;
     var stack = *stack_ptr;
-    stack[0] = setup_node(nodeid, 0, point, current_epsilon, true, 0.);
+    stack[0] = setup_node(nodeid, 0, point, current_epsilon, true);
     loop {
        num_closest = f32(nodeid);
        if (index == -1 || index >= MAX_BRUSH_DEPTH) {
@@ -124,14 +120,9 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
         var current_frame = stack[index];
         var node = current_frame.node;
         if (current_frame.process_bounds) {
-            var d = bounding_sphere_intersection(current_frame.point - node.center, ray, node.radius, current_frame.blend);
-            // if (index > 1) {
-            //     last_result = d;
-            //     index = index - 1;
-            //     continue;
-            // }
-            if (d > current_frame.current_epsilon * 2.) {
-                last_result = d;
+            var d = bounding_sphere_intersection(current_frame.point - node.center, ray, node.radius);
+            if (d > current_frame.current_epsilon) {
+                last_result = d + current_frame.current_epsilon / 2.;
                 index = index - 1;
                 continue;
             }
@@ -143,18 +134,18 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
         } else if (node.node_type == TRANSFORM_WARP) {
             if (!current_frame.processed_a) {
                 var new_point = transformSDF(current_frame.point, node.params);
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_frame.current_epsilon, false, current_frame.blend);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid, new_point, current_epsilon, false);
                 enter_child = true;
                 stack[index].processed_a = true;
             }
         } else if (node.node_type == UNION_OP) {
             if (!current_frame.processed_a) {
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_a = true;
             } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
-                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_b = true;
             } else {
@@ -167,12 +158,12 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
             }
         } else if (node.node_type == INTERSECTION_OP) {
             if (!current_frame.processed_a) {
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
                 enter_child = true;
                 stack[index].processed_a = true;
             } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
-                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
                 enter_child = true;
                 stack[index].processed_b = true;
             } else {
@@ -185,12 +176,12 @@ fn processNode(point: vec3<f32>, nodeid: i32, current_epsilon: f32, ray: vec3<f3
             }
         }else if (node.node_type == SUBTRACTION_OP) {
             if (!current_frame.processed_a) {
-                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, false, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_a, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), false);
                 enter_child = true;
                 stack[index].processed_a = true;
             } else if (!current_frame.processed_b) {
                 stack[index].child_a = last_result;
-                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point,current_frame.current_epsilon, true, current_frame.blend + node.params[0].x);
+                stack[child_index] = setup_node(node.child_b, current_frame.nodeid,current_frame.point, max(node.params[0].x, current_epsilon), true);
                 enter_child = true;
                 stack[index].processed_b = true;
             } else {
@@ -272,7 +263,7 @@ fn objectSceneSDF(point: vec3<f32>, current_epsilon: f32, stack: ptr<function, a
 }
 
 fn sceneSDF(point: vec3<f32>, current_epsilon: f32, ray: vec3<f32>, stack: ptr<function, array<NodeStackItem, MAX_BRUSH_DEPTH>>) -> f32 {
-    return zoneSceneSDF(point, current_epsilon, ray, stack);
+    return objectSceneSDF(point, current_epsilon, stack);
 }
 
 fn sceneColor(point: vec3<f32>) -> vec3<f32> {

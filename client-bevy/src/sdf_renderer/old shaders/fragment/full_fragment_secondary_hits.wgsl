@@ -19,7 +19,7 @@ fn fs_main(in: VertexOutput) -> FragmentOut {
 
     if (start_distance >= MAX_DISTANCE) {
         out.color = vec4<f32>(0., 0., 0., 1.);
-        out.depth = 0.;
+        out.depth = 1.;
         return out;
     }
     
