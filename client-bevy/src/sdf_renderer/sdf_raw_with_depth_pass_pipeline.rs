@@ -1,5 +1,8 @@
 use bevy::{
-    core_pipeline::{Opaque3d, draw_3d_graph::{self, node}},
+    core_pipeline::{
+        draw_3d_graph::{self, node},
+        Opaque3d,
+    },
     ecs::system::lifetimeless::{Read, SQuery, SRes},
     math::Vec2,
     prelude::*,
@@ -7,6 +10,7 @@ use bevy::{
     render::{
         mesh::{shape, Mesh},
         render_asset::RenderAssets,
+        render_graph::{Node, RenderGraph, SlotInfo, SlotType},
         render_phase::{
             AddRenderCommand, DrawFunctions, RenderCommand, RenderCommandResult, RenderPhase,
             SetItemPipeline,
@@ -17,20 +21,22 @@ use bevy::{
         },
         texture::BevyDefault,
         view::{ExtractedView, ViewUniformOffset},
-        RenderApp, RenderStage, render_graph::{Node, SlotInfo, SlotType, RenderGraph},
+        RenderApp, RenderStage,
     },
 };
 use wgpu::{
     BlendComponent, BlendFactor, BlendOperation, BlendState, ColorTargetState, ColorWrites,
-    CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, MultisampleState,
-    PolygonMode, PrimitiveState, PrimitiveTopology, StencilState, TextureFormat, VertexAttribute,
-    VertexFormat, VertexStepMode, RenderPassDescriptor, RenderPassColorAttachment, RenderPassDepthStencilAttachment, Operations, LoadOp,
+    CompareFunction, DepthBiasState, DepthStencilState, Face, FrontFace, LoadOp, MultisampleState,
+    Operations, PolygonMode, PrimitiveState, PrimitiveTopology,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, StencilState, TextureFormat,
+    VertexAttribute, VertexFormat, VertexStepMode,
 };
 
 use super::{
     sdf_brush_binding::{BrushBindingGroup, SDFBrushBindingLayout},
+    sdf_depth_binding::{DepthBindingGroup, SDFDepthBindingLayout},
     sdf_object_zones::{SDFZones, ZoneSettings},
-    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset}, sdf_depth_binding::{SDFDepthBindingLayout, DepthBindingGroup},
+    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset},
 };
 
 pub struct SDFRawWithDepthPassPipelinePlugin;
@@ -66,11 +72,12 @@ impl Plugin for SDFRawWithDepthPassPipelinePlugin {
         ));
         shaders.set_untracked(SDF_DEPTH_SHADER_HANDLE, shader);
 
-        let mut render_app = app.sub_app(RenderApp);
-        render_app.init_resource::<SDFPipelineDefinitions>()
+        let render_app = app.sub_app(RenderApp);
+        render_app
+            .init_resource::<SDFPipelineDefinitions>()
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Queue, queue_sdf);
-        
+
         let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
         let draw_3d_graph = graph.get_sub_graph_mut(draw_3d_graph::NAME);
@@ -120,7 +127,11 @@ impl FromWorld for SDFPipelineDefinitions {
             .unwrap()
             .layout
             .clone();
-        let depth_layout = world.get_resource::<SDFDepthBindingLayout>().unwrap().layout.clone();
+        let depth_layout = world
+            .get_resource::<SDFDepthBindingLayout>()
+            .unwrap()
+            .layout
+            .clone();
 
         let shader = SDF_SHADER_HANDLE.typed::<Shader>();
 
@@ -150,7 +161,12 @@ impl FromWorld for SDFPipelineDefinitions {
 
         let descriptor = RenderPipelineDescriptor {
             label: Some("SDF Depth Render Pipeline".into()),
-            layout: Some(vec![view_layout.clone(), brush_layout.clone(), zone_layout.clone(), depth_layout]),
+            layout: Some(vec![
+                view_layout.clone(),
+                brush_layout.clone(),
+                zone_layout.clone(),
+                depth_layout,
+            ]),
             vertex: VertexState {
                 shader: shader.clone(),
                 shader_defs: Vec::new(),
@@ -267,7 +283,11 @@ type DrawSDFCommand = (SetItemPipeline, DrawSDF);
 pub struct DrawSDF;
 impl RenderCommand<Opaque3d> for DrawSDF {
     type Param = (
-        SQuery<(Read<ViewUniformOffset>, Read<ViewExtensionUniformOffset>, Read<DepthBindingGroup>)>,
+        SQuery<(
+            Read<ViewUniformOffset>,
+            Read<ViewExtensionUniformOffset>,
+            Read<DepthBindingGroup>,
+        )>,
         SRes<RenderAssets<Mesh>>,
         SQuery<Read<SDFViewBinding>>,
         SQuery<Read<BrushBindingGroup>>,
@@ -287,7 +307,9 @@ impl RenderCommand<Opaque3d> for DrawSDF {
             pass.set_bind_group(2, &zones.zone_group, &[0, 0, 0]);
         }
 
-        if let Ok((view_uniform, view_extension_uniform, depth_binding_group)) = view_offsets.get(view) {
+        if let Ok((view_uniform, view_extension_uniform, depth_binding_group)) =
+            view_offsets.get(view)
+        {
             if let Some(view_binding) = view_binding.iter().next() {
                 pass.set_bind_group(
                     0,
@@ -330,7 +352,6 @@ pub fn queue_sdf(
     }
 }
 
-
 pub struct DepthPrePassNode {
     pub view_query: QueryState<
         (
@@ -340,15 +361,9 @@ pub struct DepthPrePassNode {
         ),
         With<ExtractedView>,
     >,
-    pub view_binding: QueryState<
-            &'static SDFViewBinding
-    >,
-    pub brush_binding: QueryState<
-            &'static BrushBindingGroup
-    >,
-    pub zone_binding: QueryState<
-            &'static SDFZones
-    >,
+    pub view_binding: QueryState<&'static SDFViewBinding>,
+    pub brush_binding: QueryState<&'static BrushBindingGroup>,
+    pub zone_binding: QueryState<&'static SDFZones>,
 }
 
 impl DepthPrePassNode {
@@ -389,9 +404,24 @@ impl Node for DepthPrePassNode {
         let pipeline = world
             .get_resource::<SDFPipelineDefinitions>()
             .expect("Pipeline Should Exist");
-        let brush_binding = &self.brush_binding.iter_manual(&world).next().expect("Brushes should be bound").binding;
-        let zone_binding = &self.zone_binding.iter_manual(&world).next().expect("Brushes should be bound").zone_group;
-        let view_binding = &self.view_binding.iter_manual(&world).next().expect("Brushes should be bound").binding;
+        let brush_binding = &self
+            .brush_binding
+            .iter_manual(world)
+            .next()
+            .expect("Brushes should be bound")
+            .binding;
+        let zone_binding = &self
+            .zone_binding
+            .iter_manual(world)
+            .next()
+            .expect("Brushes should be bound")
+            .zone_group;
+        let view_binding = &self
+            .view_binding
+            .iter_manual(world)
+            .next()
+            .expect("Brushes should be bound")
+            .binding;
         let pipeline_cache = world
             .get_resource::<RenderPipelineCache>()
             .expect("Pipeline Cache Should Exist");
@@ -421,11 +451,11 @@ impl Node for DepthPrePassNode {
                 .begin_render_pass(&pass_descriptor);
             pass.set_bind_group(
                 0,
-                &view_binding,
+                view_binding,
                 &[view_offset.offset, extension_offset.offset],
             );
-            pass.set_bind_group(2, &zone_binding, &[0,0,0]);
-            pass.set_bind_group(1, &brush_binding, &[0, 0]);
+            pass.set_bind_group(2, zone_binding, &[0, 0, 0]);
+            pass.set_bind_group(1, brush_binding, &[0, 0]);
             pass.set_pipeline(pipeline_cache.get(pipeline.depth_pipeline).unwrap());
             let mesh = meshes.get(&SDF_CUBE_MESH_HANDLE.typed::<Mesh>()).unwrap();
             pass.set_vertex_buffer(0, *mesh.vertex_buffer.slice(..));

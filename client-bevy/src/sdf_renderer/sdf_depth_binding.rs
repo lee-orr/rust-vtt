@@ -1,21 +1,21 @@
 use bevy::{
     prelude::*,
     render::{
-        render_asset::RenderAssets,
-        render_resource::{BindGroup, BindGroupLayout, Buffer, DynamicUniformVec, TextureView},
-        renderer::{RenderDevice, RenderQueue},
-        RenderApp, RenderStage, texture::{CachedTexture, TextureCache}, view::ExtractedView,
+        render_resource::{BindGroup, BindGroupLayout, TextureView},
+        renderer::{RenderDevice},
+        texture::{CachedTexture, TextureCache},
+        view::ExtractedView,
+        RenderApp, RenderStage,
     },
 };
-use crevice::std140::AsStd140;
+
 use wgpu::{
-    util::BufferInitDescriptor, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BufferBindingType, BufferSize, BufferUsages, ShaderStages, TextureUsages, TextureFormat, TextureDescriptor, Extent3d, SamplerDescriptor, FilterMode, BindingResource, SamplerBindingType,
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingResource, BindingType, Extent3d, FilterMode, SamplerBindingType, SamplerDescriptor, ShaderStages,
+    TextureDescriptor, TextureFormat, TextureUsages,
 };
 
-use super::sdf_operation::{
-    GpuSDFNode, SDFObjectAsset, SDFObjectCount, SDFRootTransform, Std140GpuSDFNode, TRANSFORM_WARP,
-};
+
 
 pub struct SDFDepthBindingPlugin;
 
@@ -75,7 +75,6 @@ fn prepare_depth_pass_texture(
     mut texture_cache: ResMut<TextureCache>,
     bind_layout: Res<SDFDepthBindingLayout>,
 ) {
-    
     for (entity, view) in views.iter() {
         let texture = texture_cache.get(
             &render_device,

@@ -1,12 +1,12 @@
 pub mod sdf_brush_binding;
+mod sdf_depth_binding;
+pub mod sdf_lights;
 pub mod sdf_object_zones;
 pub mod sdf_operation;
 pub mod sdf_origin;
 pub mod sdf_raw_render_pipeline;
-mod sdf_view_binding;
-mod sdf_depth_binding;
 pub mod sdf_raw_with_depth_pass_pipeline;
-pub mod sdf_lights;
+mod sdf_view_binding;
 
 use bevy::prelude::Plugin;
 
@@ -16,8 +16,9 @@ use crate::sdf_renderer::{
 };
 
 use self::{
-    sdf_brush_binding::SDFBrushBindingPlugin, sdf_raw_render_pipeline::SDFRawRenderPipelinePlugin,
-    sdf_view_binding::SDFViewBindingPlugin, sdf_depth_binding::SDFDepthBindingPlugin, sdf_raw_with_depth_pass_pipeline::SDFRawWithDepthPassPipelinePlugin, sdf_lights::SDFLightPlugin,
+    sdf_brush_binding::SDFBrushBindingPlugin,
+    sdf_lights::SDFLightPlugin, sdf_raw_render_pipeline::SDFRawRenderPipelinePlugin,
+    sdf_view_binding::SDFViewBindingPlugin,
 };
 
 pub struct SdfPlugin;

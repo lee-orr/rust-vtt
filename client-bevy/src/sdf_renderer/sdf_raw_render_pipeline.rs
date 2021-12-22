@@ -29,8 +29,9 @@ use wgpu::{
 
 use super::{
     sdf_brush_binding::{BrushBindingGroup, SDFBrushBindingLayout},
+    sdf_lights::{LightBindingGroup, SDFLightBindingLayout},
     sdf_object_zones::{SDFZones, ZoneSettings},
-    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset}, sdf_lights::{SDFLightBindingLayout, LightBindingGroup},
+    sdf_view_binding::{SDFViewBinding, SDFViewLayout, ViewExtensionUniformOffset},
 };
 
 pub struct SDFRawRenderPipelinePlugin;

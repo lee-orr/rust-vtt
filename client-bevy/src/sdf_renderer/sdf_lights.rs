@@ -3,8 +3,7 @@ use std::f32::consts::PI;
 use bevy::{
     prelude::*,
     render::{
-        render_asset::RenderAssets,
-        render_resource::{BindGroup, BindGroupLayout, Buffer, DynamicUniformVec},
+        render_resource::{BindGroup, BindGroupLayout, DynamicUniformVec},
         renderer::{RenderDevice, RenderQueue},
         RenderApp, RenderStage,
     },
@@ -15,9 +14,7 @@ use wgpu::{
     BindGroupLayoutEntry, BindingType, BufferBindingType, BufferSize, BufferUsages, ShaderStages,
 };
 
-use super::sdf_operation::{
-    GpuSDFNode, SDFObjectAsset, SDFObjectCount, SDFRootTransform, Std140GpuSDFNode, TRANSFORM_WARP,
-};
+
 
 pub struct SDFLightPlugin;
 
@@ -161,7 +158,7 @@ pub fn queue_light_bindings(
     count.clear();
     count.push(lights.len() as i32);
     count.write_buffer(&render_device, &render_queue);
-    if lights.len() == 0 {
+    if lights.is_empty() {
         lights.push(GPULight::default().as_std140());
     }
 

@@ -17,7 +17,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::sdf_renderer::{
     sdf_lights::SDFPointLight,
-    sdf_operation::{SDFNodeData, SDFShape},
 };
 
 #[wasm_bindgen]
@@ -72,7 +71,12 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
         .insert(GlobalTransform::default())
         .insert(SDFPointLight {
             distance: 30.,
-            color: Color::Rgba { red: 1., green: 1., blue: 1., alpha: 10.},
+            color: Color::Rgba {
+                red: 1.,
+                green: 1.,
+                blue: 1.,
+                alpha: 10.,
+            },
         });
     commands
         .spawn()
@@ -80,7 +84,12 @@ fn setup(mut commands: Commands, mut sdf_objects: ResMut<Assets<SDFObjectAsset>>
         .insert(GlobalTransform::default())
         .insert(SDFPointLight {
             distance: 30.,
-            color: Color::Rgba { red: 0.5, green: 1., blue: 0.5, alpha: 5.},
+            color: Color::Rgba {
+                red: 0.5,
+                green: 1.,
+                blue: 0.5,
+                alpha: 5.,
+            },
         });
     if UNOPTIMIZED_OBJECTS {
         for i in 0..NUM_BRUSHES {
