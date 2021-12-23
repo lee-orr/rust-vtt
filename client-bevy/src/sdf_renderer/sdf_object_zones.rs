@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn with_two_objects_only_containing_zone_has_references() {
         let second_pos = SDFGlobalNodeBounds {
-            center: Vec3::new(0., 4., 0.),
+            center: Vec3::new(0., -4., 0.),
             radius: 0.2,
         };
         let objects = vec![

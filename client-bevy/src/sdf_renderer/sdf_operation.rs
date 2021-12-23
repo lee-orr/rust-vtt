@@ -485,7 +485,7 @@ mod tests {
             assert_eq!(root.center, Vec3::new(-0.5669873, 0., 0.));
             assert!(assert_eq_f32(root.radius, 2.013337));
             let left_child = &tree[root.child_a as usize];
-            let transform_matrix = Transform::from_translation(Vec3::X).compute_matrix();
+            let transform_matrix = Transform::from_translation(Vec3::X).compute_matrix().inverse();
             assert_eq!(left_child.params, transform_matrix);
             assert_eq!(left_child.center, -Vec3::X);
             assert!(assert_eq_f32(left_child.radius, 1.));
