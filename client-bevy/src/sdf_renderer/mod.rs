@@ -7,6 +7,7 @@ pub mod sdf_origin;
 pub mod sdf_raw_render_pipeline;
 pub mod sdf_raw_with_depth_pass_pipeline;
 mod sdf_view_binding;
+pub mod sdf_raw_octtree_pipeline;
 
 use bevy::prelude::Plugin;
 
