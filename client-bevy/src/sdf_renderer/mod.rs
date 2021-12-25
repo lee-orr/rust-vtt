@@ -2,12 +2,13 @@ pub mod sdf_brush_binding;
 mod sdf_depth_binding;
 pub mod sdf_lights;
 pub mod sdf_object_zones;
+mod sdf_octtree_binding;
 pub mod sdf_operation;
 pub mod sdf_origin;
+pub mod sdf_raw_octtree_pipeline;
 pub mod sdf_raw_render_pipeline;
 pub mod sdf_raw_with_depth_pass_pipeline;
 mod sdf_view_binding;
-pub mod sdf_raw_octtree_pipeline;
 
 use bevy::prelude::Plugin;
 

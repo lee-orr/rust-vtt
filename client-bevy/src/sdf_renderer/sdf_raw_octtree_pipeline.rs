@@ -62,13 +62,11 @@ impl Plugin for SDFRawOcttreePipelinePlugin {
         ));
         shaders.set_untracked(SDF_RENDER_SHADER_HANDLE, shader);
         let shader = Shader::from_wgsl(format!(
-            "{}{}{}{}{}{}",
+            "{}{}{}{}",
             include_str!("shaders/general/structs.wgsl"),
-            include_str!("shaders/general/raw_sdf_bindings.wgsl"),
-            include_str!("shaders/vertex/vertex_full_screen.wgsl"),
-            include_str!("shaders/general/sdf_calculator_object_list.wgsl"),
-            include_str!("shaders/general/sdf_raymarch.wgsl"),
-            include_str!("shaders/fragment/fragment_raymarch_calculate_sdf_write_depth.wgsl"),
+            include_str!("shaders/general/raw_octree_render_bindings.wgsl"),
+            include_str!("shaders/general/sdf_calculator_octree_painted.wgsl"),
+            include_str!("shaders/compute/raw_octree_baker.wgsl"),
         ));
         shaders.set_untracked(SDF_BAKE_SHADER_HANDLE, shader);
 
@@ -78,22 +76,22 @@ impl Plugin for SDFRawOcttreePipelinePlugin {
             .add_render_command::<Opaque3d, DrawSDFCommand>()
             .add_system_to_stage(RenderStage::Queue, queue_sdf);
 
-        let depth_pre_pass_node = DepthPrePassNode::new(&mut render_app.world);
+        let depth_pre_pass_node = OcttreePassNode::new(&mut render_app.world);
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
         let draw_3d_graph = graph.get_sub_graph_mut(draw_3d_graph::NAME);
         if let Some(draw_3d_graph) = draw_3d_graph {
-            draw_3d_graph.add_node(DepthPrePassNode::NAME, depth_pre_pass_node);
+            draw_3d_graph.add_node(OcttreePassNode::NAME, depth_pre_pass_node);
             let input_node_id = draw_3d_graph.input_node().unwrap().id;
             draw_3d_graph
                 .add_slot_edge(
                     input_node_id,
                     draw_3d_graph::input::VIEW_ENTITY,
-                    DepthPrePassNode::NAME,
-                    DepthPrePassNode::IN_VIEW,
+                    OcttreePassNode::NAME,
+                    OcttreePassNode::IN_VIEW,
                 )
                 .unwrap();
             draw_3d_graph
-                .add_node_edge(DepthPrePassNode::NAME, node::MAIN_PASS)
+                .add_node_edge(OcttreePassNode::NAME, node::MAIN_PASS)
                 .unwrap();
         }
     }
@@ -352,7 +350,7 @@ pub fn queue_sdf(
     }
 }
 
-pub struct DepthPrePassNode {
+pub struct OcttreePassNode {
     pub view_query: QueryState<
         (
             &'static DepthBindingGroup,
@@ -366,7 +364,7 @@ pub struct DepthPrePassNode {
     pub zone_binding: QueryState<&'static SDFZones>,
 }
 
-impl DepthPrePassNode {
+impl OcttreePassNode {
     pub const IN_VIEW: &'static str = "view";
     pub const NAME: &'static str = "DEPTH_PRE_PASS_NODE";
 
@@ -380,9 +378,9 @@ impl DepthPrePassNode {
     }
 }
 
-impl Node for DepthPrePassNode {
+impl Node for OcttreePassNode {
     fn input(&self) -> Vec<SlotInfo> {
-        vec![SlotInfo::new(DepthPrePassNode::IN_VIEW, SlotType::Entity)]
+        vec![SlotInfo::new(OcttreePassNode::IN_VIEW, SlotType::Entity)]
     }
 
     fn update(&mut self, world: &mut World) {

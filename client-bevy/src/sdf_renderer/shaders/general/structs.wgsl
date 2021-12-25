@@ -107,16 +107,15 @@ fn min_component(point: vec3<f32>) -> f32 {
     return min(point.x, max(point.y, point.z));
 }
 
-struct BakedNode {
+struct TreeNode {
     node_type: i32; //0 - empty, 1 - full, 2 - contains block with children, 3 - contains block no children
     content: vec4<f32>; // either: the color & opacity (if it doesn't contain a surface) or (block_uvw.xyz, child_index) if it does
     parent: i32; // if (-1) it is a root, if < -1 it has been cleared
 };
 
-
-struct Nodes {
+struct Tree {
     last_written: atomic<i32>;
-    nodes: array<BakedNode>;
+    nodes: array<TreeNode>;
 };
 
 struct Light {
@@ -130,4 +129,14 @@ struct Lights {
 
 struct LightSettings {
     num_lights: i32;
+};
+
+struct TreeIndirectDispatch {
+    x: atomic<u32>;
+    y: u32;
+    z: u32;
+};
+
+struct TreeDispatchArray {
+    dispatch: array<TreeIndirectDispatch>;
 };
