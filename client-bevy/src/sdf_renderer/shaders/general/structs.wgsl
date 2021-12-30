@@ -111,6 +111,8 @@ struct TreeNode {
     node_type: i32; //0 - empty, 1 - full, 2 - contains block with children, 3 - contains block no children
     content: vec4<f32>; // either: the color & opacity (if it doesn't contain a surface) or (block_uvw.xyz, child_index) if it does
     parent: i32; // if (-1) it is a root, if < -1 it has been cleared
+    min: vec3<f32>;
+    max: vec3<f32>;
 };
 
 struct Tree {
@@ -139,4 +141,18 @@ struct TreeIndirectDispatch {
 
 struct TreeDispatchArray {
     dispatch: array<TreeIndirectDispatch>;
+};
+
+struct TreeBakeSettings {
+    num_blocks: u32;
+    blocks_per_dimension: u32;
+    current_layer: i32;
+};
+
+struct LayerStartPoint {
+    start_index: atomic<i32>;
+};
+
+struct LayerStartPoints {
+    layers: array<LayerStartPoint>;
 };
