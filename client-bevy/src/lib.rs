@@ -39,4 +39,3 @@ fn ui(egui_context: ResMut<EguiContext>) {
         ui.label("WORLD");
     });
 }
-
