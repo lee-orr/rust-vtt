@@ -11,7 +11,7 @@ env:
 
 jobs:
   test:
-    uses: /.github/workflows/unit-tests.yml@main
+    uses: lee-orr/rust-vtt/.github/workflows/unit-tests.yml@main
   build-server:
     needs: test
     strategy:
