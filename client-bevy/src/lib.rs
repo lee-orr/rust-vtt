@@ -1,14 +1,15 @@
 mod camera;
+mod map_construction;
 pub mod communications;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     pbr::wireframe::WireframePlugin,
     prelude::*,
-    render::{options::WgpuOptions, render_resource::WgpuFeatures},
+    render::{options::WgpuOptions},
     DefaultPlugins,
 };
-use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy_egui::{EguiPlugin};
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
 
@@ -20,7 +21,6 @@ pub fn run() {
     let mut app = App::new();
     app.insert_resource(Msaa { samples: 1 })
         .insert_resource(WgpuOptions {
-            features: WgpuFeatures::POLYGON_MODE_LINE,
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
@@ -28,14 +28,7 @@ pub fn run() {
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
         .add_plugin(camera::CameraPlugin)
-        .add_system(ui)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
-}
-
-fn ui(egui_context: ResMut<EguiContext>) {
-    egui::Window::new("Hi").show(egui_context.ctx(), |ui| {
-        ui.label("WORLD");
-    });
 }
