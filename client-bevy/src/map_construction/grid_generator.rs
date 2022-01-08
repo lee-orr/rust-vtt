@@ -1,7 +1,7 @@
 use bevy::math::Vec2;
 
 pub trait GridGenerator {
-    fn generateGrid(cell_scale: f32) -> Vec<(Vec2, bool)>;
+    fn generate_grid(cell_scale: f32) -> Vec<(Vec2, bool)>;
 }
 
 pub struct SquareGridGenerator {
@@ -10,7 +10,7 @@ pub struct SquareGridGenerator {
 }
 
 impl GridGenerator for SquareGridGenerator {
-    fn generateGrid(_cell_scale: f32) -> Vec<(Vec2, bool)> {
+    fn generate_grid(_cell_scale: f32) -> Vec<(Vec2, bool)> {
         vec![]
     }
 }
