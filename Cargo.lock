@@ -355,8 +355,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_egui"
-version = "0.9.0"
-source = "git+https://github.com/jakobhellermann/bevy_egui?branch=bevy-main#7790fc0a3cf08c9ab06f71282e0f78822ba0a609"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e67b60ec9d4f5247bfec6e5231d7d779919021ccf4e39f8a0d84364f75f48c4"
 dependencies = [
  "bevy",
  "bytemuck",
