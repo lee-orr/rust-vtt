@@ -1,15 +1,15 @@
 mod camera;
-mod map_construction;
 pub mod communications;
+mod map_construction;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     pbr::wireframe::WireframePlugin,
     prelude::*,
-    render::{options::WgpuOptions},
+    render::options::WgpuOptions,
     DefaultPlugins,
 };
-use bevy_egui::{EguiPlugin};
+use bevy_egui::EguiPlugin;
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
 
