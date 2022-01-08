@@ -29,6 +29,9 @@ jobs:
           - name: macos-intel
             target: x86_64-apple-darwin
             os: macos-11
+          - name: macos-m1
+            target: aarch64-apple-darwin
+            os: macos-11
     
     runs-on: ${{matrix.build.os}}
 
@@ -68,6 +71,9 @@ jobs:
             os: windows-latest
           - name: macos-intel
             target: x86_64-apple-darwin
+            os: macos-11
+          - name: macos-m1
+            target: aarch64-apple-darwin
             os: macos-11
     
     runs-on: ${{matrix.build.os}}
