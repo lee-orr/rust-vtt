@@ -13,18 +13,18 @@ use bevy_egui::EguiPlugin;
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
 
+
 #[wasm_bindgen]
 pub fn run() {
     #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
+    {
+        console_error_panic_hook::set_once();
+    }
 
     let mut app = App::new();
-    app.insert_resource(Msaa { samples: 1 })
-        .insert_resource(WgpuOptions {
-            ..Default::default()
-        })
+    app
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
-        .add_plugin(WireframePlugin)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
         .add_plugin(camera::CameraPlugin)

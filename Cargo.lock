@@ -286,7 +286,7 @@ checksum = "06d3eeb3237df793e8e01a110ee71824eacd15421821f9b175f3bafca864614c"
 dependencies = [
  "bevy-crevice-derive",
  "bytemuck",
- "glam",
+ "glam 0.20.2",
  "mint",
 ]
 
@@ -442,7 +442,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b0f9ebf2ef80a8fff3e5dca817594071004048cd089e72b9a1bf4e494b66112"
 dependencies = [
  "bevy_reflect",
- "glam",
+ "glam 0.20.2",
 ]
 
 [[package]]
@@ -476,7 +476,7 @@ dependencies = [
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam",
+ "glam 0.20.2",
  "parking_lot",
  "serde",
  "smallvec",
@@ -766,6 +766,7 @@ dependencies = [
  "client-lib",
  "console_error_panic_hook",
  "crossbeam-channel",
+ "fast-surface-nets",
  "futures-channel",
  "futures-util",
  "server_lib",
@@ -1203,6 +1204,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
 
 [[package]]
+name = "fast-surface-nets"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61b57cfb75dbdee443fbd8c8e5c7df7e45c208fa5fedd1d31e1a4d285a7f6d10"
+dependencies = [
+ "glam 0.18.0",
+ "ndshape",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1396,6 +1407,12 @@ dependencies = [
 
 [[package]]
 name = "glam"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "525a3e490ba77b8e326fb67d4b44b4bd2f920f44d4cc73ccec50adc68e3bee34"
+
+[[package]]
+name = "glam"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4fa84eead97d5412b2a20aed4d66612a97a9e41e08eababdb9ae2bf88667490"
@@ -1486,7 +1503,7 @@ version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9dc62dcfd68ec810c4707804556f2e88655012b1a373b0e0bbbe88a9db366627"
 dependencies = [
- "glam",
+ "glam 0.20.2",
  "lazy_static",
 ]
 
@@ -1813,6 +1830,15 @@ name = "ndk-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1bcdd74c20ad5d95aacd60ef9ba40fdf77f767051040541df557b7a9b2a2121"
+
+[[package]]
+name = "ndshape"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0bb7be9f20e8551856f2a1a157f34a364bbbdcc7c30310dd502b3acb7acf979"
+dependencies = [
+ "static_assertions",
+]
 
 [[package]]
 name = "nohash-hasher"
@@ -2440,6 +2466,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2909,9 +2941,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu-core"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe9cb9c9d728c0f7ea0c309f1b3d5e9d5c7d379890d0a4e3df3103323ff7a84"
+checksum = "c4688c000eb841ca55f7b35db659b78d6e1cd77d7caf8fb929f4e181f754047d"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -2932,9 +2964,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu-hal"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "742ec904d0577e1a88b82dba6cf0347c12197cd664b859b05f868bceb8cfff4d"
+checksum = "92e33cb9c380dd1166f316dfc511ad9646f72cf2deb47e90bd714db3617a6998"
 dependencies = [
  "arrayvec",
  "ash",
