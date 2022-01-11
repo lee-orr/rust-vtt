@@ -90,7 +90,7 @@ type ZoneShapeContainer = (GlobalTransform, ZoneShape, ShapeOperation);
 impl GetDistanceField for ZoneShapeContainer {
     fn distance_field(&self, point: Vec2, old: f32) -> f32 {
         let (transform, shape, operation) = self;
-        let matrix = transform.compute_matrix();
+        let matrix = transform.compute_matrix().inverse();
         let p = matrix * Vec4::new(point.x, 0., point.y, 1.);
         let point = p.xz();
         let next = shape.distance_field(point);
@@ -140,6 +140,10 @@ pub struct ZoneWall {
 
 #[cfg(test)]
 mod tests {
+    use std::f32::consts::PI;
+
+    use bevy::{prelude::Transform, math::Quat};
+
     use super::*;
     fn assert_eq_f32(a: f32, b: f32) -> bool {
         (a - b).abs() < f32::EPSILON
@@ -191,11 +195,6 @@ mod tests {
         let border_dist_2 = curve.distance_field(Vec2::ONE + Vec2::X);
         let outside_dist = curve.distance_field(Vec2::ONE + 2. * Vec2::X);
 
-        println!(
-            "{}, {}, {}, {}",
-            center_dist, border_dist, border_dist_2, outside_dist
-        );
-
         assert!(assert_eq_f32(center_dist, -1.));
         assert!(assert_eq_f32(border_dist, 0.));
         assert!(assert_eq_f32(border_dist_2, 0.));
@@ -220,5 +219,26 @@ mod tests {
         assert!(assert_eq_f32(result_a, -1.));
         assert!(assert_eq_f32(result_b, 2.));
         assert!(assert_eq_f32(result_c, 2.));
+    }
+
+    #[test]
+    fn full_operations_generate_correct_distance() {
+        let transform = Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI/2.));
+
+        let operations = (GlobalTransform::from(transform), ZoneShape::Segment(Vec2::new(-1., 0.), Vec2::new(1., 1.), 1.), ShapeOperation::Union);
+        let center_dist = operations.distance_field( Vec2::ONE, 0.5);
+        let border_dist = operations.distance_field(Vec2::Y, 0.5);
+        let border_dist_2 = operations.distance_field(Vec2::new(2., -2.), 0.5);
+        let outside_dist = operations.distance_field(Vec2::ONE + 2. * Vec2::X, 0.5);
+
+        println!(
+            "{}, {}, {}, {}",
+            center_dist, border_dist, border_dist_2, outside_dist
+        );
+
+        assert!(center_dist < -0.9999 && center_dist > -1.00001);
+        assert!(border_dist < 0.00001 && border_dist > -0.00001);
+        assert!(border_dist_2 < 0.00001 && border_dist_2 > -0.00001);
+        assert!(assert_eq_f32(outside_dist, 0.5));
     }
 }
