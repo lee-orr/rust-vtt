@@ -1,10 +1,10 @@
 #![allow(clippy::many_single_char_names)]
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
-    prelude::{Component, Entity, GlobalTransform},
+    prelude::{Bundle, Component, Entity, GlobalTransform, Transform},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ZoneShape {
     Circle(f32),
     Square(f32, f32),
@@ -13,6 +13,15 @@ pub enum ZoneShape {
 }
 
 impl ZoneShape {
+    pub fn name(&self) -> &str {
+        match self {
+            ZoneShape::Circle(_) => "circle",
+            ZoneShape::Square(_, _) => "square",
+            ZoneShape::Segment(_, _, _) => "segment",
+            ZoneShape::Curve(_, _, _, _) => "curve",
+        }
+    }
+
     pub fn distance_field(&self, point: Vec2) -> f32 {
         match self {
             ZoneShape::Circle(radius) => point.length() - *radius,
@@ -83,13 +92,19 @@ impl ZoneShape {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ShapeOperation {
     Union,
     Subtraction,
 }
 
 impl ShapeOperation {
+    pub fn name(&self) -> &str {
+        match self {
+            ShapeOperation::Union => "union",
+            ShapeOperation::Subtraction => "subtraction",
+        }
+    }
     pub fn distance_field(&self, old: f32, next: f32) -> f32 {
         match self {
             ShapeOperation::Union => old.min(next),
@@ -147,20 +162,41 @@ pub struct ZoneBrush {
     pub order: f32,
 }
 
-#[derive(Component, Debug)]
-pub struct Zone {}
+#[derive(Component, Debug, Default)]
+pub struct Zone {
+    pub name: String,
+}
 
 #[derive(Component, Debug)]
 pub struct ZoneGrid {
-    pub grid_noize: f32,
+    pub grid_noise: f32,
     pub alternative_grid: bool,
     pub grid_tile_size: f32,
+}
+
+impl Default for ZoneGrid {
+    fn default() -> Self {
+        Self {
+            grid_noise: 1.,
+            alternative_grid: false,
+            grid_tile_size: 1.,
+        }
+    }
 }
 
 #[derive(Component, Debug)]
 pub struct ZoneBoundary {
     pub boundary_noise: f32,
     pub boundary_width: f32,
+}
+
+impl Default for ZoneBoundary {
+    fn default() -> Self {
+        Self {
+            boundary_noise: 0.,
+            boundary_width: 0.5,
+        }
+    }
 }
 
 #[derive(Component, Debug)]
@@ -177,6 +213,37 @@ pub struct ZoneFloorHeight {
 pub struct ZoneWall {
     pub height: f32,
     pub width: f32,
+}
+
+#[derive(Bundle, Default)]
+pub struct ZoneBundle {
+    pub zone: Zone,
+    pub grid: ZoneGrid,
+    pub boundary: ZoneBoundary,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+}
+
+#[derive(Bundle)]
+pub struct BrushBundle {
+    pub brush: ZoneBrush,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+}
+
+impl BrushBundle {
+    pub fn new(zone: Entity, siblings: i32) -> Self {
+        Self {
+            transform: Transform::default(),
+            global_transform: GlobalTransform::default(),
+            brush: ZoneBrush {
+                zone,
+                shape: ZoneShape::Circle(1.),
+                operation: ShapeOperation::Union,
+                order: siblings as f32,
+            },
+        }
+    }
 }
 
 #[cfg(test)]
