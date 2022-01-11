@@ -1,3 +1,4 @@
+#![allow(clippy::many_single_char_names)]
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{Component, Entity, GlobalTransform},
