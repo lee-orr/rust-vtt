@@ -16,7 +16,7 @@ impl ZoneShape {
         match self {
             ZoneShape::Circle(radius) => point.length() - *radius,
             ZoneShape::Square(width, height) => {
-                let d = point.abs() - Vec2::new(*width, *height);
+                let d = point.abs() - Vec2::new(*width/2., *height/2.);
                 d.max(Vec2::ZERO).length() + d.x.max(d.y).min(0.)
             }
             ZoneShape::Segment(a, b, radius) => {
@@ -64,6 +64,17 @@ impl ZoneShape {
             }
         }
     }
+    pub fn bounds(&self) -> (Vec2, Vec2) {
+        match self {
+            ZoneShape::Circle(radius) => (-*radius * Vec2::ONE, *radius * Vec2::ONE),
+            ZoneShape::Square(width, height) => {
+                let half = Vec2::new(*width, *height)/2.;
+                (-half, half)
+            },
+            ZoneShape::Segment(start, end, radius) => (start.min(*end) - *radius, start.max(*end) + *radius),
+            ZoneShape::Curve(start, control, end, radius) => (start.min(control.min(*end)) - *radius, start.max(control.max(*end)) + *radius),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -79,10 +90,20 @@ impl ShapeOperation {
             ShapeOperation::Subtraction => old.max(-next),
         }
     }
+
+    pub fn bounds(&self, prev: (Vec2, Vec2), next: (Vec2, Vec2)) -> (Vec2, Vec2) {
+        match self {
+            ShapeOperation::Union => {
+                (prev.0.min(next.0), prev.1.max(next.1))
+            },
+            ShapeOperation::Subtraction => prev
+        }
+    }
 }
 
 pub trait GetDistanceField {
     fn distance_field(&self, point: Vec2, old: f32) -> f32;
+    fn bounds(&self, prev: (Vec2, Vec2)) -> (Vec2, Vec2);
 }
 
 type ZoneShapeContainer = (GlobalTransform, ZoneShape, ShapeOperation);
@@ -96,6 +117,20 @@ impl GetDistanceField for ZoneShapeContainer {
         let next = shape.distance_field(point);
         operation.distance_field(old, next)
     }
+
+    fn bounds(&self, prev: (Vec2, Vec2)) -> (Vec2, Vec2) {
+        let (transform, shape, operation) = self;
+        let next = shape.bounds();
+        println!("shape bounds: {} {}", next.0, next.1);
+        let matrix = transform.compute_matrix();
+        let next = (matrix * Vec4::new(next.0.x, 0., next.0.y, 1.), matrix * Vec4::new(next.1.x, 0., next.1.y, 1.));
+        let next = (next.0.xz(), next.1.xz());
+        println!("transformed bounds: {} {}", next.0, next.1);
+        let next = (next.0.min(next.1), next.0.max(next.1));
+        println!("re-configured bounds: {} {}", next.0, next.1);
+        operation.bounds(prev, next)
+    }
+
 }
 
 #[derive(Component, Debug)]
@@ -146,7 +181,7 @@ mod tests {
 
     use super::*;
     fn assert_eq_f32(a: f32, b: f32) -> bool {
-        (a - b).abs() < f32::EPSILON
+        (a - b).abs() < 0.00001
     }
 
     #[test]
@@ -162,8 +197,16 @@ mod tests {
     }
 
     #[test]
+    fn circle_generates_correct_bounds() {
+        let circle = ZoneShape::Circle(1.);
+        let bounds = circle.bounds();
+        assert!(assert_eq_f32(bounds.0.x, -1.) && assert_eq_f32(bounds.0.y, -1.));
+        assert!(assert_eq_f32(bounds.1.x, 1.) && assert_eq_f32(bounds.1.y, 1.));
+    }
+
+    #[test]
     fn square_generates_correct_distances() {
-        let square = ZoneShape::Square(1., 1.);
+        let square = ZoneShape::Square(2., 2.);
         let center_dist = square.distance_field(Vec2::ZERO);
         let border_dist = square.distance_field(Vec2::ONE);
         let outside_dist = square.distance_field(Vec2::X * 2.);
@@ -171,6 +214,14 @@ mod tests {
         assert!(assert_eq_f32(center_dist, -1.));
         assert!(assert_eq_f32(border_dist, 0.));
         assert!(assert_eq_f32(outside_dist, 1.));
+    }
+
+    #[test]
+    fn square_generates_correct_bounds() {
+        let square = ZoneShape::Square(1., 2.);
+        let bounds = square.bounds();
+        assert!(assert_eq_f32(bounds.0.x, -0.5) && assert_eq_f32(bounds.0.y, -1.));
+        assert!(assert_eq_f32(bounds.1.x, 0.5) && assert_eq_f32(bounds.1.y, 1.));
     }
 
     #[test]
@@ -188,6 +239,14 @@ mod tests {
     }
 
     #[test]
+    fn segment_generates_correct_bounds() {
+        let segment = ZoneShape::Segment(Vec2::new(-1., 0.), Vec2::new(1., 1.), 1.);
+        let bounds = segment.bounds();
+        assert!(assert_eq_f32(bounds.0.x, -2.) && assert_eq_f32(bounds.0.y, -1.));
+        assert!(assert_eq_f32(bounds.1.x, 2.) && assert_eq_f32(bounds.1.y, 2.));
+    }
+
+    #[test]
     fn curve_generates_correct_distance() {
         let curve = ZoneShape::Curve(Vec2::new(-1., 0.), Vec2::new(1., 1.), Vec2::ZERO, 1.);
         let center_dist = curve.distance_field(-1. * Vec2::X);
@@ -202,12 +261,28 @@ mod tests {
     }
 
     #[test]
+    fn curve_generates_correct_bounds() {
+        let curve = ZoneShape::Curve(Vec2::new(-1., 0.), Vec2::new(1., 1.), Vec2::ZERO, 1.);
+        let bounds = curve.bounds();
+        assert!(assert_eq_f32(bounds.0.x, -2.) && assert_eq_f32(bounds.0.y, -1.));
+        assert!(assert_eq_f32(bounds.1.x, 2.) && assert_eq_f32(bounds.1.y, 2.));
+    }
+
+    #[test]
     fn union_generates_correct_distance() {
         let union = ShapeOperation::Union;
         let result_a = union.distance_field(-1., 2.);
         let result_b = union.distance_field(2., -1.);
         assert!(assert_eq_f32(result_a, -1.));
         assert!(assert_eq_f32(result_b, -1.));
+    }
+
+    #[test]
+    fn union_generates_correct_bounds() {
+        let union = ShapeOperation::Union;
+        let bounds = union.bounds((-3. * Vec2::ONE, Vec2::X), (-4. * Vec2::Y, Vec2::ZERO));
+        assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -4.));
+        assert!(assert_eq_f32(bounds.1.x, 1.) && assert_eq_f32(bounds.1.y, 0.));
     }
 
     #[test]
@@ -222,23 +297,42 @@ mod tests {
     }
 
     #[test]
+    fn subtraction_generates_correct_bounds() {
+        let subtraction = ShapeOperation::Subtraction;
+        let bounds = subtraction.bounds((-3. * Vec2::ONE, Vec2::X), (-4. * Vec2::Y, Vec2::ZERO));
+        assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
+        assert!(assert_eq_f32(bounds.1.x, 1.) && assert_eq_f32(bounds.1.y, 0.));
+    }
+
+    #[test]
     fn full_operations_generate_correct_distance() {
         let transform = Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI/2.));
 
-        let operations = (GlobalTransform::from(transform), ZoneShape::Segment(Vec2::new(-1., 0.), Vec2::new(1., 1.), 1.), ShapeOperation::Union);
-        let center_dist = operations.distance_field( Vec2::ONE, 0.5);
-        let border_dist = operations.distance_field(Vec2::Y, 0.5);
-        let border_dist_2 = operations.distance_field(Vec2::new(2., -2.), 0.5);
-        let outside_dist = operations.distance_field(Vec2::ONE + 2. * Vec2::X, 0.5);
+        let operations = (GlobalTransform::from(transform), ZoneShape::Square(2., 1.), ShapeOperation::Union);
+        let center_dist = operations.distance_field( Vec2::X, 0.5);
+        let border_dist = operations.distance_field(Vec2::X * 0.5, 0.5);
+        let border_dist_2 = operations.distance_field(Vec2::new(1.5, 1.), 0.5);
+        let outside_dist = operations.distance_field(Vec2::ZERO, 0.5);
 
         println!(
             "{}, {}, {}, {}",
             center_dist, border_dist, border_dist_2, outside_dist
         );
 
-        assert!(center_dist < -0.9999 && center_dist > -1.00001);
-        assert!(border_dist < 0.00001 && border_dist > -0.00001);
-        assert!(border_dist_2 < 0.00001 && border_dist_2 > -0.00001);
+        assert!(assert_eq_f32(center_dist, -0.5));
+        assert!(assert_eq_f32(border_dist, 0.));
+        assert!(assert_eq_f32(border_dist_2, 0.));
         assert!(assert_eq_f32(outside_dist, 0.5));
+    }
+
+    #[test]
+    fn full_operations_generate_correct_bounds() {
+        let transform = Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI/2.));
+
+        let operations = (GlobalTransform::from(transform), ZoneShape::Square(2., 1.), ShapeOperation::Union);
+        let bounds = operations.bounds((-3. * Vec2::ONE, Vec2::ZERO));
+        assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
+        println!("{}", bounds.1);
+        assert!(assert_eq_f32(bounds.1.x, 1.5) && assert_eq_f32(bounds.1.y, 1.));
     }
 }
