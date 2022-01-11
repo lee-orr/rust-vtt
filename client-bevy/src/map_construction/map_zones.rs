@@ -207,8 +207,8 @@ mod tests {
         let union = ShapeOperation::Union;
         let result_a = union.distance_field(-1., 2.);
         let result_b = union.distance_field(2., -1.);
-        assert_eq!(result_a, -1.);
-        assert_eq!(result_b, -1.);
+        assert!(assert_eq_f32(result_a, -1.));
+        assert!(assert_eq_f32(result_b, -1.));
     }
 
     #[test]
@@ -217,8 +217,8 @@ mod tests {
         let result_a = subtraction.distance_field(-1., 2.);
         let result_b = subtraction.distance_field(2., -1.);
         let result_c = subtraction.distance_field(-1., -2.);
-        assert_eq!(result_a, -1.);
-        assert_eq!(result_b, 2.);
-        assert_eq!(result_c, 2.);
+        assert!(assert_eq_f32(result_a, -1.));
+        assert!(assert_eq_f32(result_b, 2.));
+        assert!(assert_eq_f32(result_c, 2.));
     }
 }
