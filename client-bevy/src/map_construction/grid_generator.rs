@@ -1,16 +1,30 @@
-use bevy::math::Vec2;
+use bevy::{
+    math::{Vec2, Vec3},
+    prelude::{Entity, Plugin},
+};
 
-pub trait GridGenerator {
-    fn generate_grid(cell_scale: f32) -> Vec<(Vec2, bool)>;
+pub struct GridGeneratorPlugin;
+
+impl Plugin for GridGeneratorPlugin {
+    fn build(&self, _app: &mut bevy::prelude::App) {}
 }
 
-pub struct SquareGridGenerator {
-    pub center: Vec2,
-    pub dimensions: Vec2,
+pub struct Grid {
+    pub level: i32,
+    pub root_zone: Entity,
 }
 
-impl GridGenerator for SquareGridGenerator {
-    fn generate_grid(_cell_scale: f32) -> Vec<(Vec2, bool)> {
-        vec![]
-    }
+pub struct GridPoint {
+    pub position: Vec2,
+    pub zones: Vec<Entity>,
+}
+
+pub struct GridContents {
+    pub points: Vec<GridPoint>,
+}
+
+pub struct GridZoneTriangulation {
+    pub zone: Entity,
+    pub verticies: Vec<Vec3>,
+    pub indices: Vec<i32>,
 }

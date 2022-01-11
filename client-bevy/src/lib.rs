@@ -4,15 +4,12 @@ mod map_construction;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    pbr::wireframe::WireframePlugin,
     prelude::*,
-    render::options::WgpuOptions,
     DefaultPlugins,
 };
 use bevy_egui::EguiPlugin;
 use communications::CommunicationsPlugin;
 use wasm_bindgen::prelude::*;
-
 
 #[wasm_bindgen]
 pub fn run() {
@@ -22,8 +19,7 @@ pub fn run() {
     }
 
     let mut app = App::new();
-    app
-        .insert_resource(Msaa { samples: 4 })
+    app.insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CommunicationsPlugin)
