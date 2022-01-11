@@ -1,5 +1,5 @@
 use bevy::{
-    math::{Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles},
+    math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{Component, Entity, GlobalTransform},
 };
 
