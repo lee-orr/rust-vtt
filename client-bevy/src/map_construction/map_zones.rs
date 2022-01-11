@@ -16,7 +16,7 @@ impl ZoneShape {
         match self {
             ZoneShape::Circle(radius) => point.length() - *radius,
             ZoneShape::Square(width, height) => {
-                let d = point.abs() - Vec2::new(*width/2., *height/2.);
+                let d = point.abs() - Vec2::new(*width / 2., *height / 2.);
                 d.max(Vec2::ZERO).length() + d.x.max(d.y).min(0.)
             }
             ZoneShape::Segment(a, b, radius) => {
@@ -68,11 +68,16 @@ impl ZoneShape {
         match self {
             ZoneShape::Circle(radius) => (-*radius * Vec2::ONE, *radius * Vec2::ONE),
             ZoneShape::Square(width, height) => {
-                let half = Vec2::new(*width, *height)/2.;
+                let half = Vec2::new(*width, *height) / 2.;
                 (-half, half)
-            },
-            ZoneShape::Segment(start, end, radius) => (start.min(*end) - *radius, start.max(*end) + *radius),
-            ZoneShape::Curve(start, control, end, radius) => (start.min(control.min(*end)) - *radius, start.max(control.max(*end)) + *radius),
+            }
+            ZoneShape::Segment(start, end, radius) => {
+                (start.min(*end) - *radius, start.max(*end) + *radius)
+            }
+            ZoneShape::Curve(start, control, end, radius) => (
+                start.min(control.min(*end)) - *radius,
+                start.max(control.max(*end)) + *radius,
+            ),
         }
     }
 }
@@ -93,10 +98,8 @@ impl ShapeOperation {
 
     pub fn bounds(&self, prev: (Vec2, Vec2), next: (Vec2, Vec2)) -> (Vec2, Vec2) {
         match self {
-            ShapeOperation::Union => {
-                (prev.0.min(next.0), prev.1.max(next.1))
-            },
-            ShapeOperation::Subtraction => prev
+            ShapeOperation::Union => (prev.0.min(next.0), prev.1.max(next.1)),
+            ShapeOperation::Subtraction => prev,
         }
     }
 }
@@ -123,14 +126,16 @@ impl GetDistanceField for ZoneShapeContainer {
         let next = shape.bounds();
         println!("shape bounds: {} {}", next.0, next.1);
         let matrix = transform.compute_matrix();
-        let next = (matrix * Vec4::new(next.0.x, 0., next.0.y, 1.), matrix * Vec4::new(next.1.x, 0., next.1.y, 1.));
+        let next = (
+            matrix * Vec4::new(next.0.x, 0., next.0.y, 1.),
+            matrix * Vec4::new(next.1.x, 0., next.1.y, 1.),
+        );
         let next = (next.0.xz(), next.1.xz());
         println!("transformed bounds: {} {}", next.0, next.1);
         let next = (next.0.min(next.1), next.0.max(next.1));
         println!("re-configured bounds: {} {}", next.0, next.1);
         operation.bounds(prev, next)
     }
-
 }
 
 #[derive(Component, Debug)]
@@ -177,7 +182,7 @@ pub struct ZoneWall {
 mod tests {
     use std::f32::consts::PI;
 
-    use bevy::{prelude::Transform, math::Quat};
+    use bevy::{math::Quat, prelude::Transform};
 
     use super::*;
     fn assert_eq_f32(a: f32, b: f32) -> bool {
@@ -306,10 +311,15 @@ mod tests {
 
     #[test]
     fn full_operations_generate_correct_distance() {
-        let transform = Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI/2.));
+        let transform =
+            Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI / 2.));
 
-        let operations = (GlobalTransform::from(transform), ZoneShape::Square(2., 1.), ShapeOperation::Union);
-        let center_dist = operations.distance_field( Vec2::X, 0.5);
+        let operations = (
+            GlobalTransform::from(transform),
+            ZoneShape::Square(2., 1.),
+            ShapeOperation::Union,
+        );
+        let center_dist = operations.distance_field(Vec2::X, 0.5);
         let border_dist = operations.distance_field(Vec2::X * 0.5, 0.5);
         let border_dist_2 = operations.distance_field(Vec2::new(1.5, 1.), 0.5);
         let outside_dist = operations.distance_field(Vec2::ZERO, 0.5);
@@ -327,9 +337,14 @@ mod tests {
 
     #[test]
     fn full_operations_generate_correct_bounds() {
-        let transform = Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI/2.));
+        let transform =
+            Transform::from_xyz(1., 0., 0.).with_rotation(Quat::from_rotation_y(PI / 2.));
 
-        let operations = (GlobalTransform::from(transform), ZoneShape::Square(2., 1.), ShapeOperation::Union);
+        let operations = (
+            GlobalTransform::from(transform),
+            ZoneShape::Square(2., 1.),
+            ShapeOperation::Union,
+        );
         let bounds = operations.bounds((-3. * Vec2::ONE, Vec2::ZERO));
         assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
         println!("{}", bounds.1);
