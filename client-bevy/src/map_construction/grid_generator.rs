@@ -1,24 +1,34 @@
+use std::collections::HashMap;
+
 use bevy::{
     math::{Vec2, Vec3},
-    prelude::{Entity, Plugin},
+    prelude::{Entity, Plugin, Commands, Query, Changed, CoreStage, Parent, DespawnRecursiveExt, BuildChildren, Component, GlobalTransform},
 };
+
+use super::map_zones::{Zone, ZoneGrid, ZoneBoundary, DirtyZone, ZoneBrush, GetDistanceField, ZoneShape, ShapeOperation};
 
 pub struct GridGeneratorPlugin;
 
 impl Plugin for GridGeneratorPlugin {
-    fn build(&self, _app: &mut bevy::prelude::App) {}
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app
+            .add_system_to_stage(CoreStage::Last, generate_points)
+            .add_system_to_stage(CoreStage::Last, clear_old_grids);
+    }
 }
 
+#[derive(Component)]
 pub struct Grid {
-    pub level: i32,
     pub root_zone: Entity,
 }
 
+#[derive(Debug, Default, Clone)]
 pub struct GridPoint {
     pub position: Vec2,
     pub zones: Vec<Entity>,
 }
 
+#[derive(Component)]
 pub struct GridContents {
     pub points: Vec<GridPoint>,
 }
@@ -27,6 +37,72 @@ pub struct GridZoneTriangulation {
     pub zone: Entity,
     pub verticies: Vec<Vec3>,
     pub indices: Vec<i32>,
+}
+
+fn clear_old_grids(mut commands: Commands, root_zones: Query<Entity, Changed<DirtyZone>>, grids: Query<(Entity, &Grid, &Parent)>) {
+    grids.for_each(|(entity, _, parent)| {
+       if let Ok(_) = root_zones.get(parent.0) {
+           commands.entity(entity).despawn_recursive();
+       }
+    });
+}
+
+fn generate_points(mut commands: Commands, root_zones: Query<(Entity, &Zone, &ZoneGrid, &ZoneBoundary), Changed<DirtyZone>>, brushes: Query<(&GlobalTransform, &ZoneBrush, &Parent)>) {
+    let mut zone_table = HashMap::<Entity, Vec<(f32, (GlobalTransform, ZoneShape, ShapeOperation))>>::new();
+    root_zones.for_each(|(entity, _, _, _)| {
+        zone_table.insert(entity, vec![]);
+    });
+    brushes.for_each(|(transform, brush, parent)| {
+        if let Some(mut vec) = zone_table.get_mut(&parent.0){
+            vec.push((brush.order, (transform.clone(), brush.shape.clone(), brush.operation.clone())));
+        }
+    });
+    root_zones.for_each(|(entity, _, zone_grid, zone_boundary)| {
+        if let Some(mut vec) = zone_table.get_mut(&entity) {
+            vec.sort_by(|a,b| {
+                a.0.partial_cmp(&b.0).unwrap()
+            });
+            let fill = generate_fill_points(entity, zone_grid, &vec);
+            let boundary = generate_boundary_points(entity, zone_boundary, &vec);
+            let full: Vec<GridPoint> = [fill, boundary].concat();
+            let grid = commands.spawn().insert(Grid { root_zone: entity.clone()}).insert(GridContents { points: full }).id();
+            commands.entity(entity).push_children(&[grid]);
+        }
+    });
+}
+
+fn generate_fill_points(zone: Entity, zone_settings: &ZoneGrid, brushes: &[(f32, (GlobalTransform, ZoneShape, ShapeOperation))]) -> Vec<GridPoint> {
+    let mut vec = Vec::<GridPoint>::new();
+    let bounds = brushes.into_iter().fold(None, |prev, brush| {
+        brush.1.bounds(prev)
+    });
+    if let Some(bounds) = bounds {
+        let boundary_size = zone_settings.grid_tile_size/2.;
+        let mut x = (bounds.0.x + boundary_size);
+        while x <= (bounds.1.x - boundary_size) {
+            let mut y = (bounds.0.y + boundary_size);
+            while y <=(bounds.1.y - boundary_size) {
+                let point = Vec2::new(x,y);
+                let dist = brushes.into_iter().fold(-5f32, |old, brush| {
+                    brush.1.distance_field(point, old)
+                });
+                if (dist <= 0.) {
+                    vec.push(GridPoint {
+                        position: Vec2::new(x, y),
+                        zones: vec![zone.clone()],
+                    });
+                }
+                y += zone_settings.grid_tile_size;
+            }
+            
+            x += zone_settings.grid_tile_size;
+        }
+    }
+    vec
+}
+
+fn generate_boundary_points(zone: Entity, zone_settings: &ZoneBoundary, brushes: &[(f32, (GlobalTransform, ZoneShape, ShapeOperation))]) -> Vec<GridPoint> {
+    vec![]
 }
 
 fn find_center_point(

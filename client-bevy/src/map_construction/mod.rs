@@ -13,9 +13,9 @@ use bevy_egui::{
     EguiContext,
 };
 
-use self::map_zones::{
-    BrushBundle, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle, ZoneGrid, ZoneShape,
-};
+use self::{map_zones::{
+    BrushBundle, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle, ZoneGrid, ZoneShape, MapZonePlugin,
+}, grid_generator::GridGeneratorPlugin};
 
 pub mod grid_generator;
 pub mod map_zones;
@@ -26,7 +26,9 @@ impl Plugin for MapConstructionPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<SelectedZone>()
             .add_system(map_construction_hierarchy)
-            .add_system(zone_inspector);
+            .add_system(zone_inspector)
+            .add_plugin(MapZonePlugin)
+            .add_plugin(GridGeneratorPlugin);
     }
 }
 

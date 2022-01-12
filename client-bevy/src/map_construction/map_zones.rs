@@ -1,8 +1,44 @@
 #![allow(clippy::many_single_char_names)]
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
-    prelude::{Bundle, Component, Entity, GlobalTransform, Transform},
+    prelude::{Bundle, Component, Entity, GlobalTransform, Transform, Changed, Or, Query, Commands, CoreStage, Plugin, Parent},
 };
+
+pub struct MapZonePlugin;
+
+impl Plugin for MapZonePlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app
+            .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
+            .add_system_to_stage(CoreStage::PreUpdate, clear_dirty);
+    }
+}
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct DirtyZone;
+
+fn mark_dirty_zone(mut commands: Commands, changed_brushes: Query<&ZoneBrush, Or<(Changed<ZoneBrush>, Changed<Transform>)>>, zones: Query<(Entity, &Zone, &Parent)>) {
+    changed_brushes.for_each(|brush| {
+        commands.entity(brush.zone).insert(DirtyZone);
+        let mut child = brush.zone;
+        loop {
+            if let Ok((_, zone, parent)) = zones.get(child) {
+                child = parent.0;
+                commands.entity(child).insert(DirtyZone);
+            } else {
+                break;
+            }
+        }
+    });
+}
+
+fn clear_dirty(mut commands: Commands, zones: Query<(Entity, &DirtyZone)>) {
+    zones.for_each(|(entity, _)| {
+        commands.entity(entity).remove::<DirtyZone>();
+    });
+}
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum ZoneShape {
@@ -92,7 +128,7 @@ impl ZoneShape {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ShapeOperation {
     Union,
     Subtraction,
@@ -122,7 +158,7 @@ impl ShapeOperation {
 
 pub trait GetDistanceField {
     fn distance_field(&self, point: Vec2, old: f32) -> f32;
-    fn bounds(&self, prev: (Vec2, Vec2)) -> (Vec2, Vec2);
+    fn bounds(&self, prev: Option<(Vec2, Vec2)>) -> Option<(Vec2, Vec2)>;
 }
 
 type ZoneShapeContainer = (GlobalTransform, ZoneShape, ShapeOperation);
@@ -137,7 +173,7 @@ impl GetDistanceField for ZoneShapeContainer {
         operation.distance_field(old, next)
     }
 
-    fn bounds(&self, prev: (Vec2, Vec2)) -> (Vec2, Vec2) {
+    fn bounds(&self, prev: Option<(Vec2, Vec2)>) -> Option<(Vec2, Vec2)> {
         let (transform, shape, operation) = self;
         let next = shape.bounds();
         println!("shape bounds: {} {}", next.0, next.1);
@@ -150,11 +186,15 @@ impl GetDistanceField for ZoneShapeContainer {
         println!("transformed bounds: {} {}", next.0, next.1);
         let next = (next.0.min(next.1), next.0.max(next.1));
         println!("re-configured bounds: {} {}", next.0, next.1);
-        operation.bounds(prev, next)
+        if let Some(prev) = prev {
+            Some(operation.bounds(prev, next))
+        } else {
+            Some(next)
+        }
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct ZoneBrush {
     pub zone: Entity,
     pub shape: ZoneShape,
@@ -413,7 +453,7 @@ mod tests {
             ZoneShape::Square(2., 1.),
             ShapeOperation::Union,
         );
-        let bounds = operations.bounds((-3. * Vec2::ONE, Vec2::ZERO));
+        let bounds = operations.bounds(Some((-3. * Vec2::ONE, Vec2::ZERO))).unwrap();
         assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
         println!("{}", bounds.1);
         assert!(assert_eq_f32(bounds.1.x, 1.5) && assert_eq_f32(bounds.1.y, 1.));
