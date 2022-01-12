@@ -1,15 +1,17 @@
 #![allow(clippy::many_single_char_names)]
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
-    prelude::{Bundle, Component, Entity, GlobalTransform, Transform, Changed, Or, Query, Commands, CoreStage, Plugin, Parent},
+    prelude::{
+        Bundle, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Parent,
+        Plugin, Query, Transform,
+    },
 };
 
 pub struct MapZonePlugin;
 
 impl Plugin for MapZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app
-            .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
+        app.add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
             .add_system_to_stage(CoreStage::PreUpdate, clear_dirty);
     }
 }
@@ -18,17 +20,17 @@ impl Plugin for MapZonePlugin {
 #[component(storage = "SparseSet")]
 pub struct DirtyZone;
 
-fn mark_dirty_zone(mut commands: Commands, changed_brushes: Query<&ZoneBrush, Or<(Changed<ZoneBrush>, Changed<Transform>)>>, zones: Query<(Entity, &Zone, &Parent)>) {
+fn mark_dirty_zone(
+    mut commands: Commands,
+    changed_brushes: Query<&ZoneBrush, Or<(Changed<ZoneBrush>, Changed<Transform>)>>,
+    zones: Query<(Entity, &Zone, &Parent)>,
+) {
     changed_brushes.for_each(|brush| {
         commands.entity(brush.zone).insert(DirtyZone);
         let mut child = brush.zone;
-        loop {
-            if let Ok((_, zone, parent)) = zones.get(child) {
-                child = parent.0;
-                commands.entity(child).insert(DirtyZone);
-            } else {
-                break;
-            }
+        while let Ok((_, _zone, parent)) = zones.get(child) {
+            child = parent.0;
+            commands.entity(child).insert(DirtyZone);
         }
     });
 }
@@ -38,7 +40,6 @@ fn clear_dirty(mut commands: Commands, zones: Query<(Entity, &DirtyZone)>) {
         commands.entity(entity).remove::<DirtyZone>();
     });
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum ZoneShape {
@@ -82,6 +83,7 @@ impl ZoneShape {
                 let ky = kk * (2. * a.dot(a) + d.dot(b)) / 3.;
                 let kz = kk * d.dot(a);
 
+                #[allow(unused_assignments)]
                 let mut res = 0f32;
 
                 let p = ky - kx * kx;
@@ -453,7 +455,9 @@ mod tests {
             ZoneShape::Square(2., 1.),
             ShapeOperation::Union,
         );
-        let bounds = operations.bounds(Some((-3. * Vec2::ONE, Vec2::ZERO))).unwrap();
+        let bounds = operations
+            .bounds(Some((-3. * Vec2::ONE, Vec2::ZERO)))
+            .unwrap();
         assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
         println!("{}", bounds.1);
         assert!(assert_eq_f32(bounds.1.x, 1.5) && assert_eq_f32(bounds.1.y, 1.));

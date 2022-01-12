@@ -13,9 +13,13 @@ use bevy_egui::{
     EguiContext,
 };
 
-use self::{map_zones::{
-    BrushBundle, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle, ZoneGrid, ZoneShape, MapZonePlugin,
-}, grid_generator::GridGeneratorPlugin};
+use self::{
+    grid_generator::GridGeneratorPlugin,
+    map_zones::{
+        BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle,
+        ZoneGrid, ZoneShape,
+    },
+};
 
 pub mod grid_generator;
 pub mod map_zones;
