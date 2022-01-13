@@ -4,13 +4,16 @@ mod map_construction;
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    pbr::wireframe::WireframePlugin,
     prelude::*,
+    render::options::WgpuOptions,
     DefaultPlugins,
 };
 use bevy_egui::EguiPlugin;
 use communications::CommunicationsPlugin;
 use map_construction::MapConstructionPlugin;
 use wasm_bindgen::prelude::*;
+use wgpu::Features;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -20,6 +23,7 @@ pub fn run() {
     }
 
     let mut app = App::new();
+
     app.insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
@@ -28,5 +32,32 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .run();
+        .add_system(setup);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.insert_resource(WgpuOptions {
+            features: Features::POLYGON_MODE_LINE,
+            ..Default::default()
+        })
+        .add_plugin(WireframePlugin);
+    }
+
+    app.run();
+}
+
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    commands.spawn_bundle(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::WHITE,
+            illuminance: 100.,
+            ..Default::default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 15., 30.)),
+        ..Default::default()
+    });
 }
