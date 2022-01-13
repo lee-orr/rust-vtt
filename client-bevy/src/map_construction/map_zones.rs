@@ -178,16 +178,13 @@ impl GetDistanceField for ZoneShapeContainer {
     fn bounds(&self, prev: Option<(Vec2, Vec2)>) -> Option<(Vec2, Vec2)> {
         let (transform, shape, operation) = self;
         let next = shape.bounds();
-        println!("shape bounds: {} {}", next.0, next.1);
         let matrix = transform.compute_matrix();
         let next = (
             matrix * Vec4::new(next.0.x, 0., next.0.y, 1.),
             matrix * Vec4::new(next.1.x, 0., next.1.y, 1.),
         );
         let next = (next.0.xz(), next.1.xz());
-        println!("transformed bounds: {} {}", next.0, next.1);
         let next = (next.0.min(next.1), next.0.max(next.1));
-        println!("re-configured bounds: {} {}", next.0, next.1);
         if let Some(prev) = prev {
             Some(operation.bounds(prev, next))
         } else {
@@ -434,11 +431,6 @@ mod tests {
         let border_dist_2 = operations.distance_field(Vec2::new(1.5, 1.), 0.5);
         let outside_dist = operations.distance_field(Vec2::ZERO, 0.5);
 
-        println!(
-            "{}, {}, {}, {}",
-            center_dist, border_dist, border_dist_2, outside_dist
-        );
-
         assert!(assert_eq_f32(center_dist, -0.5));
         assert!(assert_eq_f32(border_dist, 0.));
         assert!(assert_eq_f32(border_dist_2, 0.));
@@ -459,7 +451,6 @@ mod tests {
             .bounds(Some((-3. * Vec2::ONE, Vec2::ZERO)))
             .unwrap();
         assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
-        println!("{}", bounds.1);
         assert!(assert_eq_f32(bounds.1.x, 1.5) && assert_eq_f32(bounds.1.y, 1.));
     }
 }

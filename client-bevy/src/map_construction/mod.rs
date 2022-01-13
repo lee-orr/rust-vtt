@@ -1,4 +1,3 @@
-#![allow(clippy::float_cmp)]
 use std::f32::consts::PI;
 
 use bevy::{
@@ -73,6 +72,14 @@ fn map_construction_hierarchy(
             });
         });
     });
+}
+
+fn changed(a: f32, b: f32) -> bool {
+    (a - b).abs() > 0.1
+}
+
+fn changed_vec(a: Vec2, b: Vec2) -> bool {
+    (a - b).abs().max_element() > 0.1
 }
 
 fn zone_inspector(
@@ -221,20 +228,26 @@ fn zone_inspector(
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("Position");
+                                    let mut x = transform.translation.x;
+                                    let mut y = transform.translation.y;
                                     ui.add(
-                                        egui::DragValue::new(&mut transform.translation.x)
+                                        egui::DragValue::new(&mut x)
                                             .speed(1.),
                                     );
                                     ui.add(
-                                        egui::DragValue::new(&mut transform.translation.y)
+                                        egui::DragValue::new(&mut y)
                                             .speed(1.),
                                     );
+                                    if changed(x,  transform.translation.x) || changed(y,  transform.translation.y) {
+                                        transform.translation.x = x;
+                                        transform.translation.y = y;
+                                    }
                                     ui.label("Rotation");
                                     let angle =
                                         transform.rotation.to_euler(EulerRot::XYZ).1 * 180. / PI;
                                     let mut mutable_angle = angle;
                                     ui.add(egui::DragValue::new(&mut mutable_angle).speed(1.));
-                                    if mutable_angle != angle {
+                                    if changed(mutable_angle, angle) {
                                         transform.rotation =
                                             Quat::from_rotation_y(mutable_angle * PI / 180.);
                                     }
@@ -245,7 +258,7 @@ fn zone_inspector(
                                             ui.label("Radius");
                                             let mut rad = radius;
                                             ui.add(egui::DragValue::new(&mut rad).speed(1.));
-                                            if rad != radius {
+                                            if changed(rad, radius) {
                                                 brush.shape = ZoneShape::Circle(rad);
                                             }
                                         });
@@ -257,7 +270,7 @@ fn zone_inspector(
                                             let mut h = height;
                                             ui.add(egui::DragValue::new(&mut w).speed(1.));
                                             ui.add(egui::DragValue::new(&mut h).speed(1.));
-                                            if w != width || h != height {
+                                            if changed(w , width) || changed(h , height) {
                                                 brush.shape = ZoneShape::Square(w, h);
                                             }
                                         });
@@ -275,7 +288,7 @@ fn zone_inspector(
                                             let mut e = end;
                                             ui.add(egui::DragValue::new(&mut e.x).speed(1.));
                                             ui.add(egui::DragValue::new(&mut e.y).speed(1.));
-                                            if rad != radius || s != start || e != end {
+                                            if changed(rad, radius) || changed_vec(s, start) || changed_vec(e, end) {
                                                 brush.shape = ZoneShape::Segment(s, e, rad);
                                             }
                                         });
@@ -297,10 +310,10 @@ fn zone_inspector(
                                             let mut e = end;
                                             ui.add(egui::DragValue::new(&mut e.x).speed(1.));
                                             ui.add(egui::DragValue::new(&mut e.y).speed(1.));
-                                            if rad != radius
-                                                || s != start
-                                                || e != end
-                                                || c != control
+                                            if changed(rad, radius)
+                                                || changed_vec(s, start)
+                                                || changed_vec(e, end)
+                                                || changed_vec(c, control)
                                             {
                                                 brush.shape = ZoneShape::Curve(s, c, e, rad);
                                             }

@@ -2,10 +2,17 @@ use std::collections::HashMap;
 
 use bevy::{
     math::{Vec2, Vec3},
+    pbr::{wireframe::Wireframe, PbrBundle, StandardMaterial},
     prelude::{
-        BuildChildren, Changed, Commands, Component, CoreStage, DespawnRecursiveExt, Entity,
-        GlobalTransform, Parent, Plugin, Query,
+        shape, Assets, BuildChildren, Changed, Color, Commands, Component, CoreStage,
+        DespawnRecursiveExt, Entity, GlobalTransform, Handle, Mesh, Parent, Plugin, Query, ResMut,
+        Transform, Without,
     },
+    render::mesh::Indices,
+};
+use voronator::{
+    delaunator::{Coord, Point, Vector},
+    CentroidDiagram,
 };
 
 use super::map_zones::{
@@ -17,7 +24,8 @@ pub struct GridGeneratorPlugin;
 impl Plugin for GridGeneratorPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_system_to_stage(CoreStage::Last, generate_points)
-            .add_system_to_stage(CoreStage::Last, clear_old_grids);
+            .add_system_to_stage(CoreStage::Last, clear_old_grids)
+            .add_system_to_stage(CoreStage::PreUpdate, triangulate_grid);
     }
 }
 
@@ -32,11 +40,31 @@ pub struct GridPoint {
     pub zones: Vec<Entity>,
 }
 
+impl Vector<GridPoint> for GridPoint {}
+
+impl Coord for GridPoint {
+    fn from_xy(x: f64, y: f64) -> Self {
+        Self {
+            position: Vec2::new(x as f32, y as f32),
+            zones: vec![],
+        }
+    }
+
+    fn x(&self) -> f64 {
+        self.position.x as f64
+    }
+
+    fn y(&self) -> f64 {
+        self.position.y as f64
+    }
+}
+
 #[derive(Component)]
 pub struct GridContents {
     pub points: Vec<GridPoint>,
 }
 
+#[derive(Component)]
 pub struct GridZoneTriangulation {
     pub zone: Entity,
     pub verticies: Vec<Vec3>,
@@ -75,6 +103,8 @@ fn generate_points(
             vec.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
             let fill = generate_fill_points(entity, zone_grid, vec);
             let boundary = generate_boundary_points(entity, zone_boundary, vec);
+            println!("Generated Fill {:?}", fill);
+            println!("Generated Boundary {:?}", boundary);
             let full: Vec<GridPoint> = [fill, boundary].concat();
             let grid = commands
                 .spawn()
@@ -121,11 +151,126 @@ fn generate_fill_points(
 }
 
 fn generate_boundary_points(
-    _zone: Entity,
-    _zone_settings: &ZoneBoundary,
-    _brushes: &[(f32, (GlobalTransform, ZoneShape, ShapeOperation))],
+    zone: Entity,
+    zone_settings: &ZoneBoundary,
+    brushes: &[(f32, (GlobalTransform, ZoneShape, ShapeOperation))],
 ) -> Vec<GridPoint> {
-    vec![]
+    let mut vec = Vec::<GridPoint>::new();
+    let bounds = brushes
+        .iter()
+        .fold(None, |prev, brush| brush.1.bounds(prev));
+    if let Some(bounds) = bounds {
+        println!("Generating Boundary");
+        let mut points_to_query = vec![(bounds.1 - bounds.0) / 2. + bounds.0];
+        let mut query_radius = (bounds.1 - bounds.0).max_element() / 2.;
+        let inner_levels = zone_settings.boundary_width * 2.;
+        while query_radius > inner_levels {
+            println!("Working through a level");
+            let mut internal_query = points_to_query.clone();
+            let mut next_query = Vec::<Vec2>::new();
+            let halfway = query_radius / 2.;
+            for point in internal_query {
+                let dist = brushes
+                    .iter()
+                    .fold(-5f32, |old, brush| brush.1.distance_field(point, old));
+                if dist <= query_radius {
+                    next_query.push(point + (-Vec2::X + Vec2::Y) * halfway);
+                    next_query.push(point + (Vec2::X + Vec2::Y) * halfway);
+                    next_query.push(point + (Vec2::X - Vec2::Y) * halfway);
+                    next_query.push(point + (-Vec2::X - Vec2::Y) * halfway);
+                }
+            }
+            points_to_query = next_query;
+            query_radius = halfway;
+        }
+
+        let halfway = query_radius / 2.;
+        let boundary_adjsutment = zone_settings.boundary_width / 2.;
+
+        println!("Getting points w/ radius {}", halfway);
+
+        for point in points_to_query {
+            let points = [
+                point + (-Vec2::X + Vec2::Y) * halfway,
+                point + (Vec2::X + Vec2::Y) * halfway,
+                point + (Vec2::X - Vec2::Y) * halfway,
+                point + (-Vec2::X - Vec2::Y) * halfway,
+            ];
+            let distances: Vec<f32> = points
+                .iter()
+                .map(|point| {
+                    brushes
+                        .iter()
+                        .fold(-5f32, |old, brush| brush.1.distance_field(*point, old))
+                })
+                .collect();
+            let center_point = find_center_point(
+                points[3],
+                halfway,
+                distances[3],
+                distances[2],
+                distances[1],
+                distances[0],
+            );
+            if let Some((point, normal)) = center_point {
+                vec.push(GridPoint {
+                    position: point + normal * boundary_adjsutment,
+                    zones: vec![zone],
+                });
+                vec.push(GridPoint {
+                    position: point - normal * boundary_adjsutment,
+                    zones: vec![zone],
+                });
+            }
+        }
+    }
+    vec
+}
+
+fn triangulate_grid(
+    mut commands: Commands,
+    grids: Query<(Entity, &GridContents, &Grid), Without<Handle<Mesh>>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    grids.for_each(|(entity, contents, grid)| {
+        if let Some(diagram) = CentroidDiagram::<GridPoint>::new(&contents.points) {
+            println!("Triangulated a zone {:?}", entity);
+            let indices = diagram
+                .delaunay
+                .triangles
+                .iter()
+                .map(|i| *i as u32)
+                .collect::<Vec<_>>();
+            let positions = contents
+                .points
+                .iter()
+                .map(|p| [p.position.x, 0f32, p.position.y])
+                .collect::<Vec<_>>();
+            let normals = positions
+                .iter()
+                .map(|p| [0f32, 1f32, 0f32])
+                .collect::<Vec<_>>();
+            let uvs = positions.iter().map(|p| [p[0], p[2]]).collect::<Vec<_>>();
+
+            let mut mesh = Mesh::new(wgpu::PrimitiveTopology::TriangleList);
+            mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
+            mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.clone());
+            mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
+            println!("Vertices {:?}, Indices {:?}", positions, indices);
+            mesh.set_indices(Some(Indices::U32(indices)));
+
+            commands
+                .entity(entity)
+                .insert_bundle(PbrBundle {
+                    mesh: meshes.add(mesh),
+                    material: materials.add(Color::rgb(0.3, 0.3, 0.9).into()),
+                    transform: Transform::from_translation(Vec3::ZERO),
+                    ..Default::default()
+                })
+                .insert(Wireframe);
+        }
+    });
 }
 
 fn find_center_point(
