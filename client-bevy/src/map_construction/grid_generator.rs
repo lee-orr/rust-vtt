@@ -4,14 +4,14 @@ use bevy::{
     math::{Vec2, Vec3},
     pbr::{wireframe::Wireframe, PbrBundle, StandardMaterial},
     prelude::{
-        shape, Assets, BuildChildren, Changed, Color, Commands, Component, CoreStage,
+        Assets, BuildChildren, Changed, Color, Commands, Component, CoreStage,
         DespawnRecursiveExt, Entity, GlobalTransform, Handle, Mesh, Parent, Plugin, Query, ResMut,
         Transform, Without,
     },
     render::mesh::Indices,
 };
 use voronator::{
-    delaunator::{Coord, Point, Vector},
+    delaunator::{Coord, Vector},
     CentroidDiagram,
 };
 
@@ -185,7 +185,11 @@ fn generate_boundary_points(
         let halfway = query_radius / 2.;
         let boundary_adjsutment = zone_settings.boundary_width / 2.;
 
-        println!("Getting points w/ radius {}, points {}", halfway, points_to_query.len());
+        println!(
+            "Getting points w/ radius {}, points {}",
+            halfway,
+            points_to_query.len()
+        );
 
         for point in points_to_query {
             let points = [
@@ -231,9 +235,10 @@ fn triangulate_grid(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    grids.for_each(|(entity, contents, grid)| {
+    grids.for_each(|(entity, contents, _grid)| {
         if let Some(diagram) = CentroidDiagram::<GridPoint>::new(&contents.points) {
             println!("Triangulated a zone {:?}", entity);
+
             let indices = diagram
                 .delaunay
                 .triangles
@@ -245,16 +250,17 @@ fn triangulate_grid(
                 .iter()
                 .map(|p| [p.position.x, 0f32, p.position.y])
                 .collect::<Vec<_>>();
+
             let normals = positions
                 .iter()
-                .map(|p| [0f32, 1f32, 0f32])
+                .map(|_p| [0f32, 1f32, 0f32])
                 .collect::<Vec<_>>();
             let uvs = positions.iter().map(|p| [p[0], p[2]]).collect::<Vec<_>>();
 
             let mut mesh = Mesh::new(wgpu::PrimitiveTopology::TriangleList);
-            mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
-            mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.clone());
-            mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
+            mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+            mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+            mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
             mesh.set_indices(Some(Indices::U32(indices)));
 
             commands

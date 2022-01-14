@@ -230,15 +230,11 @@ fn zone_inspector(
                                     ui.label("Position");
                                     let mut x = transform.translation.x;
                                     let mut y = transform.translation.y;
-                                    ui.add(
-                                        egui::DragValue::new(&mut x)
-                                            .speed(1.),
-                                    );
-                                    ui.add(
-                                        egui::DragValue::new(&mut y)
-                                            .speed(1.),
-                                    );
-                                    if changed(x,  transform.translation.x) || changed(y,  transform.translation.y) {
+                                    ui.add(egui::DragValue::new(&mut x).speed(1.));
+                                    ui.add(egui::DragValue::new(&mut y).speed(1.));
+                                    if changed(x, transform.translation.x)
+                                        || changed(y, transform.translation.y)
+                                    {
                                         transform.translation.x = x;
                                         transform.translation.y = y;
                                     }
@@ -270,7 +266,7 @@ fn zone_inspector(
                                             let mut h = height;
                                             ui.add(egui::DragValue::new(&mut w).speed(1.));
                                             ui.add(egui::DragValue::new(&mut h).speed(1.));
-                                            if changed(w , width) || changed(h , height) {
+                                            if changed(w, width) || changed(h, height) {
                                                 brush.shape = ZoneShape::Square(w, h);
                                             }
                                         });
@@ -288,7 +284,10 @@ fn zone_inspector(
                                             let mut e = end;
                                             ui.add(egui::DragValue::new(&mut e.x).speed(1.));
                                             ui.add(egui::DragValue::new(&mut e.y).speed(1.));
-                                            if changed(rad, radius) || changed_vec(s, start) || changed_vec(e, end) {
+                                            if changed(rad, radius)
+                                                || changed_vec(s, start)
+                                                || changed_vec(e, end)
+                                            {
                                                 brush.shape = ZoneShape::Segment(s, e, rad);
                                             }
                                         });
