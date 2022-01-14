@@ -1,9 +1,11 @@
 #![allow(clippy::many_single_char_names)]
+use std::collections::HashMap;
+
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{
         Bundle, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Parent,
-        Plugin, Query, Transform,
+        Plugin, Query, Transform, RemovedComponents,
     },
 };
 
@@ -12,7 +14,58 @@ pub struct MapZonePlugin;
 impl Plugin for MapZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
-            .add_system_to_stage(CoreStage::PreUpdate, clear_dirty);
+            .add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
+            .add_system_to_stage(CoreStage::PostUpdate, adjust_zone_hierarchy);
+    }
+}
+
+#[derive(Component)]
+pub struct ZoneHierarchy {
+    pub zones: Vec<Entity>
+}
+
+fn adjust_zone_hierarchy(
+mut commands: Commands,
+zones: Query<(Entity, &Zone, Option<&Parent>)>,
+changed_zones: Query<(Entity, &Zone, &Parent), Changed<Parent>>
+) {
+    if changed_zones.is_empty() {
+        return;
+    }
+    let mut hierarchy_map = HashMap::<Entity, Vec<Entity>>::new();
+    for (entity, _, parent) in zones.iter() {
+        if hierarchy_map.contains_key(&entity) {
+            continue;
+        }
+        let mut descendents = Vec::<(Entity, &Zone, Option<&Parent>)>::new();
+        let mut parent = parent;
+        let mut last_entity = entity;
+        let mut ancestors_till_now = Vec::<Entity>::new();
+        descendents.insert(0, zones.get(entity).unwrap());
+        while let Some(unwarpped_parent) = parent {
+            if hierarchy_map.contains_key(unwarpped_parent) {
+                ancestors_till_now = hierarchy_map.get(unwarpped_parent).unwrap().clone();
+                ancestors_till_now.push(unwarpped_parent.0);
+                break;
+            }
+            if let Ok(p) = zones.get(unwarpped_parent.0) {
+                last_entity = unwarpped_parent.0;
+                descendents.insert(0, p);
+                parent = p.2;
+            } else {
+                break;
+            }
+        }
+        if ancestors_till_now.len() == 0 {
+            hierarchy_map.insert(last_entity, vec![]);
+            commands.entity(last_entity).insert(ZoneHierarchy { zones: vec![]});
+            ancestors_till_now.push(last_entity);
+        }
+        for (descendent, _, _) in descendents {
+            hierarchy_map.insert(descendent, ancestors_till_now.clone());
+            commands.entity(descendent).insert(ZoneHierarchy { zones: ancestors_till_now.clone()});
+            ancestors_till_now.push(descendent);
+        }
     }
 }
 
