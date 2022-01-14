@@ -103,8 +103,6 @@ fn generate_points(
             vec.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
             let fill = generate_fill_points(entity, zone_grid, vec);
             let boundary = generate_boundary_points(entity, zone_boundary, vec);
-            println!("Generated Fill {:?}", fill);
-            println!("Generated Boundary {:?}", boundary);
             let full: Vec<GridPoint> = [fill, boundary].concat();
             let grid = commands
                 .spawn()
@@ -134,7 +132,7 @@ fn generate_fill_points(
                 let point = Vec2::new(x, y);
                 let dist = brushes
                     .iter()
-                    .fold(-5f32, |old, brush| brush.1.distance_field(point, old));
+                    .fold(5f32, |old, brush| brush.1.distance_field(point, old));
                 if dist <= 0. {
                     vec.push(GridPoint {
                         position: Vec2::new(x, y),
@@ -163,16 +161,16 @@ fn generate_boundary_points(
         println!("Generating Boundary");
         let mut points_to_query = vec![(bounds.1 - bounds.0) / 2. + bounds.0];
         let mut query_radius = (bounds.1 - bounds.0).max_element() / 2.;
-        let inner_levels = zone_settings.boundary_width * 2.;
+        let inner_levels = zone_settings.boundary_width;
         while query_radius > inner_levels {
-            println!("Working through a level");
-            let mut internal_query = points_to_query.clone();
+            println!("Working through a level: {}", points_to_query.len());
+            let internal_query = points_to_query.clone();
             let mut next_query = Vec::<Vec2>::new();
             let halfway = query_radius / 2.;
             for point in internal_query {
                 let dist = brushes
                     .iter()
-                    .fold(-5f32, |old, brush| brush.1.distance_field(point, old));
+                    .fold(5f32, |old, brush| brush.1.distance_field(point, old));
                 if dist <= query_radius {
                     next_query.push(point + (-Vec2::X + Vec2::Y) * halfway);
                     next_query.push(point + (Vec2::X + Vec2::Y) * halfway);
@@ -187,26 +185,26 @@ fn generate_boundary_points(
         let halfway = query_radius / 2.;
         let boundary_adjsutment = zone_settings.boundary_width / 2.;
 
-        println!("Getting points w/ radius {}", halfway);
+        println!("Getting points w/ radius {}, points {}", halfway, points_to_query.len());
 
         for point in points_to_query {
             let points = [
-                point + (-Vec2::X + Vec2::Y) * halfway,
-                point + (Vec2::X + Vec2::Y) * halfway,
-                point + (Vec2::X - Vec2::Y) * halfway,
-                point + (-Vec2::X - Vec2::Y) * halfway,
+                point + (-Vec2::X + Vec2::Y) * query_radius,
+                point + (Vec2::X + Vec2::Y) * query_radius,
+                point + (Vec2::X - Vec2::Y) * query_radius,
+                point + (-Vec2::X - Vec2::Y) * query_radius,
             ];
             let distances: Vec<f32> = points
                 .iter()
                 .map(|point| {
                     brushes
                         .iter()
-                        .fold(-5f32, |old, brush| brush.1.distance_field(*point, old))
+                        .fold(5f32, |old, brush| brush.1.distance_field(*point, old))
                 })
                 .collect();
             let center_point = find_center_point(
                 points[3],
-                halfway,
+                query_radius,
                 distances[3],
                 distances[2],
                 distances[1],
@@ -257,7 +255,6 @@ fn triangulate_grid(
             mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
             mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.clone());
             mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.clone());
-            println!("Vertices {:?}, Indices {:?}", positions, indices);
             mesh.set_indices(Some(Indices::U32(indices)));
 
             commands

@@ -233,7 +233,7 @@ impl Default for ZoneBoundary {
     fn default() -> Self {
         Self {
             boundary_noise: 0.,
-            boundary_width: 0.5,
+            boundary_width: 0.1,
         }
     }
 }
