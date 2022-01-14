@@ -4,9 +4,8 @@ use bevy::{
     math::{Vec2, Vec3},
     pbr::{wireframe::Wireframe, PbrBundle, StandardMaterial},
     prelude::{
-        Assets, BuildChildren, Changed, Color, Commands, Component, CoreStage,
-        DespawnRecursiveExt, Entity, GlobalTransform, Handle, Mesh, Parent, Plugin, Query, ResMut,
-        Transform, Without,
+        Assets, BuildChildren, Changed, Color, Commands, Component, CoreStage, DespawnRecursiveExt,
+        Entity, GlobalTransform, Handle, Mesh, Parent, Plugin, Query, ResMut, Transform, Without,
     },
     render::mesh::Indices,
 };
