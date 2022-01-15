@@ -195,12 +195,12 @@ fn calculate_zone_bounds(
         (&GlobalTransform, &ZoneBrush, &Parent),
         Or<(Changed<ZoneBrush>, Changed<Transform>)>,
     >,
-    zones: Query<(Entity, &Zone)>,
+    _zones: Query<(Entity, &Zone)>,
 ) {
     let mut zone_table =
         HashMap::<Entity, Vec<(f32, (GlobalTransform, ZoneShape, ShapeOperation))>>::new();
     changed_brushes.for_each(|(transform, brush, parent)| {
-        let mut vec = zone_table.entry(parent.0).or_insert_with(|| Vec::new());
+        let vec = zone_table.entry(parent.0).or_insert_with(Vec::new);
         vec.push((brush.order, (*transform, brush.shape, brush.operation)));
     });
     zone_table.iter().for_each(|(entity, brushes)| {

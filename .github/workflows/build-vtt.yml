@@ -1,5 +1,9 @@
 name: Build VTT
 
+concurrency:
+  group: build_main
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]

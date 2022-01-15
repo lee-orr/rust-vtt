@@ -15,8 +15,8 @@ use bevy_egui::{
 use self::{
     grid_generator::GridGeneratorPlugin,
     map_zones::{
-        BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle,
-        ZoneColor, ZoneGrid, ZoneHierarchy, ZoneOrderingId, ZoneShape,
+        BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBrush, ZoneBundle, ZoneColor,
+        ZoneHierarchy, ZoneOrderingId, ZoneShape,
     },
 };
 
