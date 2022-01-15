@@ -3,8 +3,8 @@ use std::f32::consts::PI;
 use bevy::{
     math::{EulerRot, Quat, Vec2},
     prelude::{
-        BuildChildren, Commands, DespawnRecursiveExt, Entity, Parent, Plugin, Query, Res, ResMut,
-        Transform,
+        BuildChildren, Color, Commands, DespawnRecursiveExt, Entity, Parent, Plugin, Query, Res,
+        ResMut, Transform,
     },
 };
 use bevy_egui::{
@@ -16,7 +16,7 @@ use self::{
     grid_generator::GridGeneratorPlugin,
     map_zones::{
         BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle,
-        ZoneGrid, ZoneHierarchy, ZoneOrderingId, ZoneShape,
+        ZoneColor, ZoneGrid, ZoneHierarchy, ZoneOrderingId, ZoneShape,
     },
 };
 
@@ -177,12 +177,12 @@ fn zone_inspector(
     egui_context: ResMut<EguiContext>,
     mut commands: Commands,
     mut selected_zone: ResMut<SelectedZone>,
-    zones: Query<(Entity, &Zone, &ZoneGrid, &ZoneBoundary)>,
+    zones: Query<(Entity, &Zone, Option<&ZoneColor>)>,
     mut zone_brushes: Query<(Entity, &mut ZoneBrush, &Parent, &mut Transform)>,
 ) {
     if let Some(selected) = selected_zone.zone {
         let selected = zones.get(selected);
-        if let Ok((selected, zone, _zone_grid, _zone_boundary)) = selected {
+        if let Ok((selected, zone, color)) = selected {
             egui::Window::new(&zone.name)
                 .id(bevy_egui::egui::Id::new("zone_inspector"))
                 .show(egui_context.ctx(), |ui| {
@@ -196,6 +196,25 @@ fn zone_inspector(
                     if ui.button("Remove Zone").clicked() {
                         commands.entity(selected).despawn_recursive();
                     }
+                    ui.horizontal(|ui| {
+                        ui.label("Color");
+                        if let Some(color) = color {
+                            let color = color.color;
+                            let mut color = [color.r(), color.g(), color.b()];
+                            if ui.color_edit_button_rgb(&mut color).changed() {
+                                commands.entity(selected).insert(ZoneColor {
+                                    color: Color::rgb(color[0], color[1], color[2]),
+                                });
+                            }
+                        } else {
+                            let mut color = [0.3, 0.3, 0.9f32];
+                            if ui.color_edit_button_rgb(&mut color).changed() {
+                                commands.entity(selected).insert(ZoneColor {
+                                    color: Color::rgb(color[0], color[1], color[2]),
+                                });
+                            }
+                        }
+                    });
                     ui.label("Brushes");
                     let mut num_brushes = 0;
                     let selected_brush = match selected_zone.brush {

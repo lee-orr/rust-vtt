@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{
-        Bundle, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Parent,
-        Plugin, Query, Transform,
+        Bundle, Changed, Color, Commands, Component, CoreStage, Entity, GlobalTransform, Or,
+        Parent, Plugin, Query, Transform,
     },
 };
 
@@ -13,8 +13,9 @@ pub struct MapZonePlugin;
 
 impl Plugin for MapZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
-            .add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
+        app.add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
+            .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
+            .add_system_to_stage(CoreStage::PostUpdate, calculate_zone_bounds)
             .add_system_to_stage(CoreStage::PostUpdate, adjust_zone_hierarchy);
     }
 }
@@ -153,9 +154,21 @@ fn adjust_zone_hierarchy(
 #[component(storage = "SparseSet")]
 pub struct DirtyZone;
 
+#[derive(Component)]
+pub struct ZoneBounds {
+    pub min: Vec2,
+    pub max: Vec2,
+}
+
+#[derive(Component)]
+pub struct ZoneColor {
+    pub color: Color,
+}
+
 fn mark_dirty_zone(
     mut commands: Commands,
     changed_brushes: Query<&ZoneBrush, Or<(Changed<ZoneBrush>, Changed<Transform>)>>,
+    changed_zones: Query<(Entity, &Zone), Changed<ZoneColor>>,
     zones: Query<(Entity, &Zone, &Parent)>,
 ) {
     changed_brushes.for_each(|brush| {
@@ -164,6 +177,41 @@ fn mark_dirty_zone(
         while let Ok((_, _zone, parent)) = zones.get(child) {
             child = parent.0;
             commands.entity(child).insert(DirtyZone);
+        }
+    });
+    changed_zones.for_each(|(entity, _)| {
+        commands.entity(entity).insert(DirtyZone);
+        let mut child = entity;
+        while let Ok((_, _zone, parent)) = zones.get(child) {
+            child = parent.0;
+            commands.entity(child).insert(DirtyZone);
+        }
+    });
+}
+
+fn calculate_zone_bounds(
+    mut commands: Commands,
+    changed_brushes: Query<
+        (&GlobalTransform, &ZoneBrush, &Parent),
+        Or<(Changed<ZoneBrush>, Changed<Transform>)>,
+    >,
+    zones: Query<(Entity, &Zone)>,
+) {
+    let mut zone_table =
+        HashMap::<Entity, Vec<(f32, (GlobalTransform, ZoneShape, ShapeOperation))>>::new();
+    changed_brushes.for_each(|(transform, brush, parent)| {
+        let mut vec = zone_table.entry(parent.0).or_insert_with(|| Vec::new());
+        vec.push((brush.order, (*transform, brush.shape, brush.operation)));
+    });
+    zone_table.iter().for_each(|(entity, brushes)| {
+        let bounds = brushes
+            .iter()
+            .fold(None, |prev, brush| brush.1.bounds(prev));
+        if let Some(bounds) = bounds {
+            commands.entity(*entity).insert(ZoneBounds {
+                min: bounds.0,
+                max: bounds.1,
+            });
         }
     });
 }

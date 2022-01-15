@@ -15,7 +15,8 @@ use voronator::{
 };
 
 use super::map_zones::{
-    DirtyZone, GetDistanceField, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneGrid, ZoneShape,
+    DirtyZone, GetDistanceField, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneColor,
+    ZoneGrid, ZoneShape,
 };
 
 pub struct GridGeneratorPlugin;
@@ -236,11 +237,12 @@ fn generate_boundary_points(
 
 fn triangulate_grid(
     mut commands: Commands,
-    grids: Query<(Entity, &GridContents, &Grid), Without<Handle<Mesh>>>,
+    grids: Query<(Entity, &GridContents, &Grid, &Parent), Without<Handle<Mesh>>>,
+    zones: Query<(Entity, &ZoneColor)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    grids.for_each(|(entity, contents, _grid)| {
+    grids.for_each(|(entity, contents, _grid, parent)| {
         if let Some(diagram) = CentroidDiagram::<GridPoint>::new(&contents.points) {
             println!("Triangulated a zone {:?}", entity);
 
@@ -267,12 +269,17 @@ fn triangulate_grid(
             mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
             mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
             mesh.set_indices(Some(Indices::U32(indices)));
+            let color = if let Ok((_, color)) = zones.get(parent.0) {
+                color.color
+            } else {
+                Color::rgb(0.5, 0.5, 0.9)
+            };
 
             commands
                 .entity(entity)
                 .insert_bundle(PbrBundle {
                     mesh: meshes.add(mesh),
-                    material: materials.add(Color::rgb(0.5, 0.5, 0.9).into()),
+                    material: materials.add(color.into()),
                     transform: Transform::from_translation(Vec3::ZERO),
                     ..Default::default()
                 })
