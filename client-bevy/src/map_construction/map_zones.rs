@@ -386,6 +386,7 @@ pub struct ZoneBrush {
 pub struct Zone {
     pub name: String,
     pub order: u32,
+    pub level: i32,
 }
 
 #[derive(Component, Debug)]

@@ -69,12 +69,14 @@ fn zone_hierarchy(
                         commands.entity(entity).insert(Zone {
                             name: zone.name.clone(),
                             order: zone.order - 1,
+                            level: zone.level,
                         });
                         let prev = level[index - 1];
                         if let Ok((prev, zone, _)) = zones.get(prev) {
                             commands.entity(prev).insert(Zone {
                                 name: zone.name.clone(),
                                 order: zone.order + 1,
+                                level: zone.level,
                             });
                         }
                     }
@@ -82,12 +84,14 @@ fn zone_hierarchy(
                         commands.entity(entity).insert(Zone {
                             name: zone.name.clone(),
                             order: zone.order + 1,
+                            level: zone.level,
                         });
                         let next = level[index + 1];
                         if let Ok((next, zone, _)) = zones.get(next) {
                             commands.entity(next).insert(Zone {
                                 name: zone.name.clone(),
                                 order: zone.order - 1,
+                                level: zone.level,
                             });
                         }
                     }
@@ -101,6 +105,7 @@ fn zone_hierarchy(
                                     } else {
                                         0
                                     },
+                                    level: zone.level,
                                 },
                                 ..Default::default()
                             })
@@ -143,6 +148,7 @@ fn map_construction_hierarchy(
                     } else {
                         0
                     },
+                    level: 0,
                 },
                 ..Default::default()
             });
@@ -191,6 +197,7 @@ fn zone_inspector(
                         commands.entity(selected).insert(Zone {
                             name: name.clone(),
                             order: zone.order,
+                            level: zone.level,
                         });
                     }
                     if ui.button("Remove Zone").clicked() {
