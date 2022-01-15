@@ -2,10 +2,10 @@
 use std::collections::HashMap;
 
 use bevy::{
-    math::{Vec2, Vec3, Vec4, Vec4Swizzles, Vec2Swizzles},
+    math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{
         Bundle, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Parent,
-        Plugin, Query, Transform, RemovedComponents,
+        Plugin, Query, Transform,
     },
 };
 
@@ -25,8 +25,8 @@ pub struct ZoneOrderingId {
 }
 
 impl ZoneOrderingId {
-    fn from_zone_orders(order_in_layers: &[usize]) -> Option<ZoneOrderingId>{
-        let mut order : u128 = 0;
+    fn from_zone_orders(order_in_layers: &[usize]) -> Option<ZoneOrderingId> {
+        let mut order: u128 = 0;
         if order_in_layers.len() > 11 {
             return None;
         }
@@ -36,24 +36,24 @@ impl ZoneOrderingId {
             }
             let power = (11 - layer) as u32;
             let multiplier = 1000u128.pow(power);
-            order = multiplier * (*layer_order as u128) + order;
+            order += multiplier * (*layer_order as u128);
         }
-        Some(ZoneOrderingId {
-            order
-        })
+        Some(ZoneOrderingId { order })
     }
 
     fn nearest_shared_zone(&self, b: &ZoneOrderingId) -> Option<ZoneOrderingId> {
         if self == b {
             Some(*self)
         } else {
-            let mut shared : Option<ZoneOrderingId> = None;
+            let mut shared: Option<ZoneOrderingId> = None;
             for layer in 1..12u32 {
                 let divisor = 1000u128.pow(layer);
                 let a_adjusted = self.order / divisor;
                 let b_adjusted = b.order / divisor;
                 if a_adjusted == b_adjusted {
-                    shared = Some(ZoneOrderingId { order : a_adjusted * divisor});
+                    shared = Some(ZoneOrderingId {
+                        order: a_adjusted * divisor,
+                    });
                     break;
                 }
             }
@@ -62,35 +62,47 @@ impl ZoneOrderingId {
     }
 }
 
-fn insert_layer_in_zone_hierarchy(mut zone_by_order_id: &mut HashMap::<ZoneOrderingId, Entity>, mut ordered_zones: &mut Vec::<(Entity, ZoneOrderingId)>, child_map: &HashMap::<Entity, Vec<(Entity, &Zone)>>, layer: &[(Entity, &Zone)], parents: &[usize]) {
+fn insert_layer_in_zone_hierarchy(
+    mut zone_by_order_id: &mut HashMap<ZoneOrderingId, Entity>,
+    mut ordered_zones: &mut Vec<(Entity, ZoneOrderingId)>,
+    child_map: &HashMap<Entity, Vec<(Entity, &Zone)>>,
+    layer: &[(Entity, &Zone)],
+    parents: &[usize],
+) {
     let mut sorted_layer = layer.to_vec();
     sorted_layer.sort_by(|(_, a_order), (_, b_order)| a_order.order.cmp(&b_order.order));
     let parent_order = parents.to_vec();
-    for (order, (entity, zone)) in sorted_layer.iter().enumerate() {
+    for (order, (entity, _zone)) in sorted_layer.iter().enumerate() {
         let mut order_list = parent_order.clone();
         order_list.push(order);
         if let Some(ordering_id) = ZoneOrderingId::from_zone_orders(&order_list) {
-            zone_by_order_id.insert(ordering_id.clone(), entity.clone());
-            ordered_zones.push((entity.clone(), ordering_id));
+            zone_by_order_id.insert(ordering_id, *entity);
+            ordered_zones.push((*entity, ordering_id));
             if let Some(children) = child_map.get(entity) {
-                insert_layer_in_zone_hierarchy(&mut zone_by_order_id, &mut ordered_zones, &child_map, &children, &order_list);
+                insert_layer_in_zone_hierarchy(
+                    &mut zone_by_order_id,
+                    &mut ordered_zones,
+                    child_map,
+                    children,
+                    &order_list,
+                );
             }
-        }        
+        }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct ZoneHierarchy {
-    pub zone_by_order_id: HashMap::<ZoneOrderingId, Entity>,
-    pub ordered_zones: Vec::<(Entity, ZoneOrderingId)>,
-    pub root: Vec::<Entity>,
-    pub child_map: HashMap::<Entity, Vec<Entity>>,
+    pub zone_by_order_id: HashMap<ZoneOrderingId, Entity>,
+    pub ordered_zones: Vec<(Entity, ZoneOrderingId)>,
+    pub root: Vec<Entity>,
+    pub child_map: HashMap<Entity, Vec<Entity>>,
 }
 
 fn adjust_zone_hierarchy(
-mut commands: Commands,
-zones: Query<(Entity, &Zone, Option<&Parent>)>,
-changed_zones: Query<(Entity, &Zone, Option<&Parent>), Or<(Changed<Parent>, Changed<Zone>)>>
+    mut commands: Commands,
+    zones: Query<(Entity, &Zone, Option<&Parent>)>,
+    changed_zones: Query<(Entity, &Zone, Option<&Parent>), Or<(Changed<Parent>, Changed<Zone>)>>,
 ) {
     if changed_zones.is_empty() {
         return;
@@ -100,9 +112,7 @@ changed_zones: Query<(Entity, &Zone, Option<&Parent>), Or<(Changed<Parent>, Chan
     for (entity, zone, parent) in zones.iter() {
         if let Some(parent) = parent {
             let parent = parent.0;
-            if !child_map.contains_key(&parent) {
-                child_map.insert(parent.clone(), Vec::new());
-            }
+            child_map.entry(parent).or_insert_with(Vec::new);
             if let Some(children) = child_map.get_mut(&parent) {
                 children.push((entity, zone));
             }
@@ -113,23 +123,29 @@ changed_zones: Query<(Entity, &Zone, Option<&Parent>), Or<(Changed<Parent>, Chan
     let mut zone_by_order_id = HashMap::<ZoneOrderingId, Entity>::new();
     let mut ordered_zones = Vec::<(Entity, ZoneOrderingId)>::new();
     root_level.sort_by(|a, b| a.1.order.cmp(&b.1.order));
-    insert_layer_in_zone_hierarchy(&mut zone_by_order_id, &mut ordered_zones, &child_map, &root_level, &[]);
+    insert_layer_in_zone_hierarchy(
+        &mut zone_by_order_id,
+        &mut ordered_zones,
+        &child_map,
+        &root_level,
+        &[],
+    );
     ordered_zones.sort_by(|(_, a_order), (_, b_order)| a_order.cmp(b_order));
     for (entity, ordering) in &ordered_zones {
-        commands.entity(*entity).insert(ordering.clone());
+        commands.entity(*entity).insert(*ordering);
     }
     let mut new_child_map = HashMap::<Entity, Vec<Entity>>::new();
     for (key, value) in child_map.into_iter() {
         let mut val = value.clone();
         val.sort_by(|a, b| a.1.order.cmp(&b.1.order));
-        new_child_map.insert(key, val.iter().map(|(e,_)| *e).collect::<_>());
+        new_child_map.insert(key, val.iter().map(|(e, _)| *e).collect::<_>());
     }
     println!("Setting zone hierarchy");
     commands.insert_resource(ZoneHierarchy {
         zone_by_order_id,
         ordered_zones,
         root: root_level.iter().map(|(e, _)| *e).collect::<_>(),
-        child_map: new_child_map
+        child_map: new_child_map,
     });
 }
 
@@ -321,7 +337,7 @@ pub struct ZoneBrush {
 #[derive(Component, Debug, Default)]
 pub struct Zone {
     pub name: String,
-    pub order: u32
+    pub order: u32,
 }
 
 #[derive(Component, Debug)]
@@ -577,7 +593,10 @@ mod tests {
         let order = [13, 5, 6];
         let ordering = ZoneOrderingId::from_zone_orders(&order);
         assert!(ordering.is_some());
-        assert_eq!(ordering.unwrap().order, 13005006000000000000000000000000000u128);
+        assert_eq!(
+            ordering.unwrap().order,
+            13005006000000000000000000000000000u128
+        );
     }
 
     #[test]

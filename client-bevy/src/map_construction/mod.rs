@@ -42,11 +42,11 @@ pub struct SelectedZone {
 }
 
 fn zone_hierarchy(
-    mut ui: &mut Ui,
+    ui: &mut Ui,
     mut commands: &mut Commands,
     mut selected_zone: &mut ResMut<SelectedZone>,
     selected: i32,
-    level: &Vec<Entity>,
+    level: &[Entity],
     hierarchy: &Res<ZoneHierarchy>,
     zones: &Query<(Entity, &Zone, &ZoneOrderingId)>,
 ) {
@@ -92,19 +92,33 @@ fn zone_hierarchy(
                         }
                     }
                     if ui.button("New Zone").clicked() {
-                        let child = commands.spawn_bundle(ZoneBundle {
-                            zone: Zone {
-                                name: String::from("Zone"),
-                                order: if let Some(children) = children { children.len() as u32 } else { 0 },
-                            },
-                            ..Default::default()
-                        }).id();
+                        let child = commands
+                            .spawn_bundle(ZoneBundle {
+                                zone: Zone {
+                                    name: String::from("Zone"),
+                                    order: if let Some(children) = children {
+                                        children.len() as u32
+                                    } else {
+                                        0
+                                    },
+                                },
+                                ..Default::default()
+                            })
+                            .id();
                         commands.entity(entity).push_children(&[child]);
                     }
                 });
                 if let Some(children) = children {
                     ui.collapsing("", |mut ui| {
-                        zone_hierarchy(&mut ui, &mut commands, &mut selected_zone, selected, &children, hierarchy, zones);
+                        zone_hierarchy(
+                            &mut ui,
+                            &mut commands,
+                            &mut selected_zone,
+                            selected,
+                            children,
+                            hierarchy,
+                            zones,
+                        );
                     });
                 }
             }
@@ -124,7 +138,11 @@ fn map_construction_hierarchy(
             commands.spawn_bundle(ZoneBundle {
                 zone: Zone {
                     name: String::from("Zone"),
-                    order: if let Some(hierarchy) = &hierarchy { hierarchy.root.len() as u32 } else { 0 },
+                    order: if let Some(hierarchy) = &hierarchy {
+                        hierarchy.root.len() as u32
+                    } else {
+                        0
+                    },
                 },
                 ..Default::default()
             });
@@ -138,7 +156,7 @@ fn map_construction_hierarchy(
                 &mut ui,
                 &mut commands,
                 &mut selected_zone,
-                selected.clone(),
+                selected,
                 &hierarchy.root,
                 &hierarchy,
                 &zones,

@@ -46,15 +46,14 @@ pub fn run() {
     app.run();
 }
 
-fn setup(
-    mut commands: Commands,
-) {
+fn setup(mut commands: Commands) {
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
             color: Color::WHITE,
             ..Default::default()
         },
-        transform: Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 15., 30.)).with_translation(Vec3::Y * 3.),
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 15., 30.))
+            .with_translation(Vec3::Y * 3.),
         ..Default::default()
     });
 }
