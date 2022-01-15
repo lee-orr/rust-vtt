@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use bevy::{
-    math::{Vec2, Vec3, Vec4, Vec4Swizzles},
+    math::{Vec2, Vec3, Vec4, Vec4Swizzles, Vec2Swizzles},
     prelude::{
         Bundle, Changed, Commands, Component, CoreStage, Entity, GlobalTransform, Or, Parent,
         Plugin, Query, Transform, RemovedComponents,
@@ -22,6 +22,49 @@ impl Plugin for MapZonePlugin {
 #[derive(Component)]
 pub struct ZoneHierarchy {
     pub zones: Vec<Entity>
+}
+
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct ZoneOrderingId {
+    pub order: u128,
+}
+
+impl ZoneOrderingId {
+    fn from_zone_orders(order_in_layers: &[usize]) -> Option<ZoneOrderingId>{
+        let mut order : u128 = 0;
+        if order_in_layers.len() > 11 {
+            return None;
+        }
+        for (layer, layer_order) in order_in_layers.iter().enumerate() {
+            if *layer_order > 1000 {
+                return None;
+            }
+            let power = (11 - layer) as u32;
+            let multiplier = 1000u128.pow(power);
+            order = multiplier * (*layer_order as u128) + order;
+        }
+        Some(ZoneOrderingId {
+            order
+        })
+    }
+
+    fn nearest_shared_zone(&self, b: &ZoneOrderingId) -> Option<ZoneOrderingId> {
+        if self == b {
+            Some(*self)
+        } else {
+            let mut shared : Option<ZoneOrderingId> = None;
+            for layer in 1..12u32 {
+                let divisor = 1000u128.pow(layer);
+                let a_adjusted = self.order / divisor;
+                let b_adjusted = b.order / divisor;
+                if a_adjusted == b_adjusted {
+                    shared = Some(ZoneOrderingId { order : a_adjusted * divisor});
+                    break;
+                }
+            }
+            shared
+        }
+    }
 }
 
 fn adjust_zone_hierarchy(
@@ -125,9 +168,9 @@ impl ZoneShape {
                 let h = (pa.dot(ba) / ba.dot(ba)).clamp(0., 1.);
                 (pa - ba * h).length() - radius
             }
-            ZoneShape::Curve(start, control, end, radius) => {
-                let a = *end - *start;
-                let b = *start - 2. * (*end) + *control;
+            ZoneShape::Curve(start, end, control, radius) => {
+                let a = *control - *start;
+                let b = *start - 2. * (*control) + *end;
                 let c = a * 2.;
                 let d = *start - point;
 
@@ -175,9 +218,9 @@ impl ZoneShape {
             ZoneShape::Segment(start, end, radius) => {
                 (start.min(*end) - *radius, start.max(*end) + *radius)
             }
-            ZoneShape::Curve(start, control, end, radius) => (
-                start.min(control.min(*end)) - *radius,
-                start.max(control.max(*end)) + *radius,
+            ZoneShape::Curve(start, end, control, radius) => (
+                start.min(end.min(*control)) - *radius,
+                start.max(end.max(*control)) + *radius,
             ),
         }
     }
@@ -257,6 +300,7 @@ pub struct ZoneBrush {
 #[derive(Component, Debug, Default)]
 pub struct Zone {
     pub name: String,
+    pub order: u32
 }
 
 #[derive(Component, Debug)]
@@ -505,5 +549,23 @@ mod tests {
             .unwrap();
         assert!(assert_eq_f32(bounds.0.x, -3.) && assert_eq_f32(bounds.0.y, -3.));
         assert!(assert_eq_f32(bounds.1.x, 1.5) && assert_eq_f32(bounds.1.y, 1.));
+    }
+
+    #[test]
+    fn generate_correct_zone_ordering_id() {
+        let order = [13, 5, 6];
+        let ordering = ZoneOrderingId::from_zone_orders(&order);
+        assert!(ordering.is_some());
+        assert_eq!(ordering.unwrap().order, 13005006000000000000000000000000000u128);
+    }
+
+    #[test]
+    fn get_correct_shared_zone_id() {
+        let a = ZoneOrderingId::from_zone_orders(&[12, 5, 6]).unwrap();
+        let b = ZoneOrderingId::from_zone_orders(&[12, 7, 10]).unwrap();
+        let shared_expected = ZoneOrderingId::from_zone_orders(&[12]).unwrap();
+        let shared_result = a.nearest_shared_zone(&b);
+        assert!(shared_result.is_some());
+        assert_eq!(shared_result.unwrap(), shared_expected);
     }
 }

@@ -39,6 +39,12 @@ pub struct GridPoint {
     pub zones: Vec<Entity>,
 }
 
+#[derive(Component)]
+pub struct Tile {
+    pub is_boundary: bool,
+    pub zones: Vec<Vec<Entity>>
+}
+
 impl Vector<GridPoint> for GridPoint {}
 
 impl Coord for GridPoint {
@@ -266,7 +272,7 @@ fn triangulate_grid(
                 .entity(entity)
                 .insert_bundle(PbrBundle {
                     mesh: meshes.add(mesh),
-                    material: materials.add(Color::rgb(0.3, 0.3, 0.9).into()),
+                    material: materials.add(Color::rgb(0.5, 0.5, 0.9).into()),
                     transform: Transform::from_translation(Vec3::ZERO),
                     ..Default::default()
                 })

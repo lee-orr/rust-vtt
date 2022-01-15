@@ -32,7 +32,7 @@ pub fn run() {
         .add_plugin(camera::CameraPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_system(setup);
+        .add_startup_system(setup);
 
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -48,16 +48,13 @@ pub fn run() {
 
 fn setup(
     mut commands: Commands,
-    _meshes: ResMut<Assets<Mesh>>,
-    _materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    commands.spawn_bundle(DirectionalLightBundle {
-        directional_light: DirectionalLight {
+    commands.spawn_bundle(PointLightBundle {
+        point_light: PointLight {
             color: Color::WHITE,
-            illuminance: 100.,
             ..Default::default()
         },
-        transform: Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 15., 30.)),
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 15., 30.)).with_translation(Vec3::Y * 3.),
         ..Default::default()
     });
 }

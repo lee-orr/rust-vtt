@@ -47,11 +47,13 @@ fn map_construction_hierarchy(
     mut selected_zone: ResMut<SelectedZone>,
     zones: Query<(Entity, &Zone)>,
 ) {
+    let zone_count = zones.iter().count();
     egui::Window::new("Hierarchy").show(egui_context.ctx(), |ui| {
         if ui.button("New Zone").clicked() {
             commands.spawn_bundle(ZoneBundle {
                 zone: Zone {
                     name: String::from("Zone"),
+                    order: zone_count as u32,
                 },
                 ..Default::default()
             });
@@ -99,7 +101,7 @@ fn zone_inspector(
                     if ui.text_edit_singleline(&mut name).changed() {
                         commands
                             .entity(selected)
-                            .insert(Zone { name: name.clone() });
+                            .insert(Zone { name: name.clone(), order: zone.order });
                     }
                     if ui.button("Remove Zone").clicked() {
                         commands.entity(selected).despawn_recursive();
@@ -292,7 +294,7 @@ fn zone_inspector(
                                             }
                                         });
                                     }
-                                    ZoneShape::Curve(start, control, end, radius) => {
+                                    ZoneShape::Curve(start, end, control, radius) => {
                                         ui.horizontal(|ui| {
                                             ui.label("Radius");
                                             let mut rad = radius;
@@ -314,7 +316,7 @@ fn zone_inspector(
                                                 || changed_vec(e, end)
                                                 || changed_vec(c, control)
                                             {
-                                                brush.shape = ZoneShape::Curve(s, c, e, rad);
+                                                brush.shape = ZoneShape::Curve(s, e, c, rad);
                                             }
                                         });
                                     }
