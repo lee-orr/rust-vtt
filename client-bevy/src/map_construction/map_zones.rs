@@ -19,12 +19,7 @@ impl Plugin for MapZonePlugin {
     }
 }
 
-#[derive(Component)]
-pub struct ZoneHierarchy {
-    pub zones: Vec<Entity>
-}
-
-#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct ZoneOrderingId {
     pub order: u128,
 }
@@ -67,49 +62,75 @@ impl ZoneOrderingId {
     }
 }
 
+fn insert_layer_in_zone_hierarchy(mut zone_by_order_id: &mut HashMap::<ZoneOrderingId, Entity>, mut ordered_zones: &mut Vec::<(Entity, ZoneOrderingId)>, child_map: &HashMap::<Entity, Vec<(Entity, &Zone)>>, layer: &[(Entity, &Zone)], parents: &[usize]) {
+    let mut sorted_layer = layer.to_vec();
+    sorted_layer.sort_by(|(_, a_order), (_, b_order)| a_order.order.cmp(&b_order.order));
+    let parent_order = parents.to_vec();
+    for (order, (entity, zone)) in sorted_layer.iter().enumerate() {
+        let mut order_list = parent_order.clone();
+        order_list.push(order);
+        if let Some(ordering_id) = ZoneOrderingId::from_zone_orders(&order_list) {
+            zone_by_order_id.insert(ordering_id.clone(), entity.clone());
+            ordered_zones.push((entity.clone(), ordering_id));
+            if let Some(children) = child_map.get(entity) {
+                insert_layer_in_zone_hierarchy(&mut zone_by_order_id, &mut ordered_zones, &child_map, &children, &order_list);
+            }
+        }        
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ZoneHierarchy {
+    pub zone_by_order_id: HashMap::<ZoneOrderingId, Entity>,
+    pub ordered_zones: Vec::<(Entity, ZoneOrderingId)>,
+    pub root: Vec::<Entity>,
+    pub child_map: HashMap::<Entity, Vec<Entity>>,
+}
+
 fn adjust_zone_hierarchy(
 mut commands: Commands,
 zones: Query<(Entity, &Zone, Option<&Parent>)>,
-changed_zones: Query<(Entity, &Zone, &Parent), Changed<Parent>>
+changed_zones: Query<(Entity, &Zone, Option<&Parent>), Or<(Changed<Parent>, Changed<Zone>)>>
 ) {
     if changed_zones.is_empty() {
         return;
     }
-    let mut hierarchy_map = HashMap::<Entity, Vec<Entity>>::new();
-    for (entity, _, parent) in zones.iter() {
-        if hierarchy_map.contains_key(&entity) {
-            continue;
-        }
-        let mut descendents = Vec::<(Entity, &Zone, Option<&Parent>)>::new();
-        let mut parent = parent;
-        let mut last_entity = entity;
-        let mut ancestors_till_now = Vec::<Entity>::new();
-        descendents.insert(0, zones.get(entity).unwrap());
-        while let Some(unwarpped_parent) = parent {
-            if hierarchy_map.contains_key(unwarpped_parent) {
-                ancestors_till_now = hierarchy_map.get(unwarpped_parent).unwrap().clone();
-                ancestors_till_now.push(unwarpped_parent.0);
-                break;
+    let mut child_map = HashMap::<Entity, Vec<(Entity, &Zone)>>::new();
+    let mut root_level = Vec::<(Entity, &Zone)>::new();
+    for (entity, zone, parent) in zones.iter() {
+        if let Some(parent) = parent {
+            let parent = parent.0;
+            if !child_map.contains_key(&parent) {
+                child_map.insert(parent.clone(), Vec::new());
             }
-            if let Ok(p) = zones.get(unwarpped_parent.0) {
-                last_entity = unwarpped_parent.0;
-                descendents.insert(0, p);
-                parent = p.2;
-            } else {
-                break;
+            if let Some(children) = child_map.get_mut(&parent) {
+                children.push((entity, zone));
             }
-        }
-        if ancestors_till_now.len() == 0 {
-            hierarchy_map.insert(last_entity, vec![]);
-            commands.entity(last_entity).insert(ZoneHierarchy { zones: vec![]});
-            ancestors_till_now.push(last_entity);
-        }
-        for (descendent, _, _) in descendents {
-            hierarchy_map.insert(descendent, ancestors_till_now.clone());
-            commands.entity(descendent).insert(ZoneHierarchy { zones: ancestors_till_now.clone()});
-            ancestors_till_now.push(descendent);
+        } else {
+            root_level.push((entity, zone));
         }
     }
+    let mut zone_by_order_id = HashMap::<ZoneOrderingId, Entity>::new();
+    let mut ordered_zones = Vec::<(Entity, ZoneOrderingId)>::new();
+    root_level.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+    insert_layer_in_zone_hierarchy(&mut zone_by_order_id, &mut ordered_zones, &child_map, &root_level, &[]);
+    ordered_zones.sort_by(|(_, a_order), (_, b_order)| a_order.cmp(b_order));
+    for (entity, ordering) in &ordered_zones {
+        commands.entity(*entity).insert(ordering.clone());
+    }
+    let mut new_child_map = HashMap::<Entity, Vec<Entity>>::new();
+    for (key, value) in child_map.into_iter() {
+        let mut val = value.clone();
+        val.sort_by(|a, b| a.1.order.cmp(&b.1.order));
+        new_child_map.insert(key, val.iter().map(|(e,_)| *e).collect::<_>());
+    }
+    println!("Setting zone hierarchy");
+    commands.insert_resource(ZoneHierarchy {
+        zone_by_order_id,
+        ordered_zones,
+        root: root_level.iter().map(|(e, _)| *e).collect::<_>(),
+        child_map: new_child_map
+    });
 }
 
 #[derive(Component)]

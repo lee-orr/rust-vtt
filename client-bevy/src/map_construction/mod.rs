@@ -3,12 +3,12 @@ use std::f32::consts::PI;
 use bevy::{
     math::{EulerRot, Quat, Vec2},
     prelude::{
-        BuildChildren, Commands, DespawnRecursiveExt, Entity, Parent, Plugin, Query, ResMut,
+        BuildChildren, Commands, DespawnRecursiveExt, Entity, Parent, Plugin, Query, Res, ResMut,
         Transform,
     },
 };
 use bevy_egui::{
-    egui::{self, Color32},
+    egui::{self, Color32, Ui},
     EguiContext,
 };
 
@@ -16,7 +16,7 @@ use self::{
     grid_generator::GridGeneratorPlugin,
     map_zones::{
         BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBoundary, ZoneBrush, ZoneBundle,
-        ZoneGrid, ZoneShape,
+        ZoneGrid, ZoneHierarchy, ZoneOrderingId, ZoneShape,
     },
 };
 
@@ -41,19 +41,90 @@ pub struct SelectedZone {
     pub brush: Option<Entity>,
 }
 
+fn zone_hierarchy(
+    mut ui: &mut Ui,
+    mut commands: &mut Commands,
+    mut selected_zone: &mut ResMut<SelectedZone>,
+    selected: i32,
+    level: &Vec<Entity>,
+    hierarchy: &Res<ZoneHierarchy>,
+    zones: &Query<(Entity, &Zone, &ZoneOrderingId)>,
+) {
+    ui.vertical(|ui| {
+        let num_items = level.len();
+        let max_order = num_items as u32 - 1u32;
+        level.iter().enumerate().for_each(|(index, entity)| {
+            let entity = *entity;
+            let children = hierarchy.child_map.get(&entity);
+            if let Ok((entity, zone, _)) = zones.get(entity) {
+                ui.horizontal(|ui| {
+                    if ui
+                        .selectable_label(selected == entity.id() as i32, &zone.name)
+                        .clicked()
+                    {
+                        selected_zone.zone = Some(entity);
+                        selected_zone.brush = None;
+                    }
+                    if zone.order > 0 && ui.button("Up").clicked() {
+                        commands.entity(entity).insert(Zone {
+                            name: zone.name.clone(),
+                            order: zone.order - 1,
+                        });
+                        let prev = level[index - 1];
+                        if let Ok((prev, zone, _)) = zones.get(prev) {
+                            commands.entity(prev).insert(Zone {
+                                name: zone.name.clone(),
+                                order: zone.order + 1,
+                            });
+                        }
+                    }
+                    if zone.order < max_order && ui.button("Down").clicked() {
+                        commands.entity(entity).insert(Zone {
+                            name: zone.name.clone(),
+                            order: zone.order + 1,
+                        });
+                        let next = level[index + 1];
+                        if let Ok((next, zone, _)) = zones.get(next) {
+                            commands.entity(next).insert(Zone {
+                                name: zone.name.clone(),
+                                order: zone.order - 1,
+                            });
+                        }
+                    }
+                    if ui.button("New Zone").clicked() {
+                        let child = commands.spawn_bundle(ZoneBundle {
+                            zone: Zone {
+                                name: String::from("Zone"),
+                                order: if let Some(children) = children { children.len() as u32 } else { 0 },
+                            },
+                            ..Default::default()
+                        }).id();
+                        commands.entity(entity).push_children(&[child]);
+                    }
+                });
+                if let Some(children) = children {
+                    ui.collapsing("", |mut ui| {
+                        zone_hierarchy(&mut ui, &mut commands, &mut selected_zone, selected, &children, hierarchy, zones);
+                    });
+                }
+            }
+        });
+    });
+}
+
 fn map_construction_hierarchy(
     egui_context: ResMut<EguiContext>,
     mut commands: Commands,
     mut selected_zone: ResMut<SelectedZone>,
-    zones: Query<(Entity, &Zone)>,
+    zones: Query<(Entity, &Zone, &ZoneOrderingId)>,
+    hierarchy: Option<Res<ZoneHierarchy>>,
 ) {
-    let zone_count = zones.iter().count();
-    egui::Window::new("Hierarchy").show(egui_context.ctx(), |ui| {
+    egui::Window::new("Hierarchy").show(egui_context.ctx(), |mut ui| {
         if ui.button("New Zone").clicked() {
             commands.spawn_bundle(ZoneBundle {
                 zone: Zone {
                     name: String::from("Zone"),
-                    order: zone_count as u32,
+                    order: if let Some(hierarchy) = &hierarchy { hierarchy.root.len() as u32 } else { 0 },
                 },
                 ..Default::default()
             });
@@ -62,17 +133,17 @@ fn map_construction_hierarchy(
             Some(selected) => selected.id() as i32,
             None => -1,
         };
-        ui.vertical(|ui| {
-            zones.for_each(|(entity, zone)| {
-                if ui
-                    .selectable_label(selected == entity.id() as i32, &zone.name)
-                    .clicked()
-                {
-                    selected_zone.zone = Some(entity);
-                    selected_zone.brush = None;
-                }
-            });
-        });
+        if let Some(hierarchy) = hierarchy {
+            zone_hierarchy(
+                &mut ui,
+                &mut commands,
+                &mut selected_zone,
+                selected.clone(),
+                &hierarchy.root,
+                &hierarchy,
+                &zones,
+            );
+        }
     });
 }
 
@@ -99,9 +170,10 @@ fn zone_inspector(
                 .show(egui_context.ctx(), |ui| {
                     let mut name = zone.name.clone();
                     if ui.text_edit_singleline(&mut name).changed() {
-                        commands
-                            .entity(selected)
-                            .insert(Zone { name: name.clone(), order: zone.order });
+                        commands.entity(selected).insert(Zone {
+                            name: name.clone(),
+                            order: zone.order,
+                        });
                     }
                     if ui.button("Remove Zone").clicked() {
                         commands.entity(selected).despawn_recursive();
