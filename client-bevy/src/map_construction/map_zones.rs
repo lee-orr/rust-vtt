@@ -13,8 +13,7 @@ pub struct MapZonePlugin;
 
 impl Plugin for MapZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app
-            .init_resource::<ZoneBrushes>()
+        app.init_resource::<ZoneBrushes>()
             .init_resource::<ZoneHierarchy>()
             .add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
             .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
