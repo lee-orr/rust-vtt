@@ -13,21 +13,39 @@ pub struct MapZonePlugin;
 
 impl Plugin for MapZonePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
+        app
+            .init_resource::<ZoneBrushes>()
+            .init_resource::<ZoneHierarchy>()
+            .add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
             .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
             .add_system_to_stage(CoreStage::PostUpdate, calculate_zone_bounds)
-            .add_system_to_stage(CoreStage::PostUpdate, adjust_zone_hierarchy);
+            .add_system_to_stage(CoreStage::PostUpdate, adjust_zone_hierarchy)
+            .add_system_to_stage(CoreStage::PostUpdate, setup_zone_brushes);
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct ZoneOrderingId {
     pub order: u128,
+    pub depth: u8,
+}
+
+impl PartialOrd for ZoneOrderingId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.order.partial_cmp(&other.order)
+    }
+}
+
+impl Ord for ZoneOrderingId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.order.cmp(&other.order)
+    }
 }
 
 impl ZoneOrderingId {
     fn from_zone_orders(order_in_layers: &[usize]) -> Option<ZoneOrderingId> {
         let mut order: u128 = 0;
+        let mut depth: u8 = 0;
         if order_in_layers.len() > 11 {
             return None;
         }
@@ -38,11 +56,12 @@ impl ZoneOrderingId {
             let power = (11 - layer) as u32;
             let multiplier = 1000u128.pow(power);
             order += multiplier * (*layer_order as u128);
+            depth = layer as u8;
         }
-        Some(ZoneOrderingId { order })
+        Some(ZoneOrderingId { order, depth })
     }
 
-    fn nearest_shared_zone(&self, b: &ZoneOrderingId) -> Option<ZoneOrderingId> {
+    pub fn nearest_shared_zone(&self, b: &ZoneOrderingId) -> Option<ZoneOrderingId> {
         if self == b {
             Some(*self)
         } else {
@@ -54,11 +73,23 @@ impl ZoneOrderingId {
                 if a_adjusted == b_adjusted {
                     shared = Some(ZoneOrderingId {
                         order: a_adjusted * divisor,
+                        depth: 11 - layer as u8,
                     });
                     break;
                 }
             }
             shared
+        }
+    }
+
+    pub fn ancestor_of(&self, child: &ZoneOrderingId) -> bool {
+        if self == child {
+            true
+        } else {
+            let divisor = 1000u128.pow(11u32 - self.depth as u32);
+            let a_adjusted = self.order / divisor;
+            let b_adjusted = child.order / divisor;
+            a_adjusted == b_adjusted
         }
     }
 }
@@ -96,6 +127,7 @@ fn insert_layer_in_zone_hierarchy(
 pub struct ZoneHierarchy {
     pub zone_by_order_id: HashMap<ZoneOrderingId, Entity>,
     pub ordered_zones: Vec<(Entity, ZoneOrderingId)>,
+    pub reverse_ordered_zones: Vec<(Entity, ZoneOrderingId)>,
     pub root: Vec<Entity>,
     pub child_map: HashMap<Entity, Vec<Entity>>,
 }
@@ -144,6 +176,11 @@ fn adjust_zone_hierarchy(
     println!("Setting zone hierarchy");
     commands.insert_resource(ZoneHierarchy {
         zone_by_order_id,
+        reverse_ordered_zones: {
+            let mut rev = ordered_zones.clone();
+            rev.reverse();
+            rev
+        },
         ordered_zones,
         root: root_level.iter().map(|(e, _)| *e).collect::<_>(),
         child_map: new_child_map,
@@ -186,6 +223,29 @@ fn mark_dirty_zone(
             child = parent.0;
             commands.entity(child).insert(DirtyZone);
         }
+    });
+}
+
+#[derive(Debug, Default)]
+pub struct ZoneBrushes {
+    pub brushes: HashMap<Entity, Vec<(GlobalTransform, ZoneShape, ShapeOperation)>>,
+}
+
+fn setup_zone_brushes(
+    mut commands: Commands,
+    brushes: Query<(&GlobalTransform, &ZoneBrush, &Parent)>,
+) {
+    let mut brushes = brushes.iter().collect::<Vec<_>>();
+    brushes.sort_by(|(_, a, _), (_, b, _)| a.order.partial_cmp(&b.order).unwrap());
+
+    let mut zone_table =
+        HashMap::<Entity, Vec<(GlobalTransform, ZoneShape, ShapeOperation)>>::new();
+    brushes.iter().for_each(|(transform, brush, parent)| {
+        let vec = zone_table.entry(parent.0).or_insert_with(Vec::new);
+        vec.push((**transform, brush.shape, brush.operation));
+    });
+    commands.insert_resource(ZoneBrushes {
+        brushes: zone_table,
     });
 }
 
@@ -646,6 +706,7 @@ mod tests {
             ordering.unwrap().order,
             13005006000000000000000000000000000u128
         );
+        assert_eq!(ordering.unwrap().depth, 2);
     }
 
     #[test]
@@ -656,5 +717,17 @@ mod tests {
         let shared_result = a.nearest_shared_zone(&b);
         assert!(shared_result.is_some());
         assert_eq!(shared_result.unwrap(), shared_expected);
+        assert_eq!(shared_result.unwrap().depth, 0);
+    }
+
+    #[test]
+    fn get_correct_parent_of() {
+        let a = ZoneOrderingId::from_zone_orders(&[12, 5, 6]).unwrap();
+        let b = ZoneOrderingId::from_zone_orders(&[12, 7, 10]).unwrap();
+        let c = ZoneOrderingId::from_zone_orders(&[12, 7]).unwrap();
+        let d = ZoneOrderingId::from_zone_orders(&[12, 5]).unwrap();
+        assert!(!b.ancestor_of(&a));
+        assert!(!c.ancestor_of(&a));
+        assert!(d.ancestor_of(&a));
     }
 }

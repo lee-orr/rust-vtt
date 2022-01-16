@@ -40,12 +40,6 @@ pub struct GridPoint {
     pub zones: Vec<Entity>,
 }
 
-#[derive(Component)]
-pub struct Tile {
-    pub is_boundary: bool,
-    pub zones: Vec<Vec<Entity>>,
-}
-
 impl Vector<GridPoint> for GridPoint {}
 
 impl Coord for GridPoint {

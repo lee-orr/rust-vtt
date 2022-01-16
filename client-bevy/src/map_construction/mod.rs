@@ -13,15 +13,16 @@ use bevy_egui::{
 };
 
 use self::{
-    grid_generator::GridGeneratorPlugin,
     map_zones::{
         BrushBundle, MapZonePlugin, ShapeOperation, Zone, ZoneBrush, ZoneBundle, ZoneColor,
         ZoneHierarchy, ZoneOrderingId, ZoneShape,
     },
+    tile_generator::TileGeneratorPlugin,
 };
 
 pub mod grid_generator;
 pub mod map_zones;
+pub mod tile_generator;
 
 pub struct MapConstructionPlugin;
 
@@ -31,7 +32,7 @@ impl Plugin for MapConstructionPlugin {
             .add_system(map_construction_hierarchy)
             .add_system(zone_inspector)
             .add_plugin(MapZonePlugin)
-            .add_plugin(GridGeneratorPlugin);
+            .add_plugin(TileGeneratorPlugin);
     }
 }
 
@@ -52,6 +53,9 @@ fn zone_hierarchy(
 ) {
     ui.vertical(|ui| {
         let num_items = level.len();
+        if num_items == 0 {
+            return;
+        }
         let max_order = num_items as u32 - 1u32;
         level.iter().enumerate().for_each(|(index, entity)| {
             let entity = *entity;
@@ -136,18 +140,14 @@ fn map_construction_hierarchy(
     mut commands: Commands,
     mut selected_zone: ResMut<SelectedZone>,
     zones: Query<(Entity, &Zone, &ZoneOrderingId)>,
-    hierarchy: Option<Res<ZoneHierarchy>>,
+    hierarchy: Res<ZoneHierarchy>,
 ) {
     egui::Window::new("Hierarchy").show(egui_context.ctx(), |mut ui| {
         if ui.button("New Zone").clicked() {
             commands.spawn_bundle(ZoneBundle {
                 zone: Zone {
                     name: String::from("Zone"),
-                    order: if let Some(hierarchy) = &hierarchy {
-                        hierarchy.root.len() as u32
-                    } else {
-                        0
-                    },
+                    order: hierarchy.root.len() as u32,
                     level: 0,
                 },
                 ..Default::default()
@@ -157,17 +157,15 @@ fn map_construction_hierarchy(
             Some(selected) => selected.id() as i32,
             None => -1,
         };
-        if let Some(hierarchy) = hierarchy {
-            zone_hierarchy(
-                &mut ui,
-                &mut commands,
-                &mut selected_zone,
-                selected,
-                &hierarchy.root,
-                &hierarchy,
-                &zones,
-            );
-        }
+        zone_hierarchy(
+            &mut ui,
+            &mut commands,
+            &mut selected_zone,
+            selected,
+            &hierarchy.root,
+            &hierarchy,
+            &zones,
+        );
     });
 }
 
