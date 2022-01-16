@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::map_zones::{
-    DirtyZone, GetDistanceField, Zone, ZoneBoundary, ZoneBounds,
-    ZoneBrushes, ZoneColor, ZoneHierarchy, ZoneOrderingId,
+    DirtyZone, GetDistanceField, Zone, ZoneBoundary, ZoneBounds, ZoneBrushes, ZoneColor,
+    ZoneHierarchy, ZoneOrderingId,
 };
 
 pub struct TileGeneratorPlugin;
