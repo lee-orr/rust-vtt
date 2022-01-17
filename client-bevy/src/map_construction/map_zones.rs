@@ -5,7 +5,7 @@ use bevy::{
     math::{Vec2, Vec3, Vec4, Vec4Swizzles},
     prelude::{
         Bundle, Changed, Color, Commands, Component, CoreStage, Entity, GlobalTransform, Or,
-        Parent, Plugin, Query, Transform,
+        ParallelSystemDescriptorCoercion, Parent, Plugin, Query, Res, ResMut, Transform,
     },
 };
 
@@ -17,9 +17,15 @@ impl Plugin for MapZonePlugin {
             .init_resource::<ZoneHierarchy>()
             .add_system_to_stage(CoreStage::PreUpdate, clear_dirty)
             .add_system_to_stage(CoreStage::PostUpdate, mark_dirty_zone)
-            .add_system_to_stage(CoreStage::PostUpdate, calculate_zone_bounds)
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                calculate_zone_bounds.after("zone_brushes"),
+            )
             .add_system_to_stage(CoreStage::PostUpdate, adjust_zone_hierarchy)
-            .add_system_to_stage(CoreStage::PostUpdate, setup_zone_brushes);
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                setup_zone_brushes.label("zone_brushes"),
+            );
     }
 }
 
@@ -231,9 +237,14 @@ pub struct ZoneBrushes {
 }
 
 fn setup_zone_brushes(
-    mut commands: Commands,
+    _commands: Commands,
     brushes: Query<(&GlobalTransform, &ZoneBrush, &Parent)>,
+    changed_brushes: Query<&ZoneBrush, Or<(Changed<ZoneBrush>, Changed<Transform>)>>,
+    mut brush_table: ResMut<ZoneBrushes>,
 ) {
+    if changed_brushes.is_empty() {
+        return;
+    }
     let mut brushes = brushes.iter().collect::<Vec<_>>();
     brushes.sort_by(|(_, a, _), (_, b, _)| a.order.partial_cmp(&b.order).unwrap());
 
@@ -243,36 +254,21 @@ fn setup_zone_brushes(
         let vec = zone_table.entry(parent.0).or_insert_with(Vec::new);
         vec.push((**transform, brush.shape, brush.operation));
     });
-    commands.insert_resource(ZoneBrushes {
-        brushes: zone_table,
-    });
+    brush_table.brushes = zone_table;
 }
 
-fn calculate_zone_bounds(
-    mut commands: Commands,
-    changed_brushes: Query<
-        (&GlobalTransform, &ZoneBrush, &Parent),
-        Or<(Changed<ZoneBrush>, Changed<Transform>)>,
-    >,
-    _zones: Query<(Entity, &Zone)>,
-) {
-    let mut zone_table =
-        HashMap::<Entity, Vec<(f32, (GlobalTransform, ZoneShape, ShapeOperation))>>::new();
-    changed_brushes.for_each(|(transform, brush, parent)| {
-        let vec = zone_table.entry(parent.0).or_insert_with(Vec::new);
-        vec.push((brush.order, (*transform, brush.shape, brush.operation)));
-    });
-    zone_table.iter().for_each(|(entity, brushes)| {
-        let bounds = brushes
-            .iter()
-            .fold(None, |prev, brush| brush.1.bounds(prev));
-        if let Some(bounds) = bounds {
-            commands.entity(*entity).insert(ZoneBounds {
-                min: bounds.0,
-                max: bounds.1,
-            });
-        }
-    });
+fn calculate_zone_bounds(mut commands: Commands, brushes: Res<ZoneBrushes>) {
+    if brushes.is_changed() {
+        brushes.brushes.iter().for_each(|(entity, brushes)| {
+            let bounds = brushes.iter().fold(None, |prev, brush| brush.bounds(prev));
+            if let Some(bounds) = bounds {
+                commands.entity(*entity).insert(ZoneBounds {
+                    min: bounds.0,
+                    max: bounds.1,
+                });
+            }
+        });
+    }
 }
 
 fn clear_dirty(mut commands: Commands, zones: Query<(Entity, &DirtyZone)>) {

@@ -75,6 +75,10 @@ fn mark_dirt_tiles(
         let min_y = (boundary.min.y / tile_size).floor() as i32;
         let max_x = (boundary.max.x / tile_size).ceil() as i32;
         let max_y = (boundary.max.y / tile_size).ceil() as i32;
+        println!(
+            "Updating zone! {} {} {},{} {},{}",
+            zone.name, zone.level, min_x, min_y, max_x, max_y
+        );
         for x in min_x..max_x {
             for y in min_y..max_y {
                 if let Some(tile) = tile_grid.tiles.get(&(x, y, level)) {
@@ -117,7 +121,6 @@ fn setup_dirty_tiles(
     let tile_radius = tile_settings.tile_size / 2.;
 
     tiles.for_each(|(entity, _tile, position)| {
-        println!("processing tile @ {:?}", position.index);
         let mut tile_zones = Vec::<ZoneOrderingId>::new();
         let mut is_boundary = false;
         hierarchy
@@ -148,6 +151,7 @@ fn setup_dirty_tiles(
                 zones: tile_zones,
             });
         } else {
+            println!("Removing tile {:?}", position.index);
             tile_grid.tiles.remove(&position.index);
             commands.entity(entity).despawn_recursive();
         }
@@ -157,17 +161,19 @@ fn setup_dirty_tiles(
 fn mesh_tiles(
     mut commands: Commands,
     tile_settings: Res<TileSettings>,
-    _tile_grid: ResMut<TileGrid>,
-    tiles_to_update: Query<(Entity, &Tile, &TilePosition, Option<&TileContents>), Changed<Tile>>,
-    _tiles: Query<(Entity, &Tile, &TilePosition)>,
+    tile_grid: ResMut<TileGrid>,
+    tiles: Query<(Entity, &Tile, &TilePosition, Option<&TileContents>)>,
     hierarchy: Res<ZoneHierarchy>,
     zones: Query<(Entity, &Zone, Option<&ZoneColor>, Option<&ZoneBoundary>)>,
     _zone_brushes: Res<ZoneBrushes>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    if !tile_grid.update {
+        return;
+    }
     let _tile_radius = tile_settings.tile_size / 2.;
-    for (entity, tile, _position, contents) in tiles_to_update.iter() {
+    for (entity, tile, _position, contents) in tiles.iter() {
         if let Some(contents) = contents {
             for item in &contents.contents {
                 commands.entity(*item).despawn_recursive();
